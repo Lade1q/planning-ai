@@ -39,9 +39,6 @@
 | 4   | Nguyễn Phương Gia Bảo | Frontend Leader             | -                   |
 | 5   | Ngô Văn Phong         | Backend Leader              | -                   |
 
-> [!NOTE]
-> **Phân tích phân công:** Nhóm có 5 thành viên với sự phân bố vai trò hợp lý.
-
 ---
 
 ## 2. Giới thiệu dự án
