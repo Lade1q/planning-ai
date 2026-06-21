@@ -67,6 +67,10 @@ Qua quan sát ban đầu, sinh viên và nhân viên văn phòng thường gặp
 > [!IMPORTANT]
 > **Điểm khác biệt cốt lõi:** Planning AI không chỉ là một to-do list thông thường. Giá trị độc đáo nằm ở việc kết hợp 3 bước Plan-Focus-Verify thành một quy trình liền mạch, tận dụng AI để cá nhân hóa trải nghiệm.
 
+### 2.3. Kết quả mong muốn
+
+Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có khả năng chuyển đổi thông tin phân tán thành kế hoạch hành động rõ ràng, hỗ trợ họ duy trì sự tập trung trong quá trình thực hiện thông qua các phiên Pomodoro hoặc môi trường làm việc tối giản, đồng thời xác nhận mức độ hoàn thành qua bước Verify với phản hồi ngắn gọn và đề xuất bước tiếp theo phù hợp.
+
 ---
 
 ## 3. Người dùng mục tiêu và Môi trường hoạt động
