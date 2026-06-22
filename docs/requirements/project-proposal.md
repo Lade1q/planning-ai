@@ -1,8 +1,8 @@
 # ĐỀ XUẤT DỰ ÁN: PLANNING AI - PLAN / FOCUS / VERIFY
 
 > **Trạng thái:** BẢN NHÁP - Chờ User duyệt
-> **Phiên bản:** 1.2
-> **Ngày soạn:** 2026-06-20
+> **Phiên bản:** 1.3
+> **Ngày soạn:** 2026-06-22
 > **Người soạn:** PM
 > **Môn học:** Nhập môn Công nghệ Phần mềm (24C07)
 > **Bài tập:** PA0 - Đăng ký nhóm và Thiết lập công cụ
@@ -17,7 +17,7 @@
 3. [Người dùng mục tiêu và Môi trường hoạt động](#3-người-dùng-mục-tiêu-và-môi-trường-hoạt-động)
 4. [Các tính năng chính](#4-các-tính-năng-chính)
 5. [Phỏng vấn người dùng](#5-phỏng-vấn-người-dùng)
-6. [Danh sách màn hình dự kiến](#6-danh-sách-màn-hình-dự-kiến)
+6. [Danh sách màn hình dự kiến](#6-danh-sách-màn-hình-dự-kiến-quy-mô-hệ-thống-mvp)
 7. [Công nghệ đề xuất (Tech Stack)](#7-công-nghệ-đề-xuất-tech-stack)
 8. [Phân công vai trò và Trách nhiệm](#8-phân-công-vai-trò-và-trách-nhiệm)
 9. [Kế hoạch thực hiện (Project Schedule)](#9-kế-hoạch-thực-hiện-project-schedule)
@@ -38,9 +38,6 @@
 | 3   | Nguyễn Minh Phát      | QA/Tester                   | Fullstack Developer |
 | 4   | Nguyễn Phương Gia Bảo | Frontend Leader             | -                   |
 | 5   | Ngô Văn Phong         | Backend Leader              | -                   |
-
-> [!NOTE]
-> **Phân tích phân công:** Nhóm có 5 thành viên với sự phân bố vai trò hợp lý.
 
 ---
 
@@ -66,10 +63,6 @@ Qua quan sát ban đầu, sinh viên và nhân viên văn phòng thường gặp
 
 > [!IMPORTANT]
 > **Điểm khác biệt cốt lõi:** Planning AI không chỉ là một to-do list thông thường. Giá trị độc đáo nằm ở việc kết hợp 3 bước Plan-Focus-Verify thành một quy trình liền mạch, tận dụng AI để cá nhân hóa trải nghiệm.
-
-### 2.3. Kết quả mong muốn
-
-Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có khả năng chuyển đổi thông tin phân tán thành kế hoạch hành động rõ ràng, hỗ trợ họ duy trì sự tập trung trong quá trình thực hiện thông qua các phiên Pomodoro hoặc môi trường làm việc tối giản, đồng thời xác nhận mức độ hoàn thành qua bước Verify với phản hồi ngắn gọn và đề xuất bước tiếp theo phù hợp.
 
 ---
 
@@ -157,26 +150,192 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 > [!IMPORTANT]
 > **YÊU CẦU BẮT BUỘC CỦA ĐỀ BÀI:** Cần phỏng vấn ít nhất 5 người dùng hoặc khách hàng tiềm năng để xác nhận hoặc khám phá các ý tưởng mới cho dự án. Bản mô tả dự án phải bao gồm bằng chứng về các cuộc phỏng vấn.
 
-### 5.1. Mục tiêu phỏng vấn (Research Goal & Objectives)
+### 5.1. UX Problem Statement
 
-- Xác nhận các vấn đề (pain points) đã nêu ở mục 2.2 có thực sự tồn tại
-- Khám phá nhu cầu thực tế của người dùng về việc lập kế hoạch, tập trung và tự đánh giá
-- Thu thập phản hồi về ý tưởng 3 tính năng chính (Plan / Focus / Verify)
-- Phát hiện các ý tưởng hoặc yêu cầu mới từ góc nhìn người dùng
+- **Who (Đối tượng người dùng):** Người dùng từ sinh viên đại học đến nhân viên văn phòng trẻ thường xuyên phải quản lý nhiều nhiệm vụ, deadline, mục tiêu học tập và mục tiêu cá nhân, nhưng thường thiếu một quy trình đơn giản và hiệu quả để chuyển đổi ý định thành hành động thực tế.
+- **Situation (Ngữ cảnh):** Khi đối mặt với các cột mốc quan trọng như kỳ thi, bài nộp dự án hoặc deadline công việc, người dùng nhận được lượng lớn thông tin hỗn loạn và phi cấu trúc từ nhiều nguồn như chat nhóm, email, tài liệu, ảnh chụp màn hình, ghi chú và tài liệu chuyên môn. Họ phải tự tổng hợp thông tin, xác định điều gì quan trọng, xây dựng kế hoạch hành động, bắt đầu thực hiện, duy trì sự tập trung và sau đó kiểm tra xem mình đã thực sự hiểu hoặc hoàn thành công việc tốt hay chưa.
+- **Pain Points (Điểm đau cốt lõi):**
+  - Người dùng gặp tình trạng quá tải thông tin (information overload).
+  - Người dùng rơi vào trạng thái tê liệt phân tích (analysis paralysis) và không biết bắt đầu từ đâu.
+  - Tốn nhiều công sức và thời gian cho việc tổ chức, sắp xếp nhiệm vụ thủ công.
+  - Các công cụ năng suất hiện tại yêu cầu thiết lập phức tạp, khó duy trì thói quen dài hạn.
+  - Thường xuyên bị phân tâm bởi các tác nhân bên ngoài và khó duy trì động lực.
+  - Thiếu cách thức hiệu quả để tự kiểm tra mức độ hiểu bài hoặc chất lượng hoàn thành công việc sau mỗi phiên học tập/làm việc.
+- **Impact (Hệ quả xấu):**
+  - Các nhiệm vụ quan trọng bị trì hoãn, hoàn thành sát deadline hoặc bị bỏ sót hoàn toàn.
+  - Chất lượng công việc suy giảm và mức độ căng thẳng (stress) của người dùng gia tăng.
+  - Người dùng nhanh chóng từ bỏ các công cụ lập kế hoạch hiện có vì cảm thấy quá nặng nề và phức tạp.
+  - Đối với học tập, người dùng dễ gặp ảo tưởng đã hiểu bài nhưng thực tế không thể giải thích hay áp dụng kiến thức.
+- **Desired Outcome (Kết quả kỳ vọng):** Người dùng cần một giải pháp đơn giản, dễ tiếp cận có khả năng chuyển đổi thông tin hỗn loạn thành kế hoạch hành động rõ ràng, hỗ trợ họ tập trung thực hiện thông qua các phiên Pomodoro tối giản, đồng thời xác minh mức độ hiểu bài thông qua AI Oral Examiner/AI Reflection với phản hồi ngắn gọn và đề xuất bước tiếp theo phù hợp.
 
-### 5.2. Bộ câu hỏi phỏng vấn gợi ý (Interview Questions)
+### 5.2. Mục tiêu nghiên cứu (Research Goal & Objectives)
 
-*(Ghi chú: Nên có form Screener Survey để lọc đúng nhóm người dùng trước khi phỏng vấn sâu. Kết hợp cả Quantitative và Qualitative).*
+#### 5.2.1. Research Goal (Mục tiêu tổng quát)
 
-1. Bạn thường làm gì khi nhận được một nhiệm vụ lớn hoặc mục tiêu mới? (Quy trình hiện tại)
-2. Bạn có gặp khó khăn gì khi tổ chức và sắp xếp công việc không? (Xác nhận pain point)
-3. Bạn đã từng sử dụng công cụ nào để lập kế hoạch chưa? Điều gì bạn thích/không thích? (Competitive insight)
-4. Khi học bài hoặc làm việc, bạn có thường bị mất tập trung không? Bạn làm gì để khắc phục? (Focus need)
-5. Bạn nghĩ sao về việc AI đặt câu hỏi để kiểm tra kiến thức hoặc phản chiếu sau khi làm việc? (Verify need)
-6. Nếu có một ứng dụng kết hợp cả 3 chức năng trên, bạn có sử dụng không? Điều gì là quan trọng nhất? (Priority)
-7. Bạn thường sử dụng thiết bị nào để học tập/làm việc? (Platform preference)
+- Hiểu các rào cản về nhận thức, hành vi và cảm xúc khiến người dùng gặp khó khăn trong việc:
+  - Chuyển đổi thông tin hỗn loạn, nhiệm vụ và deadline thành hành động cụ thể.
+  - Duy trì sự tập trung trong quá trình thực hiện.
+  - Xác minh mức độ hiểu biết sau khi hoàn thành một phiên học tập hoặc làm việc.
+- Nghiên cứu cần xác định cách một quy trình tích hợp **Plan - Focus - Verify** có thể giảm bớt ma sát thông qua lập kế hoạch bằng AI, hỗ trợ tập trung dựa trên Pomodoro và vấn đáp bằng AI.
 
-### 5.3. Bảng tổng hợp kết quả phỏng vấn
+#### 5.2.2. Research Objectives (Mục tiêu cụ thể)
+
+1. Xác định cảm xúc và hành vi của người dùng khi phải quản lý đồng thời nhiều nhiệm vụ, deadline, mục tiêu học tập hoặc trách nhiệm dự án.
+2. Khám phá các công cụ và phương pháp mà người dùng hiện đang sử dụng để lập kế hoạch, quản lý nhiệm vụ, duy trì tập trung, tự kiểm tra kiến thức và lý do tại sao chúng chưa đáp ứng tốt nhu cầu.
+3. Làm rõ các điểm ma sát về nhận thức và tương tác khiến các công cụ năng suất hiện tại khó duy trì sử dụng lâu dài (thiết lập thủ công, chia nhỏ nhiệm vụ, chuyển đổi ngữ cảnh...).
+4. Khám phá các tác nhân gây phân tâm khiến người dùng khó bắt đầu hoặc duy trì công việc (thông báo, mạng xã hội, môi trường...).
+5. Tìm hiểu xem các phiên Pomodoro và phòng học tập ảo đơn giản có thực sự giúp người dùng bắt đầu công việc nhanh hơn và duy trì sự chú ý tốt hơn không.
+6. Hiểu cách người dùng hiện tại kiểm tra xem họ đã thực sự học được hay hoàn thành tốt một nhiệm vụ sau khi kết thúc phiên làm việc/học tập hay chưa.
+7. Đánh giá kỳ vọng của người dùng đối với AI Oral Examiner, bao gồm phong cách đặt câu hỏi, hình thức trả lời, giọng điệu phản hồi, cách đánh giá và gợi ý ôn tập.
+8. Xác định chi tiết yêu cầu sản phẩm cho luồng MVP Plan - Focus - Verify và phân tách rõ các tính năng bắt buộc và các tính năng mở rộng.
+
+#### 5.2.3. MVP Research Focus (Trọng tâm nghiên cứu MVP)
+
+Trong giai đoạn Discovery của Sprint 1, nhóm cần ưu tiên thu thập bằng chứng để xác thực ba giả định:
+
+1. Người dùng cần được hỗ trợ tạo ra kế hoạch hành động đầu tiên một cách nhanh chóng.
+2. Người dùng hưởng lợi từ một nghi thức tập trung đơn giản, ít ma sát và gắn liền với một nhiệm vụ cụ thể.
+3. Người dùng đánh giá cao việc nhận được phản hồi ngay sau khi học tập hoặc hoàn thành các công việc đòi hỏi xử lý kiến thức.
+
+### 5.3. Screener Survey (Khảo sát sàng lọc người tham gia)
+
+> [!NOTE]
+> Mục tiêu của Screener Survey là lọc đúng nhóm người dùng mục tiêu trước khi tiến hành phỏng vấn sâu. Chỉ những người đáp ứng đủ tiêu chí mới được mời phỏng vấn.
+
+#### Tiêu chí đủ điều kiện tham gia (Eligibility Criteria)
+
+Người tham gia phỏng vấn phải đáp ứng ít nhất một trong các điều kiện sau:
+
+- Là sinh viên đại học/cao đẳng đang theo học.
+- Là nhân viên văn phòng (đi làm toàn thời gian hoặc bán thời gian).
+- Có nhu cầu tự học hoặc phát triển kỹ năng cá nhân ngoài giờ làm việc.
+
+Và phải đáp ứng **tất cả** các điều kiện sau:
+
+- Thường xuyên phải quản lý nhiều nhiệm vụ/deadline cùng lúc (ít nhất 3 lần/tuần).
+- Sử dụng máy tính (desktop/laptop) là thiết bị chính để học tập hoặc làm việc.
+
+#### Câu hỏi sàng lọc
+
+**Phần A – Thông tin cơ bản**
+
+| #   | Câu hỏi                                                                                                           | Loại        | Tiêu chí lọc                                                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| S1  | Bạn hiện tại là: (a) Sinh viên đại học/cao đẳng, (b) Nhân viên văn phòng, (c) Vừa đi học vừa đi làm, (d) Khác     | Trắc nghiệm | Chọn (a), (b) hoặc (c) → Đủ điều kiện. Chọn (d) → Hỏi thêm. Follow-up: Sinh viên năm mấy? Ngành gì? |
+| S2  | Bạn thuộc nhóm tuổi nào? (a) Dưới 18, (b) 18–24, (c) 25–35, (d) Trên 35                                           | Trắc nghiệm | Ưu tiên (b) và (c)                                                                                  |
+| S3  | Thiết bị chính bạn dùng để học tập/làm việc là gì? (a) Máy tính để bàn/laptop, (b) Điện thoại di động, (c) Cả hai | Trắc nghiệm | Chọn (a) hoặc (c) → Đủ điều kiện. Chỉ (b) → Loại                                                    |
+
+**Phần B – Hành vi quản lý công việc**
+
+| #   | Câu hỏi                                                                                                                                                 | Loại                        | Tiêu chí lọc                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| S4  | Trung bình mỗi tuần, bạn có bao nhiêu nhiệm vụ/deadline cần quản lý cùng lúc? (a) 1–2, (b) 3–5, (c) Hơn 5                                               | Trắc nghiệm                 | Chọn (b) hoặc (c) → Đủ điều kiện. Chọn (a) → Có thể loại |
+| S5  | Bạn có bao giờ cảm thấy không biết bắt đầu từ đâu khi nhận một nhiệm vụ lớn không? (a) Thường xuyên, (b) Thỉnh thoảng, (c) Hiếm khi, (d) Không bao giờ  | Trắc nghiệm                 | Chọn (a) hoặc (b) → Đủ điều kiện                         |
+| S6  | Bạn có hiện đang sử dụng bất kỳ công cụ nào để lập kế hoạch/quản lý công việc không? (Ví dụ: Notion, Trello, Google Calendar, Todoist, ghi chú giấy...) | Có/Không + Điền tên công cụ | Không bắt buộc, dùng để phân nhóm                        |
+
+**Phần C – Hành vi tập trung và tự đánh giá**
+
+| #   | Câu hỏi                                                                                                                                                                   | Loại        | Tiêu chí lọc                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
+| S7  | Khi học bài hoặc làm việc, bạn thường bị phân tâm trong bao lâu? (a) Dưới 15 phút, (b) 15–30 phút, (c) Hơn 30 phút, (d) Tôi có thể tập trung tốt, không bị phân tâm nhiều | Trắc nghiệm | Ưu tiên (b) và (c), (d) vẫn có thể tham gia |
+| S8  | Bạn có thường tự hỏi "Mình đã thực sự hiểu bài/hoàn thành tốt chưa?" sau khi học hoặc làm việc không? (a) Thường xuyên, (b) Thỉnh thoảng, (c) Hiếm khi                    | Trắc nghiệm | Chọn (a) hoặc (b) → Ưu tiên cao             |
+
+---
+
+### 5.4. Câu hỏi phỏng vấn sâu (Interview Questions)
+
+> [!NOTE]
+> Phỏng vấn theo hình thức bán cấu trúc (semi-structured). Thời gian dự kiến: 20–30 phút/người. Người phỏng vấn nên linh hoạt theo dõi câu trả lời và đặt thêm câu hỏi follow-up khi cần thiết.
+
+#### Hướng dẫn mở đầu (Introduction Script)
+
+> _"Xin chào, cảm ơn bạn đã dành thời gian tham gia. Tôi đang thực hiện một nghiên cứu về cách mọi người quản lý công việc, duy trì sự tập trung và tự đánh giá hiệu quả sau khi hoàn thành nhiệm vụ. Không có câu trả lời đúng hay sai – tôi chỉ muốn hiểu trải nghiệm thực tế của bạn. Bạn có cho phép tôi ghi âm/ghi hình buổi nói chuyện này không?"_
+
+---
+
+#### Phần 1 – Khởi động (Warm-up) | 3–5 phút
+
+_Mục tiêu: Làm quen, khai thác bối cảnh cá nhân của người được phỏng vấn._
+
+| #   | Câu hỏi                                                                         | Research Objective |
+| --- | ------------------------------------------------------------------------------- | ------------------ |
+| W1  | Một ngày làm việc/học tập điển hình của bạn trông như thế nào?                  | RO1                |
+| W2  | Bạn thường có bao nhiêu nhiệm vụ cần xử lý cùng lúc? Đó là những loại task nào? | RO1                |
+
+---
+
+#### Phần 2 – Lập kế hoạch và Tổ chức công việc | 7–10 phút
+
+_Mục tiêu: Khám phá quy trình hiện tại, công cụ đang dùng và các điểm ma sát (RO1, RO2, RO3)._
+
+| #   | Câu hỏi                                                                                                               | Research Objective |
+| --- | --------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| P1  | Khi nhận một nhiệm vụ lớn hoặc mục tiêu mới, bạn thường làm gì đầu tiên? Bạn có thể mô tả quy trình của bạn không?    | RO1, RO2           |
+| P2  | Bạn hiện dùng công cụ gì để lập kế hoạch hoặc quản lý công việc? (Nếu có)                                             | RO2                |
+| P3  | Điều gì bạn thích nhất ở công cụ đó? Điều gì khiến bạn thấy bất tiện hoặc ngại dùng?                                  | RO2, RO3           |
+| P4  | Kể cho tôi nghe về một lần bạn đã lên kế hoạch cho một nhiệm vụ. Quá trình thực hiện kế hoạch đó diễn ra như thế nào? | RO3                |
+| P5  | Khi bạn phải đối mặt với một lượng lớn công việc cùng một lúc, bạn thường bắt đầu như thế nào?                        | RO1, RO3           |
+| P6  | Bạn thường mất bao lâu để tổ chức và phân chia nhiệm vụ trước khi bắt tay vào làm?                                    | RO3                |
+
+---
+
+#### Phần 3 – Tập trung và Phân tâm | 5–7 phút
+
+_Mục tiêu: Hiểu các tác nhân gây phân tâm và thói quen duy trì tập trung (RO4, RO5)._
+
+| #   | Câu hỏi                                                                                                                                 | Research Objective |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| F1  | Khi đang học bài hoặc làm việc, điều gì thường khiến bạn mất tập trung nhất?                                                            | RO4                |
+| F2  | Bạn thường làm gì để lấy lại sự tập trung sau khi bị phân tâm?                                                                          | RO4                |
+| F3  | Bạn đã từng thử các phương pháp hoặc kỹ thuật nào để duy trì sự tập trung khi làm việc chưa? Trải nghiệm của bạn với chúng như thế nào? | RO5                |
+| F4  | Theo bạn, một môi trường hoặc công cụ lý tưởng để giúp bạn tập trung khi làm việc/học bài sẽ trông như thế nào?                         | RO5                |
+| F5  | Bạn thích học/làm việc một mình hay trong môi trường có người khác xung quanh (như thư viện, quán cà phê)? Tại sao?                     | RO5                |
+
+---
+
+#### Phần 4 – Tự đánh giá sau khi hoàn thành | 5–7 phút
+
+_Mục tiêu: Hiểu thói quen tự kiểm tra và kỳ vọng về AI Verify (RO6, RO7)._
+
+| #   | Câu hỏi                                                                                                                                                                                                                                                                                                                                                                                                                 | Research Objective |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| V1  | Sau khi học xong một chủ đề hoặc hoàn thành một nhiệm vụ, bạn thường làm gì? Bạn có tự kiểm tra kết quả không?                                                                                                                                                                                                                                                                                                          | RO6                |
+| V2  | Sau khi hoàn thành một buổi học hoặc làm việc, bạn thường cảm thấy như thế nào về kết quả của mình? Bạn đánh giá mức độ hoàn thành ra sao?                                                                                                                                                                                                                                                                              | RO6                |
+| V3  | Tưởng tượng rằng sau khi bạn học xong một chủ đề, một AI sẽ tương tác với bạn để giúp bạn kiểm tra mức độ hiểu. Ví dụ: nếu bạn vừa học về kiến trúc REST API, AI có thể hỏi _"Em hãy giải thích sự khác nhau giữa PUT và PATCH"_, hoặc nếu bạn vừa đọc xong một chương sách, AI hỏi _"Ý chính của phần này là gì và nó liên quan đến cuộc sống của bạn như thế nào?"_. Bạn cảm thấy thế nào về hình thức tương tác này? | RO7                |
+| V4  | Bạn muốn AI phản hồi theo phong cách nào? (a) Trực tiếp, chỉ ra điểm sai ngay, (b) Khích lệ và gợi ý từng bước, (c) Đặt thêm câu hỏi để bạn tự suy nghĩ                                                                                                                                                                                                                                                                 | RO7                |
+| V5  | Đối với các công việc không phải học thuật (như lên kế hoạch cá nhân, dọn phòng, tập thể dục...), bạn có muốn AI đặt câu hỏi phản chiếu để bạn tự review lại không? (Ví dụ: "Bạn đã hoàn thành đủ các yêu cầu chưa? Có điểm nào cần rút kinh nghiệm?")                                                                                                                                                                  | RO7                |
+
+---
+
+#### Phần 5 – Phản hồi về ý tưởng sản phẩm | 3–5 phút
+
+_Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác định yêu cầu MVP (RO8)._
+
+| #   | Câu hỏi                                                                                                                                                                                                                                                                                                                                      | Research Objective |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| A1  | Tôi muốn giới thiệu ý tưởng Planning AI: một ứng dụng cho phép bạn nhập mục tiêu hoặc tải ảnh bài tập lên, AI tự động tạo kế hoạch hành động, sau đó bạn dùng bộ đếm giờ tập trung (Pomodoro) gắn với từng nhiệm vụ, và cuối cùng AI sẽ hỏi vài câu để kiểm tra bạn hoặc giúp bạn tự review. Cảm nhận đầu tiên của bạn về ý tưởng này là gì? | RO8                |
+| A2  | Trong 3 tính năng đó (Lập kế hoạch / Tập trung / Kiểm tra – Phản chiếu), tính năng nào bạn thấy hữu ích nhất? Tại sao?                                                                                                                                                                                                                       | RO8                |
+| A3  | Bạn thấy điều gì ở ý tưởng này chưa phù hợp hoặc cần cải thiện so với nhu cầu thực tế của bạn?                                                                                                                                                                                                                                               | RO8                |
+| A4  | Nếu ứng dụng này tồn tại ngay bây giờ, điều đầu tiên bạn muốn nó làm được là gì?                                                                                                                                                                                                                                                             | RO8                |
+| A5  | Bạn có điều gì muốn thêm hoặc bất kỳ gợi ý nào cho sản phẩm này không?                                                                                                                                                                                                                                                                       | RO8                |
+
+---
+
+### 5.5. Đặc điểm người tham gia mục tiêu (Participant Characteristics)
+
+| Đặc điểm                 | Tiêu chí                                                                               |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| **Nhóm chính**           | Sinh viên đại học năm 2–4; Nhân viên văn phòng 22–32 tuổi                              |
+| **Số lượng**             | Tối thiểu 5 người (khuyến nghị 3 sinh viên + 2 nhân viên văn phòng để đảm bảo đa dạng) |
+| **Thiết bị**             | Chủ yếu dùng máy tính (desktop/laptop) để học tập/làm việc                             |
+| **Tần suất đa nhiệm**    | Quản lý ≥ 3 nhiệm vụ/deadline/tuần                                                     |
+| **Kinh nghiệm với tool** | Có hoặc không có đều được (để so sánh 2 nhóm)                                          |
+| **Ngôn ngữ phỏng vấn**   | Tiếng Việt                                                                             |
+| **Hình thức**            | Trực tiếp hoặc Online (Google Meet / Zoom)                                             |
+
+---
+
+### 5.6. Bảng tổng hợp kết quả phỏng vấn
 
 | STT | Tên người được phỏng vấn | Nghề nghiệp / Nền tảng | Ngày phỏng vấn | Hình thức (Trực tiếp / Online) | Link bằng chứng (ghi âm / video / ghi chú) |
 | --- | ------------------------ | ---------------------- | -------------- | ------------------------------ | ------------------------------------------ |
@@ -184,9 +343,9 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 | 2   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                         | [Điền link hoặc đường dẫn file]            |
 | 3   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                         | [Điền link hoặc đường dẫn file]            |
 | 4   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                         | [Điền link hoặc đường dẫn file]            |
-| 5   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                         | [Điền link hoặc đường dẫn file]            |
+| 5   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                         |
 
-### 5.4. Các phát hiện chính từ phỏng vấn
+### 5.7. Các phát hiện chính từ phỏng vấn
 
 <!-- Nhóm CAGT điền sau khi thực hiện phỏng vấn -->
 
@@ -194,7 +353,7 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - **Phát hiện 2:** [Mô tả]
 - **Phát hiện 3:** [Mô tả]
 
-### 5.5. Điều chỉnh dự án dựa trên phản hồi phỏng vấn
+### 5.8. Điều chỉnh dự án dựa trên phản hồi phỏng vấn
 
 <!-- Nhóm CAGT điền sau khi phân tích kết quả phỏng vấn -->
 
@@ -208,69 +367,36 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 
 **Tổng cộng: 12 màn hình cốt lõi**
 
-| STT | Màn hình               | Nhóm tính năng | Ghi chú                           |
-| --- | ---------------------- | -------------- | --------------------------------- |
-| 1   | Landing Page           | Marketing      | Giới thiệu sản phẩm, CTA đăng ký  |
-| 2   | Login                  | Authentication | Đăng nhập bằng email/mật khẩu     |
-| 3   | Register               | Authentication | Đăng ký tài khoản mới             |
-| 4   | Dashboard              | Dashboard      | Tổng quan hoạt động               |
-| 5   | Create Plan            | AI Planning    | Nhập mục tiêu, AI tạo kế hoạch    |
-| 6   | Plan Details           | AI Planning    | Xem chi tiết kế hoạch + task list |
-| 7   | Task Management        | AI Planning    | Quản lý, chỉnh sửa, đánh dấu task |
-| 8   | Focus Session          | Focus          | Giao diện Pomodoro timer          |
-| 9   | AI Verify Setup        | Verify         | Màn hình chuẩn bị cho Verify      |
-| 10  | AI Oral Exam Session   | Verify         | Hỏi-đáp với AI (Học thuật)        |
-| 11  | AI Reflection Session  | Verify         | Câu hỏi phản chiếu (Sinh hoạt)    |
-| 12  | Verify Result          | Verify         | Kết quả đánh giá chung            |
+| STT | Màn hình              | Nhóm tính năng | Ghi chú                           |
+| --- | --------------------- | -------------- | --------------------------------- |
+| 1   | Landing Page          | Marketing      | Giới thiệu sản phẩm, CTA đăng ký  |
+| 2   | Login                 | Authentication | Đăng nhập bằng email/mật khẩu     |
+| 3   | Register              | Authentication | Đăng ký tài khoản mới             |
+| 4   | Dashboard             | Dashboard      | Tổng quan hoạt động               |
+| 5   | Create Plan           | AI Planning    | Nhập mục tiêu, AI tạo kế hoạch    |
+| 6   | Plan Details          | AI Planning    | Xem chi tiết kế hoạch + task list |
+| 7   | Task Management       | AI Planning    | Quản lý, chỉnh sửa, đánh dấu task |
+| 8   | Focus Session         | Focus          | Giao diện Pomodoro timer          |
+| 9   | AI Verify Setup       | Verify         | Màn hình chuẩn bị cho Verify      |
+| 10  | AI Oral Exam Session  | Verify         | Hỏi-đáp với AI (Học thuật)        |
+| 11  | AI Reflection Session | Verify         | Câu hỏi phản chiếu (Sinh hoạt)    |
+| 12  | Verify Result         | Verify         | Kết quả đánh giá chung            |
 
 ---
 
-## 7. Công nghệ đề xuất (Tech Stack)
+## 7. Công nghệ (Tech Stack)
 
-> [!IMPORTANT]
-> **Lưu ý:** Quyết định cuối cùng về tech stack sẽ do Architect Agent xác định. Dưới đây là các phương án để User tham khảo và cho ý kiến.
-
-### 7.1. Frontend
-
-| Phương án       | Công nghệ                   | Ưu điểm                                        | Nhược điểm                                          |
-| --------------- | --------------------------- | ---------------------------------------------- | --------------------------------------------------- |
-| A (Đề xuất gốc) | React (Vite) + Tailwind CSS | Hệ sinh thái lớn, nhiều tài liệu, nhóm đã quen | Tailwind có thể gây khó khi maintain CSS phức tạp   |
-| B               | Next.js + Tailwind CSS      | SSR/SSG hỗ trợ SEO, routing tích hợp           | Phức tạp hơn cho người mới, có thể overkill cho SPA |
-
-**Framework bổ sung (cả 2 phương án):** React Router (hoặc Next.js built-in), Axios (hoặc fetch API)
-
-### 7.2. Backend
-
-| Phương án       | Công nghệ            | Ưu điểm                                                      | Nhược điểm                                               |
-| --------------- | -------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
-| A (Đề xuất gốc) | Node.js + Express.js | Đơn giản, nhẹ, nhóm đã quen                                  | Cần cấu hình thủ công nhiều (validation, error handling) |
-| B               | Node.js + NestJS     | Có cấu trúc rõ ràng, dependency injection, TypeScript native | Learning curve cao hơn                                   |
-
-### 7.3. Database
-
-| Phương án       | Công nghệ               | Ưu điểm                                             | Nhược điểm                                                 |
-| --------------- | ----------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| A (Đề xuất gốc) | PostgreSQL + Prisma ORM | Type-safe, migration tốt, hỗ trợ tốt với TypeScript | Cần hiểu Prisma schema language                            |
-| B               | MongoDB + Mongoose      | Linh hoạt schema, phù hợp dữ liệu bán cấu trúc      | Khó đảm bảo data integrity, không phù hợp quan hệ phức tạp |
-
-### 7.4. Authentication
-
-| Phương án       | Công nghệ                         | Ưu điểm                             | Nhược điểm                                     |
-| --------------- | --------------------------------- | ----------------------------------- | ---------------------------------------------- |
-| A (Đề xuất gốc) | JWT + bcrypt (tự build)           | Hiểu rõ cơ chế, tùy chỉnh toàn diện | Cần tự xử lý refresh token, blacklist, bảo mật |
-| B               | Clerk / Auth0 (dịch vụ bên thứ 3) | Nhanh chóng tích hợp, bảo mật cao   | Phụ thuộc dịch vụ ngoài, có thể có chi phí     |
-
-### 7.5. AI Services
-
-- **Đề xuất:** Gemini API (Google)
-- **Lý do:** Miễn phí cho mức sử dụng cơ bản, hỗ trợ input Text và Image tốt, API đơn giản
-
-### 7.6. Version Control và Collaboration
-
-- **Source Control:** Git + GitHub (đã thiết lập)
-- **Project Management:** JIRA (đã thiết lập)
-- **Design:** Figma
-- **Communication:** Discord (đã thiết lập)
+| Thành phần     | Công nghệ                                          |
+| -------------- | -------------------------------------------------- |
+| Frontend       | React (Vite) + Tailwind CSS + React Router + Axios |
+| Backend        | Node.js + Express.js                               |
+| Database       | PostgreSQL + Prisma ORM                            |
+| Authentication | JWT + bcrypt                                       |
+| AI Services    | Gemini API (Google) - hỗ trợ Text và Image         |
+| Source Control | Git + GitHub (đã thiết lập)                        |
+| Project Mgmt   | JIRA (đã thiết lập)                                |
+| Design         | Figma                                              |
+| Communication  | Discord (đã thiết lập)                             |
 
 ---
 
@@ -320,7 +446,7 @@ _R = Responsible (Thực hiện), A = Accountable (Chịu trách nhiệm), C = C
 | Task                   | Người phụ trách | Trạng thái   |
 | ---------------------- | --------------- | ------------ |
 | Đăng ký nhóm           | Kiệt (PM)       | Hoàn thành   |
-| Soạn đề xuất dự án     | Kiệt (PM)       | Hoàn thành     |
+| Soạn đề xuất dự án     | Kiệt (PM)       | Hoàn thành   |
 | Phỏng vấn 5 người dùng | Cả nhóm         | Chưa bắt đầu |
 | Thiết lập GitHub repo  | Quân (Arch)     | Hoàn thành   |
 | Thiết lập JIRA board   | Kiệt (PM)       | Hoàn thành   |
@@ -386,8 +512,7 @@ Trong giai đoạn đầu, nhóm tập trung xác thực ba giả thuyết chín
 ### B. Các công việc còn lại
 
 1. **Phỏng vấn người dùng:** Nhóm cần thực hiện khảo sát sàng lọc, lập bộ câu hỏi và phỏng vấn 5 người. Sau đó điền kết quả vào mục 5.
-2. **Tech stack:** Cần sự tham gia của Architect để chốt các phương án Frontend, Backend, Database, Auth.
 
 ---
 
-> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.2, cần bổ sung phần Phỏng vấn người dùng và chốt Tech Stack trước khi nộp PA0.
+> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.3. Tech Stack đã được chốt. Cần bổ sung phần Phỏng vấn người dùng trước khi nộp PA0.
