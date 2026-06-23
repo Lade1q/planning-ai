@@ -402,6 +402,75 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 | Design         | Figma                                              |
 | Communication  | Discord (đã thiết lập)                             |
 
+### 7.1. Lý do lựa chọn, ưu điểm và rủi ro
+
+#### Frontend: React (Vite) + Tailwind CSS
+
+**Lý do lựa chọn:** Planning AI là ứng dụng Single Page Application (SPA) - người dùng đăng nhập rồi mới sử dụng, không cần SEO. React kết hợp Vite là giải pháp gọn nhẹ nhất cho SPA mà không mang theo các tính năng thừa của framework full-stack như Next.js (SSR, Server Components).
+
+**Ưu điểm:**
+- Vite cung cấp Hot Module Replacement (HMR) cực nhanh, rút ngắn thời gian phát triển.
+- Hệ sinh thái React lớn nhất trong các framework frontend, tài liệu phong phú.
+- Tailwind CSS cho phép xây dựng giao diện nhanh chóng với utility-first approach, giảm thời gian viết CSS thủ công.
+- React Router xử lý navigation phía client, phù hợp với trải nghiệm SPA mượt mà.
+
+**Rủi ro:**
+- Tailwind CSS tạo ra các class dài trong HTML, có thể gây khó đọc code khi component phức tạp. Giảm thiểu bằng cách tách component nhỏ và sử dụng directive `@apply` khi cần.
+- Cần tự cấu hình cấu trúc thư mục dự án (không có convention bắt buộc như Next.js). Giảm thiểu bằng cách thống nhất quy ước thư mục ngay từ Sprint 1.
+
+#### Backend: Node.js + Express.js
+
+**Lý do lựa chọn:** Express.js là framework tối giản, linh hoạt và có learning curve thấp nhất trong hệ sinh thái Node.js. Với thời gian 10 tuần và nhóm 5 người, việc sử dụng framework nặng hơn như NestJS sẽ tốn thời gian học thay vì tập trung vào logic nghiệp vụ.
+
+**Ưu điểm:**
+- Cùng ngôn ngữ JavaScript/TypeScript với frontend, cho phép chia sẻ kiến thức và thậm chí các type/interface giữa hai tầng.
+- Cộng đồng lớn, có sẵn hàng nghìn middleware (cors, helmet, morgan, multer...) giúp giải quyết nhanh các bài toán phổ biến.
+- Kiến trúc không áp đặt (un-opinionated), cho phép nhóm tổ chức code theo cách phù hợp nhất.
+
+**Rủi ro:**
+- Không có cấu trúc dự án mặc định, dễ dẫn đến code không nhất quán giữa các thành viên. Giảm thiểu bằng cách thiết lập quy ước thư mục rõ ràng (routes/, controllers/, services/, middlewares/) và ESLint/Prettier ngay từ đầu.
+- Xử lý lỗi và validation cần cấu hình thủ công. Giảm thiểu bằng cách sử dụng thư viện hỗ trợ như Joi hoặc Zod cho validation.
+
+#### Database: PostgreSQL + Prisma ORM
+
+**Lý do lựa chọn:** Dữ liệu của Planning AI có quan hệ rõ ràng (User -> Plan -> Task -> FocusSession -> VerifyResult). PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mạnh mẽ, đảm bảo tính toàn vẹn dữ liệu (data integrity) tốt hơn so với NoSQL. Prisma ORM được chọn vì khả năng auto-generate TypeScript types từ schema, giúp phát hiện lỗi ngay lúc code thay vì lúc chạy.
+
+**Ưu điểm:**
+- PostgreSQL hỗ trợ ACID transactions, đảm bảo dữ liệu nhất quán khi nhiều thao tác xảy ra đồng thời.
+- Prisma Migrate tự động hóa việc quản lý thay đổi database schema qua các Sprint, tránh xung đột khi nhiều người cùng phát triển.
+- Prisma Client sinh ra các truy vấn type-safe, giảm thiểu lỗi runtime liên quan đến database.
+
+**Rủi ro:**
+- Prisma có schema language riêng (`.prisma`), đòi hỏi thời gian làm quen ban đầu. Giảm thiểu bằng cách dành thời gian trong Sprint 2 để thiết kế schema cẩn thận.
+- Thay đổi schema giữa các Sprint có thể gây migration conflicts. Giảm thiểu bằng cách thiết kế database schema kỹ lưỡng ở giai đoạn Elaboration và hạn chế thay đổi lớn ở giai đoạn Construction.
+
+#### Authentication: JWT + bcrypt
+
+**Lý do lựa chọn:** Tự xây dựng hệ thống xác thực giúp nhóm hiểu sâu về cơ chế bảo mật - đây là kiến thức quan trọng trong môn Nhập môn Công nghệ Phần mềm. Đồng thời không phát sinh chi phí dịch vụ bên thứ ba và không phụ thuộc vào hạ tầng ngoài.
+
+**Ưu điểm:**
+- Toàn quyền kiểm soát luồng xác thực, dễ tùy chỉnh theo yêu cầu cụ thể.
+- bcrypt là thuật toán hash mật khẩu đã được chứng minh an toàn, tự động thêm salt.
+- JWT cho phép xác thực stateless, giảm tải cho server khi không cần lưu session.
+
+**Rủi ro:**
+- Cần tự triển khai các cơ chế bảo mật như refresh token rotation, token blacklist khi đăng xuất, và bảo vệ chống CSRF/XSS. Giảm thiểu bằng cách tuân thủ các best practices đã có sẵn tài liệu hướng dẫn và review code kỹ phần authentication.
+- Lỗ hổng bảo mật tiềm ẩn nếu triển khai không đúng cách. Giảm thiểu bằng cách đưa phần authentication vào review ưu tiên cao nhất.
+
+#### AI Services: Gemini API (Google)
+
+**Lý do lựa chọn:** Gemini là model multimodal (hỗ trợ cả text và image), phù hợp hoàn hảo với yêu cầu của AI Planning (người dùng có thể chụp ảnh bảng hoặc nhập văn bản). Tier miễn phí đủ cho giai đoạn phát triển và demo.
+
+**Ưu điểm:**
+- Hỗ trợ tiếng Việt tốt, quan trọng cho sản phẩm nhắm đến người dùng Việt Nam.
+- API đơn giản, tài liệu rõ ràng, tích hợp nhanh.
+- Xử lý đa phương thức (text + image) trong cùng một API call, không cần pipeline OCR riêng.
+
+**Rủi ro:**
+- Phụ thuộc vào dịch vụ bên ngoài: nếu API gặp sự cố hoặc thay đổi pricing, ứng dụng sẽ bị ảnh hưởng. Giảm thiểu bằng cách thiết kế lớp abstraction (AI service layer) để có thể chuyển sang provider khác nếu cần.
+- Rate limit trên tier miễn phí có thể giới hạn số lượng request. Giảm thiểu bằng cách cache kết quả AI và giới hạn số request mỗi người dùng mỗi ngày.
+- Chất lượng output của AI không đồng đều, đặc biệt với input phức tạp hoặc ảnh chất lượng thấp. Giảm thiểu bằng cách thiết kế prompt kỹ lưỡng và cho phép người dùng chỉnh sửa kết quả AI tạo ra.|
+
 ---
 
 ## 8. Phân công vai trò và Trách nhiệm
