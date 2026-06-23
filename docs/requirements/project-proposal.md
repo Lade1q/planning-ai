@@ -1,8 +1,8 @@
 # ĐỀ XUẤT DỰ ÁN: PLANNING AI - PLAN / FOCUS / VERIFY
 
 > **Trạng thái:** BẢN NHÁP - Chờ User duyệt
-> **Phiên bản:** 1.3
-> **Ngày soạn:** 2026-06-22
+> **Phiên bản:** 1.4
+> **Ngày soạn:** 2026-06-23
 > **Người soạn:** PM
 > **Môn học:** Nhập môn Công nghệ Phần mềm (24C07)
 > **Bài tập:** PA0 - Đăng ký nhóm và Thiết lập công cụ
@@ -392,7 +392,7 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 
 | Thành phần     | Công nghệ                                          |
 | -------------- | -------------------------------------------------- |
-| Frontend       | React (Vite) + Tailwind CSS + React Router + Axios |
+| Frontend       | React (Vite) + TypeScript + Tailwind CSS + shadcn/ui + React Router + Axios |
 | Backend        | Node.js + Express.js                               |
 | Database       | PostgreSQL + Prisma ORM                            |
 | Authentication | JWT + bcrypt                                       |
@@ -404,19 +404,19 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 
 ### 7.1. Lý do lựa chọn, ưu điểm và rủi ro
 
-#### Frontend: React (Vite) + Tailwind CSS
+#### Frontend: React (Vite) + TypeScript + Tailwind CSS + shadcn/ui
 
-**Lý do lựa chọn:** Planning AI là ứng dụng Single Page Application (SPA) - người dùng đăng nhập rồi mới sử dụng, không cần SEO. React kết hợp Vite là giải pháp gọn nhẹ nhất cho SPA mà không mang theo các tính năng thừa của framework full-stack như Next.js (SSR, Server Components).
+**Lý do lựa chọn:** Planning AI là ứng dụng Single Page Application (SPA) không cần SEO. React kết hợp Vite là giải pháp gọn nhẹ nhất cho SPA. Việc bổ sung TypeScript giúp bắt lỗi chặt chẽ, giảm bug tiềm ẩn. Thêm shadcn/ui giúp xây dựng 12 màn hình giao diện cao cấp (Premium UI) nhanh chóng mà không cần code các component phức tạp từ đầu.
 
 **Ưu điểm:**
-- Vite cung cấp Hot Module Replacement (HMR) cực nhanh, rút ngắn thời gian phát triển.
-- Hệ sinh thái React lớn nhất trong các framework frontend, tài liệu phong phú.
-- Tailwind CSS cho phép xây dựng giao diện nhanh chóng với utility-first approach, giảm thời gian viết CSS thủ công.
-- React Router xử lý navigation phía client, phù hợp với trải nghiệm SPA mượt mà.
+- TypeScript đảm bảo type-safety, giúp FE và BE dễ dàng đồng bộ cấu trúc dữ liệu, IntelliSense hỗ trợ dev nhanh hơn.
+- shadcn/ui cung cấp component có sẵn chất lượng cao, có tính tùy biến tuyệt đối vì code component nằm ngay trong dự án.
+- Vite cung cấp Hot Module Replacement (HMR) cực nhanh.
+- Tailwind CSS cho phép xây dựng giao diện nhanh chóng, tích hợp hoàn hảo với shadcn/ui.
 
 **Rủi ro:**
-- Tailwind CSS tạo ra các class dài trong HTML, có thể gây khó đọc code khi component phức tạp. Giảm thiểu bằng cách tách component nhỏ và sử dụng directive `@apply` khi cần.
-- Cần tự cấu hình cấu trúc thư mục dự án (không có convention bắt buộc như Next.js). Giảm thiểu bằng cách thống nhất quy ước thư mục ngay từ Sprint 1.
+- TypeScript có learning curve (đường cong học tập) nhất định với người mới. Biện pháp giảm thiểu: Các thành viên cứng (FE Lead) sẽ setup các type cơ bản và hướng dẫn cặp (pair programming).
+- Bị ngợp với số lượng code sinh ra từ shadcn/ui. Biện pháp: Chỉ cài đặt các component thật sự cần thiết, không cài toàn bộ thư viện.
 
 #### Backend: Node.js + Express.js
 
@@ -588,4 +588,4 @@ Trong giai đoạn đầu, nhóm tập trung xác thực ba giả thuyết chín
 
 ---
 
-> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.3. Tech Stack đã được chốt. Cần bổ sung phần Phỏng vấn người dùng trước khi nộp PA0.
+> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.4. Tech Stack Frontend đã bổ sung TypeScript và shadcn/ui. Cần bổ sung phần Phỏng vấn người dùng trước khi nộp PA0.
