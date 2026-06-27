@@ -60,3 +60,17 @@
 | Pass | Test qua — kết quả thực tế khớp với kết quả mong đợi |
 | Fail | Test không qua — có bug → tạo bug report |
 | Blocked | Không thể test — phụ thuộc vào phần khác chưa hoàn thành |
+
+---
+
+## Chú thích loại kiểm thử
+
+| Loại kiểm thử | Kiểm tra điều gì | Ví dụ trong dự án |
+|--------------|-----------------|------------------|
+| **Functionality** | Tính năng có hoạt động đúng như mô tả không? | Đăng nhập thành công với email/mật khẩu hợp lệ |
+| **Security** | Dữ liệu người dùng có được bảo vệ không? | Người dùng A không truy cập được data của người dùng B |
+| **Usability** | Người dùng có dễ sử dụng, dễ hiểu không? | Thông báo lỗi có rõ ràng không? Người dùng có bị nhầm lẫn không? |
+| **Interface** | Các thành phần hệ thống có giao tiếp đúng không? | Frontend gửi dữ liệu → Backend nhận và xử lý đúng |
+| **Database** | Dữ liệu có được lưu/đọc/xóa đúng không? | Sau khi tạo plan, database có record đúng không? |
+| **Compatibility** | App có chạy đúng trên các trình duyệt khác nhau không? | Tính năng upload ảnh có hoạt động trên Firefox không? |
+| **Performance** | App có chạy nhanh, không bị lag không? | Trang Dashboard load dưới 3 giây? |
