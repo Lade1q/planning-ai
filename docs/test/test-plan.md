@@ -73,45 +73,57 @@ Các tính năng và màn hình sẽ được kiểm thử:
 ## 3. Các loại kiểm thử
 
 ### 3.1 Unit Testing (Kiểm thử đơn vị)
-**Là gì:** Kiểm tra một hàm hoặc component riêng lẻ — phần nhỏ nhất có thể test được.
+**Chú thích:** Kiểm tra một hàm hoặc component riêng lẻ — phần nhỏ nhất có thể test được.
 
-**Ai viết:** Chủ yếu là **Developer**. QA xem báo cáo coverage.
+**Người viết:** Chủ yếu là **Developer**. QA xem báo cáo coverage.
 
 **Ví dụ trong dự án:**
 - Hàm format ngày deadline → có trả về đúng chuỗi không?
 - Hàm validate email → có từ chối `"khonghople"` không?
 - React component có render đúng với props được truyền vào không?
 
-**Công cụ:** Jest + React Testing Library
+**Công cụ:** Jest (test logic) + React Testing Library (test UI)
 
-**Khi nào:** Sprint 3–4, Dev viết song song với code.
+**Lý do chọn công cụ:**
+- Jest là 1 testing Framework dành cho JavaScript/TypeScript, là 1 trong những công cụ phổ biến nhất để test code JavaScript hiện tại (dùng nó để theo kịp xu hướng)
+
+- React Testing Library (RTL) cung cấp các hàm để "mô phỏng" hành vi của người dùng thật như: Tìm nút có chữ "Đăng nhập", Click vào nút đó, Gõ chữ "abc" vào ô input
+
+- Dùng React Testing Library vì Jest chỉ hiểu code JavaScript thuần, nó không biết giao diện (UI), nút bấm, hay thẻ HTML là gì
+
+**Khi nào:** Dev viết song song với code.
 
 **Vai trò QA:** Xem báo cáo test coverage. Đánh dấu các khu vực coverage thấp.
 
 ---
 
 ### 3.2 Integration Testing (Kiểm thử tích hợp)
-**Là gì:** Kiểm tra hai hoặc nhiều thành phần hoạt động đúng **khi kết nối với nhau**.
+**Chú thích:** Kiểm tra hai hoặc nhiều thành phần hoạt động đúng **khi kết nối với nhau**.
 
-**Ai viết:** QA (cấp API) + Dev (cấp module).
+**Người viết:** QA (cấp API) + Dev (cấp module).
 
 **Ví dụ trong dự án:**
 - Frontend gửi `POST /api/plans` → backend có lưu đúng vào database không?
 - Backend gọi Gemini API → có parse và trả về response AI đúng không?
 - Người dùng đăng nhập → JWT token có được lưu và dùng ở các request tiếp theo không?
 
-**Công cụ:** **Postman** (test tích hợp API), **Jest** (test tích hợp service backend)
+**Công cụ:** **Postman** (test tích hợp API), **Jest** (test tích hợp service backend - service backend là test các nghiệp vụ logic trong backend, ví dụ test kiểm tra email đúng format ko...) (Người dùng Jest chính là Frontend và Backend Lead (Phong và Bảo))
 
-**Khi nào:** Sprint 4, sau khi các module riêng lẻ đã được xây dựng.
+**Lý do chọn công cụ:**
+- Postman tốt hơn SwaggerUI ở phần tự động hóa (Swagger thường rất thủ công, Postman có hỗ trợ test tự động bằng Javascript. Ví dụ tính năng đăng nhập, SwaggerUI cần gọi thủ công nhiều API trong khi Postman có hỗ trợ viết script thuận tiện để chạy cả luồng 1 lần).
+
+- Jest là 1 testing Framework dành cho JavaScript/TypeScript, là 1 trong những công cụ phổ biến nhất để test code JavaScript hiện tại (dùng nó để theo kịp xu hướng)
+
+**Khi nào:** sau khi các module riêng lẻ đã được xây dựng.
 
 **Vai trò QA:** Dùng Postman test từng API endpoint. Tạo Postman collection và chia sẻ với team.
 
 ---
 
 ### 3.3 System Testing (Kiểm thử hệ thống)
-**Là gì:** Kiểm tra **toàn bộ hệ thống đã tích hợp** từ đầu đến cuối, mô phỏng hành vi người dùng thực.
+**Chú thích:** Kiểm tra **toàn bộ hệ thống đã tích hợp** từ đầu đến cuối, mô phỏng hành vi người dùng thực.
 
-**Ai viết:** QA
+**Người viết:** QA
 
 **Ví dụ trong dự án:**
 - Người dùng đăng ký → đăng nhập → tạo kế hoạch → bắt đầu focus session → hoàn thành verify → xem kết quả trên dashboard
@@ -125,7 +137,14 @@ Các tính năng và màn hình sẽ được kiểm thử:
 
 **Công cụ:** **Playwright** (E2E tự động), kiểm thử thủ công trên trình duyệt
 
-**Khi nào:** Sprint 4–5
+**Lý do chọn công cụ:**
+- Playwright - framework do Microsoft phát triển chuyên dùng để Tự động hóa trình duyệt (Browser Automation) và làm Kiểm thử đầu cuối (End-to-End / E2E Testing)
+
+- Tính năng "Ghi hình" (Codegen): thay vì phải  gõ code JavaScript để "tìm nút A, click nút B", Playwright có một công cụ gọi là Codegen. Bật nó lên, một cửa sổ trình duyệt hiện ra, dùng chuột click, gõ phím như người dùng bình thường... và Playwright sẽ tự động sinh ra code test
+
+> Nâng cao: có thể dùng Playwright tích hợp vào CI/CD (chú thích thêm mục 4 - Công cụ)
+
+**Khi nào:** Test thường ngày hoặc sau khi Dev thêm tính năng mới
 
 **Vai trò QA:** Viết và chạy test cases trong `docs/test/test-cases/`. Báo cáo bug trong `docs/test/bug-reports/`.
 
@@ -171,7 +190,11 @@ Các tính năng và màn hình sẽ được kiểm thử:
 | **GitHub Pull Requests** | Review code — QA review trước khi merge | QA + Dev |
 | **Chrome / Edge / Firefox** | Kiểm thử tương thích trình duyệt | QA |
 
-> **Ghi chú cho QA:** Playwright và Postman là hai công cụ chính cần học. Playwright sẽ được setup trong Sprint 3. Postman có thể dùng ngay khi có API endpoint đầu tiên.
+> Công cụ CI/CD: GitHub Actions Lý do chọn công cụ: Tích hợp sẵn trong GitHub (miễn phí), dễ thiết lập. Mục tiêu tự động hóa:
+> - Tự động chạy toàn bộ Unit Test (Jest) và E2E Test (Playwright) mỗi khi có Pull Request mới.
+> - Báo cáo kết quả trực tiếp trên GitHub PR. Không cho phép merge code nếu có bất kỳ test case nào thất bại (Fail), giúp đảm bảo mã nguồn trên nhánh main luôn ổn định.
+
+> **Ghi chú cho QA:** Playwright và Postman là hai công cụ chính. Playwright sẽ được setup trong Sprint 3. Postman có thể dùng ngay khi có API endpoint đầu tiên.
 
 ---
 
@@ -234,7 +257,6 @@ Các tính năng và màn hình sẽ được kiểm thử:
 | Gemini API trả về kết quả không nhất quán | Test case AI khó tự động hóa | Dùng mock response cố định cho automated test; test API thật thủ công |
 | Code của Dev không testable (thiếu test hook) | Không viết được integration test | QA báo sớm; Dev phải expose test endpoint |
 | Áp lực thời gian Sprint 4–5 | Không đủ thời gian test hết | Ưu tiên test case độ ưu tiên High trước; bỏ qua Low nếu cần |
-| Chưa có staging environment | Chỉ test được trên localhost | Thống nhất shared dev server trong Sprint 3 |
 
 ---
 
