@@ -242,7 +242,7 @@ Các tính năng và màn hình sẽ được kiểm thử:
 
 | Sprint | Hoạt động kiểm thử |
 |--------|-------------------|
-| Sprint 1 (hiện tại) | Viết skeleton Test Plan (tài liệu này). Review proposal tìm điểm chưa rõ. |
+| Sprint 1 | Viết skeleton Test Plan (tài liệu này). Review proposal tìm điểm chưa rõ. |
 | Sprint 2 | Viết test cases cho Authentication, Dashboard, AI Planning. |
 | Sprint 3 | Viết các test case còn lại. Setup Playwright. Smoke test đầu tiên trên v1. |
 | Sprint 4 | Kiểm thử hệ thống đầy đủ. API testing với Postman. Security testing. Báo cáo bug. |
