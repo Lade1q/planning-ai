@@ -17,16 +17,16 @@ graph TD
     A2 --> B[PM: Viết Specs chi tiết, Slice task, Tạo GitHub Issues]
     B --> C[Architect: Nhận Specs & UI, Thiết kế Kiến trúc/API/Schema]
     C --> D[Architect: Cập nhật chi tiết kỹ thuật vào Issues]
-    
+
     D --> E[QA: Nhận Design, Viết Test Plan & Test Contracts]
     D --> F[FE Leader & BE Leader: Nhận task kỹ thuật]
-    
+
     E --> G[Kiểm tra Test Contracts pass?]
     F --> G
-    
+
     G -->|No| F
     G -->|Yes| H[FE/BE: Tạo Pull Request]
-    
+
     H --> I[Cross-Review & QA Testing]
     I -->|Request Changes| F
     I -->|Approve| J[Merge vào nhánh main]
@@ -38,13 +38,13 @@ graph TD
 
 Bảng phân công theo đề xuất dự án (Dựa trên mô hình RACI).
 
-| Thành viên | Vai trò chính | Trách nhiệm cốt lõi |
-| --- | --- | --- |
-| **Thái Nguyễn Tuấn Kiệt** | PM + UI/UX | Quản lý tiến độ, soạn Specs, thiết kế wireframe/UI, báo cáo Sprint. Tạo Issues. |
-| **Nguyễn Thế Quân** | Architect + Dev | Thiết kế kiến trúc hệ thống, DB schema, API. Trực tiếp code fullstack khi cần. |
-| **Nguyễn Minh Phát** | QA + Dev | Viết test plan/cases, kiểm thử tự động/thủ công. Hỗ trợ code backend. |
-| **Nguyễn Phương Gia Bảo** | Frontend Leader | Phân bổ task FE, implement UI components, tích hợp API, đảm bảo chất lượng FE. |
-| **Ngô Văn Phong** | Backend Leader | Phân bổ task BE, implement REST API, quản lý database, đảm bảo chất lượng BE. |
+| Thành viên                | Vai trò chính   | Trách nhiệm cốt lõi                                                             |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| **Thái Nguyễn Tuấn Kiệt** | PM + UI/UX      | Quản lý tiến độ, soạn Specs, thiết kế wireframe/UI, báo cáo Sprint. Tạo Issues. |
+| **Nguyễn Thế Quân**       | Architect + Dev | Thiết kế kiến trúc hệ thống, DB schema, API. Trực tiếp code fullstack khi cần.  |
+| **Nguyễn Minh Phát**      | QA + Dev        | Viết test plan/cases, kiểm thử tự động/thủ công. Hỗ trợ code backend.           |
+| **Nguyễn Phương Gia Bảo** | Frontend Leader | Phân bổ task FE, implement UI components, tích hợp API, đảm bảo chất lượng FE.  |
+| **Ngô Văn Phong**         | Backend Leader  | Phân bổ task BE, implement REST API, quản lý database, đảm bảo chất lượng BE.   |
 
 ---
 
@@ -118,9 +118,9 @@ Mọi đoạn code phải qua quy trình Pull Request (PR) trước khi được
 - **JIRA Board:** Sử dụng để quản lý tiến độ Sprint tổng quan (To Do, In Progress, Review, Done). Các cột đồng bộ với trạng thái của GitHub Issues.
 - **Figma:** Duy nhất UI/UX (Kiệt) cập nhật Master Design. Mọi người chỉ xem và lấy CSS/assets.
 - **Discord:**
-  - `#general`: Thông báo chung, Sprint meetings.
-  - `#dev`: Trao đổi kỹ thuật, hỏi đáp API.
-  - `#github-alerts`: Nhận thông báo tự động khi có Issue/PR mới.
+  - `#discussion/general-discuss`: Thông báo chung, Sprint meetings.
+  - `#development`: Trao đổi kỹ thuật, hỏi đáp API.
+  - `#github-log`: Nhận thông báo tự động khi có Issue/PR mới.
 
 ---
 
