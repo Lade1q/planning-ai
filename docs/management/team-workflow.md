@@ -13,8 +13,9 @@ Sơ đồ dưới đây mô tả luồng làm việc cho một tính năng (Feat
 
 ```mermaid
 graph TD
-    A[PM/UI-UX: Nhận yêu cầu, Viết Specs, Wireframe] --> B[PM: Slice task theo Scope, Tạo GitHub Issues]
-    B --> C[Architect: Nhận Specs, Thiết kế Kiến trúc/API/Schema]
+    A[PM: Nhận yêu cầu, Viết Specs sơ bộ] --> A2[UI/UX: Thiết kế Wireframe/Figma UI]
+    A2 --> B[PM: Viết Specs chi tiết, Slice task, Tạo GitHub Issues]
+    B --> C[Architect: Nhận Specs & UI, Thiết kế Kiến trúc/API/Schema]
     C --> D[Architect: Cập nhật chi tiết kỹ thuật vào Issues]
     
     D --> E[QA: Nhận Design, Viết Test Plan & Test Contracts]
@@ -49,11 +50,11 @@ Bảng phân công theo đề xuất dự án (Dựa trên mô hình RACI).
 
 ## 3. Quy trình chi tiết: PM + UI/UX (Kiệt)
 
-- **Bước 1 (Requirements):** Thu thập yêu cầu, phản hồi từ người dùng để xác định tính năng cần làm.
-- **Bước 2 (Specs & UI):** Viết Specification Document chi tiết cho tính năng. Thiết kế Wireframe/Figma.
-- **Bước 3 (Slicing):** Phân rã tính năng thành các task nhỏ (Slice) dựa trên **Scope of Impact** (Giới hạn rủi ro). Không gộp chung FE và BE phức tạp vào cùng 1 cục.
+- **Bước 1 (Requirements):** Thu thập yêu cầu, phản hồi từ người dùng để xác định tính năng cần làm. Viết Specs sơ bộ.
+- **Bước 2 (UI/UX Design):** Lên ý tưởng trải nghiệm người dùng, thiết kế Wireframe và UI/UX chi tiết trên Figma. Chốt luồng màn hình.
+- **Bước 3 (Detailed Specs & Slicing):** Viết Specification Document chi tiết. Phân rã tính năng thành các task nhỏ (Slice) dựa trên **Scope of Impact** (Giới hạn rủi ro) kết hợp với bản thiết kế UI.
 - **Bước 4 (Issue Creation):** Lên GitHub, tạo các **Issues** tương ứng. Đính kèm link Specs và Figma.
-- **Handoff (Chuyển giao):** Gắn thẻ (assign) Architect (`@NguyenTheQuan`) vào các Issues vừa tạo để tiến hành thiết kế.
+- **Handoff (Chuyển giao):** Gắn thẻ (assign) Architect (`@NguyenTheQuan`) vào các Issues vừa tạo để tiến hành thiết kế hệ thống.
 
 ---
 
