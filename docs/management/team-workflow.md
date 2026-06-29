@@ -61,7 +61,7 @@ Bảng phân công theo đề xuất dự án (Dựa trên mô hình RACI).
 
 - **Bước 1 (Design):** Nhận GitHub Issues từ PM. Đọc Specs và UI. Phác thảo kiến trúc, API Contracts, và Database Schema.
 - **Bước 2 (Refinement):** Cập nhật các quyết định kỹ thuật, endpoint path, cấu trúc bảng trực tiếp vào GitHub Issues để làm tài liệu tham khảo cho Dev.
-- **Bước 3 (ADR):** Ghi chú lại lý do ra quyết định vào file `DECISIONS_LOG.md`.
+- **Bước 3 (ADR):** Ghi chú lại lý do ra quyết định kỹ thuật bằng cách tạo file ADR (Architecture Decision Record) trong thư mục `docs/analysis and design/adr/`.
 - **Bước 4 (Dev Support):** Trực tiếp code các module khó hoặc hỗ trợ FE/BE Leader khi có blocker.
 - **Handoff (Chuyển giao):** Thêm nhãn (label) `design-ready` vào Issues và nhắc (mention) QA và Dev Leaders để bắt đầu thực thi.
 
