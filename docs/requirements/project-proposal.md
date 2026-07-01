@@ -99,6 +99,7 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - Nhập đầu vào: MVP (Sprint 2-3) hỗ trợ Text và Image (ảnh chụp bảng, bài tập - do Gemini xử lý trực tiếp). Xử lý file PDF/DOCX sẽ đưa vào Phase 2 (Sprint 4-5).
 - AI tự động phân tích và phân loại task thành "học thuật" hoặc "sinh hoạt/công việc".
 - Tự động chia nhỏ nhiệm vụ lớn thành các task nhỏ hơn.
+- **Hình ảnh minh họa cho subtask:** Khi AI tạo subtask, nếu có thể, mỗi subtask sẽ kèm theo hình ảnh minh họa liên quan. Ví dụ: Nếu người dùng tải lên file PDF bài tập, mỗi subtask sẽ hiển thị ảnh crop đề bài tương ứng để người dùng nhìn trực tiếp mà không cần chuyển sang nơi khác. Với kế hoạch tập gym, mỗi bài tập sẽ kèm ảnh minh họa động tác hoặc máy tập. Người dùng có thể chỉnh sửa/thay thế ảnh của từng subtask.
 - Đề xuất mức độ ưu tiên và thứ tự thực hiện.
 - Hỗ trợ chỉnh sửa, sắp xếp lại kế hoạch thủ công.
 
@@ -114,16 +115,16 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - Tùy chọn không gian làm việc ảo (Ambient theme: hình nền tĩnh và nhạc lo-fi) - tính năng nice-to-have trong Sprint 5. Tuyệt đối không làm 3D/interactive.
 - Lưu lịch sử các phiên tập trung và hiển thị thống kê.
 
-### 4.3. Tính năng 3: Verify (AI Oral Examiner & AI Reflection)
+### 4.3. Tính năng 3: Verify (AI Examiner & Celebration)
 
-**Mô tả:** AI hỗ trợ xác nhận mức độ hoàn thành công việc.
+**Mô tả:** AI hỗ trợ xác nhận mức độ hoàn thành công việc, kết hợp trải nghiệm gamification khi hoàn thành task.
 
 **Chi tiết chức năng:**
 
 - Phân luồng tính năng Verify dựa trên nhãn task:
-  - **Đối với task học thuật:** Kích hoạt **AI Oral Examiner**. AI đặt câu hỏi kiểm tra kiến thức dựa trên tài liệu/bài tập, đánh giá câu trả lời và đề xuất ôn tập.
-  - **Đối với task sinh hoạt/công việc:** Kích hoạt **AI Reflection**. AI đặt các câu hỏi phản chiếu (Ví dụ: "Bạn đã hoàn thành đủ các yêu cầu chưa?", "Có điểm nào cần rút kinh nghiệm?") để người dùng tự review (self-review).
-- Lưu kết quả đánh giá để hiển thị lên Dashboard.
+  - **Đối với task học thuật:** Kích hoạt **AI Examiner**. AI đặt câu hỏi kiểm tra kiến thức dựa trên tài liệu/bài tập (hỗ trợ trả lời bằng văn bản hoặc nói), đánh giá câu trả lời và đề xuất ôn tập.
+  - **Đối với task sinh hoạt/công việc:** ~~AI Reflection~~ (Đã bỏ theo kết quả phỏng vấn người dùng - tính năng gây phiền toái). Thay thế bằng **Màn hình Chúc mừng (Celebration Screen)**: Khi người dùng nhấn hoàn thành task, hiển thị thông báo chúc mừng kèm nút **"Chụp ảnh khoảnh khắc"** cho phép lưu lại hình ảnh kỷ niệm khi hoàn thành (tạo cảm giác thành tựu, khuyến khích tiếp tục sử dụng).
+- Lưu kết quả đánh giá (AI Examiner) và ảnh khoảnh khắc (Celebration) để hiển thị lên Dashboard.
 
 ### 4.4. Tính năng 4: Dashboard
 
@@ -170,7 +171,7 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
   - Chất lượng công việc suy giảm và mức độ căng thẳng (stress) của người dùng gia tăng.
   - Người dùng nhanh chóng từ bỏ các công cụ lập kế hoạch hiện có vì cảm thấy quá nặng nề và phức tạp.
   - Đối với học tập, người dùng dễ gặp ảo tưởng đã hiểu bài nhưng thực tế không thể giải thích hay áp dụng kiến thức.
-- **Desired Outcome (Kết quả kỳ vọng):** Người dùng cần một giải pháp đơn giản, dễ tiếp cận có khả năng chuyển đổi thông tin hỗn loạn thành kế hoạch hành động rõ ràng, hỗ trợ họ tập trung thực hiện thông qua các phiên Pomodoro tối giản, đồng thời xác minh mức độ hiểu bài thông qua AI Oral Examiner/AI Reflection với phản hồi ngắn gọn và đề xuất bước tiếp theo phù hợp.
+- **Desired Outcome (Kết quả kỳ vọng):** Người dùng cần một giải pháp đơn giản, dễ tiếp cận có khả năng chuyển đổi thông tin hỗn loạn thành kế hoạch hành động rõ ràng (kèm hình ảnh minh họa cho từng subtask), hỗ trợ họ tập trung thực hiện thông qua các phiên Pomodoro tối giản, đồng thời xác minh mức độ hiểu bài thông qua AI Examiner với phản hồi ngắn gọn và tạo trải nghiệm chúc mừng tích cực khi hoàn thành task.
 
 ### 5.2. Mục tiêu nghiên cứu (Research Goal & Objectives)
 
@@ -382,8 +383,8 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 | 7   | Task Management       | AI Planning    | Quản lý, chỉnh sửa, đánh dấu task |
 | 8   | Focus Session         | Focus          | Giao diện Pomodoro timer          |
 | 9   | AI Verify Setup       | Verify         | Màn hình chuẩn bị cho Verify      |
-| 10  | AI Oral Exam Session  | Verify         | Hỏi-đáp với AI (Học thuật)        |
-| 11  | AI Reflection Session | Verify         | Câu hỏi phản chiếu (Sinh hoạt)    |
+| 10  | AI Exam Session       | Verify         | Hỏi-đáp với AI (Học thuật)        |
+| 11  | Celebration Screen    | Verify         | Chúc mừng hoàn thành + Chụp ảnh khoảnh khắc (Sinh hoạt) |
 | 12  | Verify Result         | Verify         | Kết quả đánh giá chung            |
 
 ---
