@@ -192,6 +192,7 @@ erDiagram
         uuid plan_id FK
         string title
         text description
+        string image_url
         string category
         string priority
         string status
@@ -231,10 +232,11 @@ erDiagram
 
 | Use Case               | Input                       | Output                                  |
 | ---------------------- | --------------------------- | --------------------------------------- |
-| AI Planning            | Text mô tả + ảnh (tùy chọn) | Kế hoạch + danh sách tasks có phân loại |
+| AI Planning            | Text mô tả + ảnh (tùy chọn) | Kế hoạch + danh sách tasks có phân loại + hình ảnh minh họa subtask |
 | AI Task Classification | Context task                | Phân loại: học thuật / sinh hoạt        |
-| AI Oral Examiner       | Nội dung task học thuật     | Câu hỏi kiểm tra + đánh giá câu trả lời |
-| AI Reflection          | Nội dung task sinh hoạt     | Câu hỏi phản tư + đánh giá phản hồi     |
+| AI Examiner            | Nội dung task học thuật     | Câu hỏi kiểm tra + đánh giá câu trả lời (text/voice) |
+
+> **Ghi chú:** Tính năng AI Reflection (đối với task sinh hoạt) đã được loại bỏ theo kết quả phỏng vấn người dùng. Thay thế bằng **Màn hình Chúc mừng (Celebration Screen)** với tính năng chụp ảnh khoảnh khắc khi hoàn thành task (xử lý hoàn toàn ở Frontend, không cần AI).
 
 ### 4.5. Authentication - JWT Flow
 
@@ -282,6 +284,7 @@ graph LR
 | PostgreSQL thay vì MongoDB | Dữ liệu quan hệ rõ ràng (User-Plan-Task)           | MongoDB, SQLite                                 |
 | JWT thay vì Session-based  | Stateless, phù hợp SPA, dễ implement               | Session + Cookie, OAuth2 (quá phức tạp cho MVP) |
 | Gemini API thay vì OpenAI  | Free tier, hỗ trợ multimodal sẵn                   | OpenAI GPT, Claude API                          |
+| Bỏ AI Reflection, thay bằng Celebration Screen | Kết quả phỏng vấn: người dùng thấy phản tư phiền toái, ưu tiên gamification | Giữ AI Reflection như ban đầu |
 
 ---
 
