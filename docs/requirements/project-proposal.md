@@ -1,8 +1,8 @@
 # ĐỀ XUẤT DỰ ÁN: PLANNING AI - PLAN / FOCUS / VERIFY
 
-> **Trạng thái:** BẢN NHÁP - Chờ User duyệt
-> **Phiên bản:** 1.4
-> **Ngày soạn:** 2026-06-23
+> **Trạng thái:** BẢN NHÁP - Chờ convert interview xong
+> **Phiên bản:** 1.5
+> **Ngày soạn:** 2026-06-19
 > **Người soạn:** PM
 > **Môn học:** Nhập môn Công nghệ Phần mềm (24C07)
 > **Bài tập:** PA0 - Đăng ký nhóm và Thiết lập công cụ
@@ -31,13 +31,13 @@
 - **Tên nhóm:** CAGT
 - **Số lượng thành viên:** 5
 
-| STT | Họ và Tên             | Vai trò chính               | Vai trò phụ         |
-| --- | --------------------- | --------------------------- | ------------------- |
-| 1   | Thái Nguyễn Tuấn Kiệt | Project Manager             | UI/UX Designer      |
-| 2   | Nguyễn Thế Quân       | System Designer (Architect) | Fullstack Developer |
-| 3   | Nguyễn Minh Phát      | QA/Tester                   | Fullstack Developer |
-| 4   | Nguyễn Phương Gia Bảo | Frontend Leader             | -                   |
-| 5   | Ngô Văn Phong         | Backend Leader              | -                   |
+| STT | Họ và Tên             | Vai trò chính    | Vai trò phụ         |
+| --- | --------------------- | ---------------- | ------------------- |
+| 1   | Thái Nguyễn Tuấn Kiệt | Project Manager  | UI/UX Designer      |
+| 2   | Nguyễn Thế Quân       | System Architect | Fullstack Developer |
+| 3   | Nguyễn Minh Phát      | QA/Tester        | Fullstack Developer |
+| 4   | Nguyễn Phương Gia Bảo | Frontend Leader  | -                   |
+| 5   | Ngô Văn Phong         | Backend Leader   | -                   |
 
 ---
 
@@ -49,7 +49,7 @@ Planning AI là một nền tảng web hỗ trợ người dùng chuyển đổi
 
 - **Plan (Lập kế hoạch):** AI phân tích thông tin đầu vào và tạo kế hoạch hành động có cấu trúc. Đồng thời phân loại task tự động.
 - **Focus (Tập trung):** Hỗ trợ phiên làm việc tập trung theo phương pháp Pomodoro, gắn liền với nhiệm vụ cụ thể.
-- **Verify (Xác nhận):** Xác nhận mức độ hoàn thành. Với task học thuật, AI đóng vai trò người kiểm tra kiến thức. Với task sinh hoạt, AI đưa ra các câu hỏi phản chiếu (reflection) để tự đánh giá.
+- **Verify (Xác nhận & Ăn mừng):** Đánh dấu khoảnh khắc hoàn thành nhiệm vụ. Mọi task khi hoàn thành đều dẫn đến màn hình Celebration với tùy chọn "Moment Capture" (chụp ảnh lưu giữ kỷ niệm, tạo dòng thời gian phát triển). Đặc biệt với task học thuật, hệ thống cung cấp thêm tùy chọn AI Examiner (AI đóng vai trò người kiểm tra kiến thức) nếu người dùng muốn tự đánh giá sâu hơn.
 
 ### 2.2. Lý do thực hiện
 
@@ -59,14 +59,14 @@ Qua quan sát ban đầu, sinh viên và nhân viên văn phòng thường gặp
 2. **Không biết bắt đầu từ đâu:** Khi đối mặt với mục tiêu lớn, người dùng thường bị tê liệt lựa chọn (choice paralysis).
 3. **Tốn thời gian sắp xếp:** Việc phân loại và ưu tiên công việc thủ công mất nhiều thời gian.
 4. **Mất tập trung:** Mạng xã hội, thông báo và các yếu tố bên ngoài gây phân tâm.
-5. **Khó tự đánh giá:** Người dùng không có công cụ khách quan để kiểm tra mức độ hiểu bài hoặc chất lượng hoàn thành công việc.
+5. **Khó tự đánh giá & Thiếu động lực dài hạn:** Người dùng không có công cụ khách quan để kiểm tra mức độ hiểu bài, cũng như thiếu cách thức lưu giữ lại hành trình nỗ lực (như sự tiến bộ về thể hình, thói quen) khiến họ dễ nản chí.
 
 > [!IMPORTANT]
 > **Điểm khác biệt cốt lõi:** Planning AI không chỉ là một to-do list thông thường. Giá trị độc đáo nằm ở việc kết hợp 3 bước Plan-Focus-Verify thành một quy trình liền mạch, tận dụng AI để cá nhân hóa trải nghiệm.
 
 ### 2.3. Kết quả mong muốn
 
-Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có khả năng chuyển đổi thông tin phân tán thành kế hoạch hành động rõ ràng, hỗ trợ họ duy trì sự tập trung trong quá trình thực hiện thông qua các phiên Pomodoro hoặc môi trường làm việc tối giản, đồng thời xác nhận mức độ hoàn thành qua bước Verify với phản hồi ngắn gọn và đề xuất bước tiếp theo phù hợp.
+Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có khả năng chuyển đổi thông tin phân tán thành kế hoạch hành động rõ ràng, hỗ trợ họ duy trì sự tập trung trong quá trình thực hiện thông qua các phiên Pomodoro hoặc môi trường làm việc tối giản, đồng thời tạo cảm giác thành tựu qua bước Verify (với tính năng lưu giữ khoảnh khắc Moment Capture và tùy chọn AI Examiner kiểm tra kiến thức ngắn gọn).
 
 ---
 
@@ -78,6 +78,7 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 | ----------------------- | ------------------------------------------------------------- | ---------------------------------------------- |
 | Sinh viên đại học       | Quản lý bài tập, dự án nhóm, kỳ thi, mục tiêu học tập         | Lập kế hoạch học tập, ôn thi, theo dõi tiến độ |
 | Nhân viên văn phòng trẻ | Xử lý nhiều nhiệm vụ, deadline và dự án cùng lúc              | Tổ chức công việc, duy trì tập trung           |
+| Người theo đuổi mục tiêu cá nhân | Người muốn rèn luyện sức khỏe (tập gym), xây dựng thói quen mới | Xây dựng lộ trình rõ ràng, theo dõi sự tiến bộ trực quan qua hình ảnh (Moment Capture), duy trì động lực |
 | Người tự học (Optional) | Tự định hướng việc học, không có người hướng dẫn thường xuyên | Lập kế hoạch, tự đánh giá mức độ hiểu biết     |
 
 ### 3.2. Môi trường hoạt động
@@ -99,7 +100,10 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - Nhập đầu vào: MVP (Sprint 2-3) hỗ trợ Text và Image (ảnh chụp bảng, bài tập - do Gemini xử lý trực tiếp). Xử lý file PDF/DOCX sẽ đưa vào Phase 2 (Sprint 4-5).
 - AI tự động phân tích và phân loại task thành "học thuật" hoặc "sinh hoạt/công việc".
 - Tự động chia nhỏ nhiệm vụ lớn thành các task nhỏ hơn.
-- **Hình ảnh minh họa cho subtask:** Khi AI tạo subtask, nếu có thể, mỗi subtask sẽ kèm theo hình ảnh minh họa liên quan. Ví dụ: Nếu người dùng tải lên file PDF bài tập, mỗi subtask sẽ hiển thị ảnh crop đề bài tương ứng để người dùng nhìn trực tiếp mà không cần chuyển sang nơi khác. Với kế hoạch tập gym, mỗi bài tập sẽ kèm ảnh minh họa động tác hoặc máy tập. Người dùng có thể chỉnh sửa/thay thế ảnh của từng subtask.
+- **Hình ảnh minh họa cho subtask:** Khi AI tạo subtask, mỗi subtask có thể kèm theo hình ảnh minh họa liên quan. Tính năng này được phân kỳ như sau:
+  - **MVP (Sprint 2-3):** AI tạo mô tả ảnh cho mỗi subtask (text-based description) để người dùng hình dung nội dung cần làm. Nếu người dùng upload ảnh kèm input (ví dụ: ảnh chụp bảng, ảnh bài tập), hệ thống có thể crop và gán ảnh liên quan cho subtask tương ứng. Người dùng cũng có thể tự upload ảnh cho từng subtask.
+  - **Phase 2 (Sprint 4-5):** Hỗ trợ xử lý file PDF/DOCX. Hệ thống tự động nhận diện cấu trúc tài liệu, crop đề bài từ từng phần của tài liệu và gán vào subtask tương ứng. Ví dụ: Nếu người dùng tải lên file PDF bài tập, mỗi subtask sẽ hiển thị ảnh crop đề bài tương ứng để người dùng nhìn trực tiếp mà không cần chuyển sang nơi khác.
+  - Với kế hoạch tập gym, mỗi bài tập sẽ kèm ảnh minh họa động tác hoặc máy tập (nguồn: AI generate description hoặc người dùng tự upload). Người dùng có thể chỉnh sửa/thay thế ảnh của từng subtask.
 - Đề xuất mức độ ưu tiên và thứ tự thực hiện.
 - Hỗ trợ chỉnh sửa, sắp xếp lại kế hoạch thủ công.
 
@@ -119,11 +123,15 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 
 **Mô tả:** AI hỗ trợ xác nhận mức độ hoàn thành công việc, kết hợp trải nghiệm gamification khi hoàn thành task.
 
+> [!IMPORTANT]
+> **Nguyên tắc cốt lõi:** Verify luôn là TÙY CHỌN (optional). Hệ thống gợi ý người dùng thực hiện Verify sau khi hoàn thành task, nhưng người dùng có quyền bỏ qua bất kỳ lúc nào. Không có bước Verify nào bị bắt buộc tự động.
+
 **Chi tiết chức năng:**
 
-- Phân luồng tính năng Verify dựa trên nhãn task:
-  - **Đối với task học thuật:** Kích hoạt **AI Examiner**. AI đặt câu hỏi kiểm tra kiến thức dựa trên tài liệu/bài tập (hỗ trợ trả lời bằng văn bản hoặc nói), đánh giá câu trả lời và đề xuất ôn tập.
-  - **Đối với task sinh hoạt/công việc:** ~~AI Reflection~~ (Đã bỏ theo kết quả phỏng vấn người dùng - tính năng gây phiền toái). Thay thế bằng **Màn hình Chúc mừng (Celebration Screen)**: Khi người dùng nhấn hoàn thành task, hiển thị thông báo chúc mừng kèm nút **"Chụp ảnh khoảnh khắc"** cho phép lưu lại hình ảnh kỷ niệm khi hoàn thành (tạo cảm giác thành tựu, khuyến khích tiếp tục sử dụng).
+- **Màn hình Chúc mừng (Celebration Screen) & Moment Capture (Luôn khả dụng):** BẤT KỲ loại task nào (học thuật hay sinh hoạt) khi được đánh dấu hoàn thành đều sẽ hiển thị màn hình Celebration đầu tiên. Tại đây, người dùng luôn có tùy chọn **"Chụp ảnh khoảnh khắc" (Moment Capture)**. Tính năng này cho phép lưu lại hình ảnh kỷ niệm, tạo thành bộ sưu tập theo timeline (ví dụ: người tập gym chụp ảnh sau mỗi buổi tập để theo dõi tiến độ thể hình, sinh viên chụp ảnh bài tập đã giải xong).
+- **Phân luồng tùy chọn AI Examiner (Chỉ dành cho task học thuật):** Sau màn hình Celebration, tùy thuộc vào nhãn task mà hệ thống xử lý tiếp:
+  - **Đối với task học thuật - "Học kiến thức" (ôn bài, lý thuyết):** Hệ thống GỢI Ý kích hoạt thêm **AI Examiner**. AI đặt câu hỏi kiểm tra kiến thức dựa trên tài liệu. Người dùng có thể tự nguyện tham gia để test kiến thức hoặc bỏ qua.
+  - **Đối với task học thuật - "Làm bài tập/Thực hành" & task sinh hoạt:** Hệ thống KHÔNG gợi ý AI Examiner. Người dùng hoàn thành việc chụp ảnh khoảnh khắc (hoặc bỏ qua) là kết thúc quy trình Verify một cách nhẹ nhàng.
 - Lưu kết quả đánh giá (AI Examiner) và ảnh khoảnh khắc (Celebration) để hiển thị lên Dashboard.
 
 ### 4.4. Tính năng 4: Dashboard
@@ -137,6 +145,7 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - Tổng hợp lịch sử Focus Session (biểu đồ)
 - Tổng hợp kết quả Verify (xu hướng tiến bộ)
 - Widget nhanh: bắt đầu phiên Focus, tạo kế hoạch mới
+- **Widget "Hành trình của tôi" (My Journey):** Hiển thị timeline ảnh khoảnh khắc gần đây của người dùng. Widget này giúp người dùng nhìn lại quá trình phát triển của mình một cách trực quan, tạo động lực tiếp tục duy trì thói quen. Nhấn vào widget để mở màn hình Moment Gallery (xem chi tiết Section 6, màn hình số 13).
 
 ### 4.5. Tính năng 5: Quản lý tài khoản (Authentication & Profile)
 
@@ -147,6 +156,81 @@ Người dùng cần một giải pháp đơn giản, dễ tiếp cận, có kh�
 - Đăng ký tài khoản (email + mật khẩu)
 - Đăng nhập / Đăng xuất
 - Trang hồ sơ cá nhân (thông tin cơ bản, đổi mật khẩu)
+
+### 4.6. Luồng tích hợp Plan-Focus-Verify
+
+**Mô tả:** Đây là vòng lặp task-level mô tả cách người dùng di chuyển liền mạch giữa các tính năng cốt lõi của hệ thống. Thay vì sử dụng từng tính năng rời rạc, người dùng trải nghiệm một luồng liên tục từ việc chọn task trong kế hoạch, tập trung thực hiện, đến chúc mừng/xác nhận hoàn thành, rồi quay lại task tiếp theo.
+
+**Vòng lặp task-level:**
+
+```
+Danh sách Task trong Plan
+      |
+      v
+Chọn task cần thực hiện
+      |
+      v
+Nhấn "Bắt đầu" -> Vào Focus Session
+      |
+      v
+Tập trung làm việc (Pomodoro timer, nghe nhạc lo-fi...)
+      |
+      v
+Hoàn thành task -> Nhấn "Đã xong"
+      |
+      v
+Celebration Screen (Chúc mừng!)
+      |
+      v
+"Bạn có muốn lưu giữ khoảnh khắc không?" -> Chụp ảnh (tùy chọn)
+      |
+      v
+[Nếu task học thuật - "Học kiến thức": Gợi ý AI Examiner (tùy chọn)]
+[Nếu task học thuật - "Làm bài tập": Bỏ qua Examiner, chỉ Celebration]
+[Nếu task sinh hoạt: Chỉ Celebration]
+      |
+      v
+Quay lại danh sách task -> Chọn task tiếp theo
+      |
+      v
+(Lặp lại vòng lặp cho đến khi hoàn thành tất cả task trong Plan)
+```
+
+**Ví dụ hành trình người dùng thực tế:**
+
+#### Ví dụ 1: Người mới tập gym
+
+Anh Minh (22 tuổi, sinh viên) muốn bắt đầu tập gym nhưng không biết bắt đầu từ đâu. Anh mở Planning AI và nhập: "Tôi muốn tập gym 4 ngày/tuần, mục tiêu tăng cơ, có 1 tháng".
+
+1. **Plan:** AI tạo kế hoạch tập 4 ngày/tuần (Thứ 2: Ngực + Tay trước, Thứ 4: Lưng + Tay sau, Thứ 6: Chân, Chủ Nhật: Cardio). Mỗi ngày có 5-6 bài tập cụ thể, mỗi bài kèm mô tả động tác (text-based, MVP) hoặc ảnh minh họa (tự upload).
+2. **Focus:** Hôm nay là Thứ 2. Minh mở kế hoạch, thấy danh sách bài tập ngày hôm nay. Nhấn vào "Bench Press - 4x12" -> Nhấn "Bắt đầu" -> Vào Focus Session. Đồng hồ bắt đầu đếm, có thể bật nhạc lo-fi để tập trung.
+3. **Celebration:** Hoàn thành set cuối cùng, nhấn "Đã xong". Màn hình Celebration hiện lên: "Tuyệt vời! Bạn đã hoàn thành Bench Press!". Hệ thống hỏi: "Bạn có muốn lưu giữ khoảnh khắc không?". Minh chụp một tấm selfie tại phòng tập.
+4. **Tiếp tục:** Quay lại danh sách bài tập -> Chọn "Incline Dumbbell Press - 3x10" -> Bắt đầu Focus -> Hoàn thành -> Celebration -> Chụp ảnh (hoặc bỏ qua) -> Task tiếp theo...
+5. **Sau 1 tháng:** Minh vào Dashboard, xem widget "Hành trình của tôi" và mở Moment Gallery. Anh thấy bộ sưu tập ảnh từ ngày đầu đến nay, cảm thấy có động lực tiếp tục vì nhìn thấy sự tiến bộ rõ ràng.
+
+#### Ví dụ 2: Sinh viên cần làm bài tập 2 môn trước deadline
+
+Hoa (20 tuổi, sinh viên năm 2) có bài tập môn Toán và môn Lập trình cần nộp trong tuần này. Cô chụp ảnh đề bài Toán và copy link bài tập Lập trình, sau đó nhập vào Planning AI kèm mô tả: "Bài tập Toán - nộp thứ 5, Bài tập Lập trình - nộp thứ 6".
+
+1. **Plan:** AI phân tích và tạo kế hoạch: Môn Toán có 5 bài (ưu tiên trước vì deadline sớm hơn), môn Lập trình có 3 bài. Mỗi subtask hiển thị ảnh crop đề bài tương ứng (MVP: từ ảnh người dùng đã upload, hệ thống crop và gán cho từng subtask).
+2. **Focus:** Hoa chọn bài Toán số 1. Màn hình hiển thị ảnh đề bài ngay trong task. Nhấn "Bắt đầu" -> Vào Focus Session với Pomodoro 25 phút.
+3. **Celebration:** Hoàn thành bài 1, nhấn "Đã xong". Màn hình Celebration hiện lên. Vì đây là task "Làm bài tập" (không phải "Học kiến thức"), hệ thống KHÔNG gợi ý AI Examiner mà chỉ hiện Celebration. Hoa có thể tự bật AI Examiner nếu muốn kiểm tra lại, nhưng không bắt buộc.
+4. **Tiếp tục:** Quay lại danh sách -> Bài Toán số 2 -> Focus -> Hoàn thành -> Celebration -> ... cho đến khi xong cả 2 môn.
+
+#### Ví dụ 3: Học thuộc kiến thức (Học sinh cấp 3 ôn thi Lịch sử)
+
+Nam (17 tuổi, học sinh lớp 11) cần học thuộc đề cương môn Lịch sử cho bài kiểm tra 1 tiết sắp tới. Nam tải file đề cương lên Planning AI và nhập yêu cầu: "Giúp mình ôn thi Lịch sử".
+
+1. **Plan:** AI phân tích nội dung đề cương và chia nhỏ thành các phiên học ngắn hạn (ví dụ: Bài 1 - Chiến tranh thế giới thứ nhất, Bài 2 - Chiến tranh thế giới thứ hai).
+2. **Focus:** Nam chọn Bài 2 và bắt đầu phiên tập trung. Màn hình Focus hiện lên kèm đếm ngược Pomodoro.
+3. **Celebration:** Khi hết thời gian và Nam đánh dấu hoàn thành, màn hình chúc mừng hiện ra. Nam sử dụng tính năng chụp ảnh khoảnh khắc để chụp lại bàn học của mình nhằm lưu giữ kỷ niệm nỗ lực.
+4. **Verify (AI Examiner):** Vì đặc thù của task này được AI phân loại là "Học kiến thức", hệ thống chủ động gợi ý tính năng AI Examiner. Nam đồng ý. AI đóng vai trò giám khảo vấn đáp và đặt câu hỏi: "Hãy nêu nguyên nhân bùng nổ Thế chiến 2?". Nam gõ hoặc nói câu trả lời. AI đối chiếu với tài liệu gốc, đánh giá mức độ chính xác và chỉ ra những ý còn thiếu để xác nhận xem Nam đã thực sự thuộc bài chưa.
+
+**Điểm then chốt:**
+
+- Người dùng không cần rời khỏi ứng dụng để tìm đề bài, tài liệu -- mọi thứ hiển thị ngay trong subtask.
+- Luồng chuyển đổi giữa các màn hình là tự động và liền mạch: Task -> Focus -> Celebrate -> Task tiếp theo.
+- Verify (AI Examiner) chỉ là tùy chọn, không bao giờ ép buộc người dùng.
 
 ---
 
@@ -370,38 +454,51 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 
 ## 6. Danh sách màn hình dự kiến (Quy mô hệ thống MVP)
 
-**Tổng cộng: 12 màn hình cốt lõi**
+**Tổng cộng: 13 màn hình cốt lõi**
 
-| STT | Màn hình              | Nhóm tính năng | Ghi chú                           |
-| --- | --------------------- | -------------- | --------------------------------- |
-| 1   | Landing Page          | Marketing      | Giới thiệu sản phẩm, CTA đăng ký  |
-| 2   | Login                 | Authentication | Đăng nhập bằng email/mật khẩu     |
-| 3   | Register              | Authentication | Đăng ký tài khoản mới             |
-| 4   | Dashboard             | Dashboard      | Tổng quan hoạt động               |
-| 5   | Create Plan           | AI Planning    | Nhập mục tiêu, AI tạo kế hoạch    |
-| 6   | Plan Details          | AI Planning    | Xem chi tiết kế hoạch + task list |
-| 7   | Task Management       | AI Planning    | Quản lý, chỉnh sửa, đánh dấu task |
-| 8   | Focus Session         | Focus          | Giao diện Pomodoro timer          |
-| 9   | AI Verify Setup       | Verify         | Màn hình chuẩn bị cho Verify      |
-| 10  | AI Exam Session       | Verify         | Hỏi-đáp với AI (Học thuật)        |
-| 11  | Celebration Screen    | Verify         | Chúc mừng hoàn thành + Chụp ảnh khoảnh khắc (Sinh hoạt) |
-| 12  | Verify Result         | Verify         | Kết quả đánh giá chung            |
+| STT | Màn hình           | Nhóm tính năng | Ghi chú                                           |
+| --- | ------------------ | -------------- | ------------------------------------------------- |
+| 1   | Landing Page       | Marketing      | Giới thiệu sản phẩm, CTA đăng ký                  |
+| 2   | Login              | Authentication | Đăng nhập bằng email/mật khẩu                     |
+| 3   | Register           | Authentication | Đăng ký tài khoản mới                             |
+| 4   | Dashboard          | Dashboard      | Tổng quan hoạt động + Widget "Hành trình của tôi" |
+| 5   | Create Plan        | AI Planning    | Nhập mục tiêu, AI tạo kế hoạch                    |
+| 6   | Plan Details       | AI Planning    | Xem chi tiết kế hoạch + task list                 |
+| 7   | Task Management    | AI Planning    | Quản lý, chỉnh sửa, đánh dấu task                 |
+| 8   | Focus Session      | Focus          | Giao diện Pomodoro timer                          |
+| 9   | AI Verify Setup    | Verify         | Màn hình chuẩn bị cho Verify                      |
+| 10  | AI Exam Session    | Verify         | Hỏi-đáp với AI (Học thuật - tùy chọn)             |
+| 11  | Celebration Screen | Verify         | Chúc mừng hoàn thành + Chụp ảnh khoảnh khắc       |
+| 12  | Verify Result      | Verify         | Kết quả đánh giá chung                            |
+| 13  | Moment Gallery     | Dashboard      | Bộ sưu tập ảnh khoảnh khắc theo timeline          |
+
+**Navigation flow liền mạch (vòng lặp task-level):**
+
+```
+Plan Details (6) -> Chọn task -> Task Management (7)
+    -> Nhấn "Bắt đầu" -> Focus Session (8)
+    -> Hoàn thành -> Celebration Screen (11)
+    -> [Tùy chọn: AI Verify Setup (9) -> AI Exam Session (10) -> Verify Result (12)]
+    -> Quay lại Plan Details (6) -> Chọn task tiếp theo
+```
+
+Moment Gallery (13) có thể truy cập từ Dashboard (4) qua widget "Hành trình của tôi" hoặc từ Celebration Screen (11) sau khi chụp ảnh.
 
 ---
 
 ## 7. Công nghệ (Tech Stack)
 
-| Thành phần     | Công nghệ                                          |
-| -------------- | -------------------------------------------------- |
+| Thành phần     | Công nghệ                                                                   |
+| -------------- | --------------------------------------------------------------------------- |
 | Frontend       | React (Vite) + TypeScript + Tailwind CSS + shadcn/ui + React Router + Axios |
-| Backend        | Node.js + Express.js                               |
-| Database       | PostgreSQL + Prisma ORM                            |
-| Authentication | JWT + bcrypt                                       |
-| AI Services    | Gemini API (Google) - hỗ trợ Text và Image         |
-| Source Control | Git + GitHub (đã thiết lập)                        |
-| Project Mgmt   | JIRA (đã thiết lập)                                |
-| Design         | Figma                                              |
-| Communication  | Discord (đã thiết lập)                             |
+| Backend        | Node.js + Express.js                                                        |
+| Database       | PostgreSQL + Prisma ORM                                                     |
+| Authentication | JWT + bcrypt                                                                |
+| AI Services    | Gemini API (Google) - hỗ trợ Text và Image                                  |
+| Source Control | Git + GitHub (đã thiết lập)                                                 |
+| Project Mgmt   | JIRA (đã thiết lập)                                                         |
+| Design         | Figma                                                                       |
+| Communication  | Discord (đã thiết lập)                                                      |
 
 ### 7.1. Lý do lựa chọn, ưu điểm và rủi ro
 
@@ -410,12 +507,14 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 **Lý do lựa chọn:** Planning AI là ứng dụng Single Page Application (SPA) không cần SEO. React kết hợp Vite là giải pháp gọn nhẹ nhất cho SPA. Việc bổ sung TypeScript giúp bắt lỗi chặt chẽ, giảm bug tiềm ẩn. Thêm shadcn/ui giúp xây dựng 12 màn hình giao diện cao cấp (Premium UI) nhanh chóng mà không cần code các component phức tạp từ đầu.
 
 **Ưu điểm:**
+
 - TypeScript đảm bảo type-safety, giúp FE và BE dễ dàng đồng bộ cấu trúc dữ liệu, IntelliSense hỗ trợ dev nhanh hơn.
 - shadcn/ui cung cấp component có sẵn chất lượng cao, có tính tùy biến tuyệt đối vì code component nằm ngay trong dự án.
 - Vite cung cấp Hot Module Replacement (HMR) cực nhanh.
 - Tailwind CSS cho phép xây dựng giao diện nhanh chóng, tích hợp hoàn hảo với shadcn/ui.
 
 **Rủi ro:**
+
 - TypeScript có learning curve (đường cong học tập) nhất định với người mới. Biện pháp giảm thiểu: Các thành viên cứng (FE Lead) sẽ setup các type cơ bản và hướng dẫn cặp (pair programming).
 - Bị ngợp với số lượng code sinh ra từ shadcn/ui. Biện pháp: Chỉ cài đặt các component thật sự cần thiết, không cài toàn bộ thư viện.
 
@@ -424,11 +523,13 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 **Lý do lựa chọn:** Express.js là framework tối giản, linh hoạt và có learning curve thấp nhất trong hệ sinh thái Node.js. Với thời gian 10 tuần và nhóm 5 người, việc sử dụng framework nặng hơn như NestJS sẽ tốn thời gian học thay vì tập trung vào logic nghiệp vụ.
 
 **Ưu điểm:**
+
 - Cùng ngôn ngữ JavaScript/TypeScript với frontend, cho phép chia sẻ kiến thức và thậm chí các type/interface giữa hai tầng.
 - Cộng đồng lớn, có sẵn hàng nghìn middleware (cors, helmet, morgan, multer...) giúp giải quyết nhanh các bài toán phổ biến.
 - Kiến trúc không áp đặt (un-opinionated), cho phép nhóm tổ chức code theo cách phù hợp nhất.
 
 **Rủi ro:**
+
 - Không có cấu trúc dự án mặc định, dễ dẫn đến code không nhất quán giữa các thành viên. Giảm thiểu bằng cách thiết lập quy ước thư mục rõ ràng (routes/, controllers/, services/, middlewares/) và ESLint/Prettier ngay từ đầu.
 - Xử lý lỗi và validation cần cấu hình thủ công. Giảm thiểu bằng cách sử dụng thư viện hỗ trợ như Joi hoặc Zod cho validation.
 
@@ -437,11 +538,13 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 **Lý do lựa chọn:** Dữ liệu của Planning AI có quan hệ rõ ràng (User -> Plan -> Task -> FocusSession -> VerifyResult). PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mạnh mẽ, đảm bảo tính toàn vẹn dữ liệu (data integrity) tốt hơn so với NoSQL. Prisma ORM được chọn vì khả năng auto-generate TypeScript types từ schema, giúp phát hiện lỗi ngay lúc code thay vì lúc chạy.
 
 **Ưu điểm:**
+
 - PostgreSQL hỗ trợ ACID transactions, đảm bảo dữ liệu nhất quán khi nhiều thao tác xảy ra đồng thời.
 - Prisma Migrate tự động hóa việc quản lý thay đổi database schema qua các Sprint, tránh xung đột khi nhiều người cùng phát triển.
 - Prisma Client sinh ra các truy vấn type-safe, giảm thiểu lỗi runtime liên quan đến database.
 
 **Rủi ro:**
+
 - Prisma có schema language riêng (`.prisma`), đòi hỏi thời gian làm quen ban đầu. Giảm thiểu bằng cách dành thời gian trong Sprint 2 để thiết kế schema cẩn thận.
 - Thay đổi schema giữa các Sprint có thể gây migration conflicts. Giảm thiểu bằng cách thiết kế database schema kỹ lưỡng ở giai đoạn Elaboration và hạn chế thay đổi lớn ở giai đoạn Construction.
 
@@ -450,11 +553,13 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 **Lý do lựa chọn:** Tự xây dựng hệ thống xác thực giúp nhóm hiểu sâu về cơ chế bảo mật - đây là kiến thức quan trọng trong môn Nhập môn Công nghệ Phần mềm. Đồng thời không phát sinh chi phí dịch vụ bên thứ ba và không phụ thuộc vào hạ tầng ngoài.
 
 **Ưu điểm:**
+
 - Toàn quyền kiểm soát luồng xác thực, dễ tùy chỉnh theo yêu cầu cụ thể.
 - bcrypt là thuật toán hash mật khẩu đã được chứng minh an toàn, tự động thêm salt.
 - JWT cho phép xác thực stateless, giảm tải cho server khi không cần lưu session.
 
 **Rủi ro:**
+
 - Cần tự triển khai các cơ chế bảo mật như refresh token rotation, token blacklist khi đăng xuất, và bảo vệ chống CSRF/XSS. Giảm thiểu bằng cách tuân thủ các best practices đã có sẵn tài liệu hướng dẫn và review code kỹ phần authentication.
 - Lỗ hổng bảo mật tiềm ẩn nếu triển khai không đúng cách. Giảm thiểu bằng cách đưa phần authentication vào review ưu tiên cao nhất.
 
@@ -463,11 +568,13 @@ _Mục tiêu: Thu thập phản hồi về khái niệm Planning AI và xác đ�
 **Lý do lựa chọn:** Gemini là model multimodal (hỗ trợ cả text và image), phù hợp hoàn hảo với yêu cầu của AI Planning (người dùng có thể chụp ảnh bảng hoặc nhập văn bản). Tier miễn phí đủ cho giai đoạn phát triển và demo.
 
 **Ưu điểm:**
+
 - Hỗ trợ tiếng Việt tốt, quan trọng cho sản phẩm nhắm đến người dùng Việt Nam.
 - API đơn giản, tài liệu rõ ràng, tích hợp nhanh.
 - Xử lý đa phương thức (text + image) trong cùng một API call, không cần pipeline OCR riêng.
 
 **Rủi ro:**
+
 - Phụ thuộc vào dịch vụ bên ngoài: nếu API gặp sự cố hoặc thay đổi pricing, ứng dụng sẽ bị ảnh hưởng. Giảm thiểu bằng cách thiết kế lớp abstraction (AI service layer) để có thể chuyển sang provider khác nếu cần.
 - Rate limit trên tier miễn phí có thể giới hạn số lượng request. Giảm thiểu bằng cách cache kết quả AI và giới hạn số request mỗi người dùng mỗi ngày.
 - Chất lượng output của AI không đồng đều, đặc biệt với input phức tạp hoặc ảnh chất lượng thấp. Giảm thiểu bằng cách thiết kế prompt kỹ lưỡng và cho phép người dùng chỉnh sửa kết quả AI tạo ra.|
@@ -552,7 +659,7 @@ Planning AI hướng tới việc giúp người dùng:
 - Bắt đầu công việc nhanh hơn với kế hoạch hành động rõ ràng
 - Duy trì sự tập trung tốt hơn với Focus Session tích hợp
 - Hoàn thành công việc đúng hạn nhờ theo dõi tiến độ trực quan
-- Xác nhận mức độ hoàn thành hiệu quả với AI Verify (Oral Examiner & Reflection)
+- Xác nhận mức độ hoàn thành và ăn mừng thành quả với Celebration & Moment Capture (cùng tùy chọn AI Examiner)
 - Xây dựng quy trình làm việc Plan - Focus - Verify đơn giản và dễ duy trì
 
 ### 11.2. Định hướng MVP
@@ -561,14 +668,14 @@ Trong giai đoạn đầu, nhóm tập trung xác thực ba giả thuyết chín
 
 1. **Giả thuyết 1:** Người dùng cần được hỗ trợ tạo kế hoạch hành động đầu tiên một cách nhanh chóng (-> AI Planning)
 2. **Giả thuyết 2:** Người dùng hưởng lợi từ một quy trình tập trung đơn giản và ít ma sát (-> Focus Session)
-3. **Giả thuyết 3:** Người dùng đánh giá cao việc nhìn lại và xác nhận kết quả sau khi hoàn thành công việc (-> AI Verify)
+3. **Giả thuyết 3:** Người dùng đánh giá cao việc nhìn lại quá trình, lưu giữ khoảnh khắc và xác nhận kết quả sau khi hoàn thành công việc (-> Celebration, Moment Capture & AI Verify)
 
 **Phạm vi MVP (Thực hiện tuần tự Plan > Focus > Verify):**
 
 - 3 tính năng cốt lõi: AI Planning, Focus Session, AI Verify
 - Dashboard tổng hợp
 - Hệ thống Authentication cơ bản
-- 12 màn hình chính
+- 13 màn hình chính (bao gồm Moment Gallery)
 
 ---
 
@@ -589,4 +696,4 @@ Trong giai đoạn đầu, nhóm tập trung xác thực ba giả thuyết chín
 
 ---
 
-> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.4. Tech Stack Frontend đã bổ sung TypeScript và shadcn/ui. Cần bổ sung phần Phỏng vấn người dùng trước khi nộp PA0.
+> **Ghi chú cuối:** Tài liệu này là bản cập nhật v1.5. Thay đổi chính so với v1.4: (1) Bổ sung Section 4.6 mô tả luồng tích hợp Plan-Focus-Verify liền mạch với 2 ví dụ hành trình người dùng thực tế (Gym và Sinh viên deadline), (2) Mở rộng mô tả Ảnh Khoảnh Khắc với timeline/gallery và thêm màn hình Moment Gallery (màn hình số 13), (3) Tinh chỉnh Verify phân biệt rõ 2 sub-type task học thuật (Học kiến thức vs Làm bài tập) và nhấn mạnh Verify luôn là tùy chọn, (4) Làm rõ phân kỳ ảnh minh họa subtask: MVP (text-based + user upload) vs Phase 2 (PDF/DOCX auto-crop). Cần bổ sung phần Phỏng vấn người dùng trước khi nộp PA0.
