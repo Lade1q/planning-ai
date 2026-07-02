@@ -217,6 +217,15 @@ Hoa (20 tuổi, sinh viên năm 2) có bài tập môn Toán và môn Lập trì
 3. **Celebration:** Hoàn thành bài 1, nhấn "Đã xong". Màn hình Celebration hiện lên. Vì đây là task "Làm bài tập" (không phải "Học kiến thức"), hệ thống KHÔNG gợi ý AI Examiner mà chỉ hiện Celebration. Hoa có thể tự bật AI Examiner nếu muốn kiểm tra lại, nhưng không bắt buộc.
 4. **Tiếp tục:** Quay lại danh sách -> Bài Toán số 2 -> Focus -> Hoàn thành -> Celebration -> ... cho đến khi xong cả 2 môn.
 
+#### Ví dụ 3: Học thuộc kiến thức (Học sinh cấp 3 ôn thi Lịch sử)
+
+Nam (17 tuổi, học sinh lớp 11) cần học thuộc đề cương môn Lịch sử cho bài kiểm tra 1 tiết sắp tới. Nam tải file đề cương lên Planning AI và nhập yêu cầu: "Giúp mình ôn thi Lịch sử".
+
+1. **Plan:** AI phân tích nội dung đề cương và chia nhỏ thành các phiên học ngắn hạn (ví dụ: Bài 1 - Chiến tranh thế giới thứ nhất, Bài 2 - Chiến tranh thế giới thứ hai).
+2. **Focus:** Nam chọn Bài 2 và bắt đầu phiên tập trung. Màn hình Focus hiện lên kèm đếm ngược Pomodoro.
+3. **Celebration:** Khi hết thời gian và Nam đánh dấu hoàn thành, màn hình chúc mừng hiện ra. Nam sử dụng tính năng chụp ảnh khoảnh khắc để chụp lại bàn học của mình nhằm lưu giữ kỷ niệm nỗ lực.
+4. **Verify (AI Examiner):** Vì đặc thù của task này được AI phân loại là "Học kiến thức", hệ thống chủ động gợi ý tính năng AI Examiner. Nam đồng ý. AI đóng vai trò giám khảo vấn đáp và đặt câu hỏi: "Hãy nêu nguyên nhân bùng nổ Thế chiến 2?". Nam gõ hoặc nói câu trả lời. AI đối chiếu với tài liệu gốc, đánh giá mức độ chính xác và chỉ ra những ý còn thiếu để xác nhận xem Nam đã thực sự thuộc bài chưa.
+
 **Điểm then chốt:**
 
 - Người dùng không cần rời khỏi ứng dụng để tìm đề bài, tài liệu -- mọi thứ hiển thị ngay trong subtask.
