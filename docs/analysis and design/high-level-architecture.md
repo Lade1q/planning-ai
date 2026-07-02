@@ -11,7 +11,7 @@
 
 Planning AI là một ứng dụng web kiến trúc **Client-Server (SPA + REST API)**, hỗ trợ người dùng chuyển đổi từ ý định sang hành động thông qua quy trình **Plan - Focus - Verify**, tận dụng AI để cá nhân hóa trải nghiệm.
 
-**Quy mô MVP:** 13 màn hình cốt lõi | **Đối tượng:** Sinh viên, Nhân viên văn phòng | **Nền tảng:** Desktop Web (Chrome/Edge/Firefox)
+**Quy mô MVP:** 13 màn hình cốt lõi | **Đối tượng:** Sinh viên, Nhân viên văn phòng, Người theo đuổi mục tiêu cá nhân | **Nền tảng:** Desktop Web (Chrome/Edge/Firefox)
 
 ---
 
