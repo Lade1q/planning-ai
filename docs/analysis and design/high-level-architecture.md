@@ -11,7 +11,7 @@
 
 Planning AI là một ứng dụng web kiến trúc **Client-Server (SPA + REST API)**, hỗ trợ người dùng chuyển đổi từ ý định sang hành động thông qua quy trình **Plan - Focus - Verify**, tận dụng AI để cá nhân hóa trải nghiệm.
 
-**Quy mô MVP:** 12 màn hình cốt lõi | **Đối tượng:** Sinh viên, Nhân viên văn phòng | **Nền tảng:** Desktop Web (Chrome/Edge/Firefox)
+**Quy mô MVP:** 13 màn hình cốt lõi | **Đối tượng:** Sinh viên, Nhân viên văn phòng | **Nền tảng:** Desktop Web (Chrome/Edge/Firefox)
 
 ---
 
@@ -51,12 +51,15 @@ graph TB
     subgraph EXTERNAL["DICH VU BEN NGOAI"]
         direction TB
         GEMINI["Gemini API - Google AI"]
+        CLOUD_STORAGE["Cloud Storage (Cloudflare R2)"]
     end
 
-    HTTP -- "REST API\n/api/v1/*\nJSON + JWT Bearer" --> EXPRESS
+    HTTP -- "REST API\n/api/v1/*\nJSON + JWT Bearer + FormData" --> EXPRESS
     PRISMA -- "Prisma Client\nQuery/Mutation" --> PG
     SERVICES -- "HTTP Request\nPrompt + Multimodal" --> GEMINI
     GEMINI -- "AI Response\nKe hoach / Phan loai / Kiem tra" --> SERVICES
+    SERVICES -- "Upload File" --> CLOUD_STORAGE
+    CLOUD_STORAGE -- "Image URL" --> SERVICES
 
     style CLIENT fill:#e8f4fd,stroke:#2196F3,stroke-width:2px
     style SERVER fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
@@ -74,6 +77,7 @@ sequenceDiagram
     participant FE as Frontend SPA
     participant BE as Backend API
     participant DB as PostgreSQL
+    participant CS as Cloud Storage
     participant AI as Gemini API
 
     Note over U,AI: LUONG 1 - DANG NHAP
@@ -103,11 +107,17 @@ sequenceDiagram
     FE->>BE: PATCH /api/v1/focus-sessions/:id
     BE->>DB: Cap nhat trang thai
 
-    Note over U,AI: LUONG 4 - XAC NHAN (AI VERIFY)
-    U->>FE: Yeu cau xac nhan task
+    Note over U,AI: LUONG 4 - CELEBRATION, MOMENT CAPTURE & AI VERIFY
+    U->>FE: Hoan thanh task
+    FE->>U: Hien thi Celebration Screen
+    U->>FE: Chup anh khoanh khac (Tuy chon)
+    FE->>BE: POST /api/v1/moments (Image)
+    BE->>DB: Luu Moment
+    FE->>U: Goi y AI Examiner (Neu la task hoc kien thuc)
+    U->>FE: Dong y kiem tra
     FE->>BE: POST /api/v1/verifications
     BE->>AI: Gui context task de AI kiem tra
-    AI-->>BE: Ket qua danh gia
+    AI-->>BE: Ket qua danh gia / Cau hoi
     BE->>DB: Luu Verification result
     BE-->>FE: Ket qua xac nhan
     FE->>U: Hien thi ket qua
@@ -129,9 +139,9 @@ sequenceDiagram
 
 **Trách nhiệm chính:**
 
-- Render 12 màn hình MVP
+- Render 13 màn hình MVP
 - Quản lý state phía client (auth token, form data, UI state)
-- Gọi API backend qua Axios với JWT token đính kèm
+- Gọi API backend qua Axios với JWT token đính kèm (hỗ trợ multipart/form-data cho upload ảnh)
 - Xử lý timer Pomodoro phía client (không phụ thuộc server cho countdown)
 
 ### 4.2. Backend - API Server
@@ -148,6 +158,7 @@ sequenceDiagram
 - Cung cấp REST API endpoints (`/api/v1/*`)
 - Xác thực và phân quyền (JWT middleware)
 - Xử lý business logic (tạo kế hoạch, quản lý phiên, xác nhận)
+- Tương tác với Cloud Storage (Cloudflare R2) để upload file ảnh
 - Gọi Gemini API và xử lý response AI
 - Validate input, xử lý lỗi, trả response chuẩn hóa
 
@@ -164,9 +175,11 @@ sequenceDiagram
 erDiagram
     USER ||--o{ PLAN : "tao"
     USER ||--o{ FOCUS_SESSION : "thuc hien"
+    USER ||--o{ MOMENT : "luu giu"
     PLAN ||--o{ TASK : "bao gom"
     TASK ||--o{ FOCUS_SESSION : "gan voi"
-    TASK ||--o{ VERIFICATION : "duoc xac nhan"
+    TASK ||--o{ VERIFICATION : "kiem tra kien thuc"
+    TASK ||--o{ MOMENT : "chup anh"
 
     USER {
         uuid id PK
@@ -220,13 +233,23 @@ erDiagram
         int score
         timestamp created_at
     }
+
+    MOMENT {
+        uuid id PK
+        uuid task_id FK
+        uuid user_id FK
+        string image_url
+        string note
+        timestamp created_at
+    }
 ```
 
-### 4.4. Dịch vụ Bên ngoài - Gemini API
+### 4.4. Dịch vụ Bên ngoài - AI & Cloud Storage
 
 | Thành phần | Công nghệ         | Vai trò                                     |
 | ---------- | ----------------- | ------------------------------------------- |
 | AI Service | Google Gemini API | Xử lý ngôn ngữ tự nhiên, phân tích hình ảnh |
+| Cloud Storage | Cloudflare R2 (S3 API) | Lưu trữ hình ảnh upload từ người dùng (Moment Capture, đề bài) |
 
 **Các use case AI:**
 
@@ -236,7 +259,7 @@ erDiagram
 | AI Task Classification | Context task                | Phân loại: học thuật / sinh hoạt        |
 | AI Examiner            | Nội dung task học thuật     | Câu hỏi kiểm tra + đánh giá câu trả lời (text/voice) |
 
-> **Ghi chú:** Tính năng AI Reflection (đối với task sinh hoạt) đã được loại bỏ theo kết quả phỏng vấn người dùng. Thay thế bằng **Màn hình Chúc mừng (Celebration Screen)** với tính năng chụp ảnh khoảnh khắc khi hoàn thành task (xử lý hoàn toàn ở Frontend, không cần AI).
+> **Ghi chú:** Tính năng AI Reflection (đối với task sinh hoạt) đã được loại bỏ. Thay thế bằng **Màn hình Chúc mừng (Celebration Screen) & Moment Capture** luôn khả dụng cho mọi loại task. Ảnh khoảnh khắc được lưu trữ để tạo dòng thời gian phát triển (xử lý qua API BE thông thường, không cần AI). AI Examiner chỉ là tùy chọn phụ thêm dành cho các task "học kiến thức".
 
 ### 4.5. Authentication - JWT Flow
 
