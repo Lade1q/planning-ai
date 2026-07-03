@@ -131,6 +131,7 @@ AI Planning là tính năng cốt lõi đầu tiên của Planning AI, cho phép
 - [ ] AC-05.6: Trạng thái kế hoạch tự động cập nhật khi tất cả task đều "Hoàn thành".
 - [ ] AC-05.7: Người dùng có thể bỏ đánh dấu hoàn thành (Uncheck) cho task đã hoàn thành. Khi Uncheck, trạng thái task quay lại "Đang làm" và trạng thái tổng thể của kế hoạch tự động cập nhật tương ứng.
 - [ ] AC-05.8: Khi cập nhật trạng thái task (Check/Uncheck) bị lỗi mạng, giao diện tự động hoàn tác (revert) trạng thái checkbox về giá trị cũ và hiển thị thông báo lỗi.
+- [ ] AC-05.9: Khi tải ảnh khoảnh khắc (Moment Capture) lên Cloudflare R2 thất bại do lỗi mạng, hiển thị thông báo "Không thể tải ảnh lên, vui lòng thử lại" và cho phép tải lại.
 
 ---
 
@@ -662,10 +663,10 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### 6.9. Lấy URL upload ảnh cho task (Presigned URL)
+### 6.9. Lấy Policy upload ảnh cho task (Presigned POST Policy)
 
 ```
-GET /api/v1/plans/:planId/tasks/:taskId/upload-url
+GET /api/v1/plans/:planId/tasks/:taskId/upload-policy
 Authorization: Bearer <jwt_token>
 ```
 
@@ -681,14 +682,20 @@ Authorization: Bearer <jwt_token>
 {
   "success": true,
   "data": {
-    "uploadUrl": "https://r2.example.com/signed-url?...",
+    "uploadUrl": "https://r2.example.com/...",
+    "fields": {
+      "key": "tasks/uuid.jpg",
+      "AWSAccessKeyId": "...",
+      "policy": "...",
+      "signature": "..."
+    },
     "publicUrl": "https://r2.example.com/tasks/uuid.jpg",
     "expiresIn": 300
   }
 }
 ```
 
-> **Ghi chú:** Frontend sử dụng `uploadUrl` để PUT file trực tiếp lên Cloudflare R2. Sau khi upload thành công, gọi `PATCH /api/v1/plans/:planId/tasks/:taskId` để cập nhật `imageUrl` = `publicUrl`. URL ký không hết hạn sau 5 phút (300 giây).
+> **Ghi chú:** Frontend sử dụng `uploadUrl` cùng với các `fields` để thực hiện yêu cầu POST trực tiếp lên Cloudflare R2 bằng `FormData`. Việc dùng POST Policy cho phép Backend thiết lập `content-length-range` giới hạn kích thước file là 10MB từ phía máy chủ R2. Sau khi upload thành công, gọi `PATCH /api/v1/plans/:planId/tasks/:taskId` để cập nhật `imageUrl` = `publicUrl`. Policy ký không hết hạn sau 5 phút (300 giây).
 
 **Response lỗi:**
 

@@ -111,7 +111,11 @@ sequenceDiagram
     U->>FE: Hoan thanh task
     FE->>U: Hien thi Celebration Screen
     U->>FE: Chup anh khoanh khac (Tuy chon)
-    FE->>BE: POST /api/v1/moments (Image)
+    FE->>BE: Xin Presigned POST Policy
+    BE-->>FE: URL & Policy (Max 10MB)
+    FE->>CS: Tai anh truc tiep len Cloudflare R2
+    CS-->>FE: Tai thanh cong
+    FE->>BE: POST /api/v1/moments (Gui URL anh)
     BE->>DB: Luu Moment
     FE->>U: Goi y AI Examiner (Neu la task hoc kien thuc)
     U->>FE: Dong y kiem tra
@@ -260,6 +264,8 @@ erDiagram
 | AI Examiner            | Nội dung task học thuật     | Câu hỏi kiểm tra + đánh giá câu trả lời (text/voice) |
 
 > **Ghi chú:** Tính năng AI Reflection (đối với task sinh hoạt) đã được loại bỏ. Thay thế bằng **Màn hình Chúc mừng (Celebration Screen) & Moment Capture** luôn khả dụng cho mọi loại task. Ảnh khoảnh khắc được lưu trữ để tạo dòng thời gian phát triển (xử lý qua API BE thông thường, không cần AI). AI Examiner chỉ là tùy chọn phụ thêm dành cho các task "học kiến thức".
+
+> **Cảnh báo Kỹ thuật (Timeout):** Gọi Gemini API (đặc biệt khi kèm hình ảnh) có thể mất đến 45s. Yêu cầu môi trường Server (ví dụ Vercel, Render) phải được cấu hình Gateway Timeout > 45s để tránh lỗi 504 Gateway Timeout. Cấu hình Presigned POST Policy cho Cloudflare R2 cần thiết lập giới hạn dung lượng cứng (vd: 10MB).
 
 ### 4.5. Authentication - JWT Flow
 
