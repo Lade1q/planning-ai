@@ -37,7 +37,7 @@ Recall AI là một web app giúp sinh viên biến tài liệu ôn tập (đề
 
 ### 2.2 Vấn đề & động lực
 
-- **Học thụ động, ôn tập hời hợt:** Đa số sinh viên ôn tập bằng cách đọc lại hoặc gạch highlight, phương pháp có hiệu quả ghi nhớ thấp so với việc tự kiếm tra (retrieval practice) theo nghiên cứu tâm lý học nhận thức.
+- **Học thụ động, ôn tập hời hợt:** Đa số sinh viên ôn tập bằng cách đọc lại hoặc gạch highlight,  pháp có hiệu quả ghi nhớ thấp so với việc tự kiếm tra (retrieval practice) theo nghiên cứu tâm lý học nhận thức.
 - **Không có cách khách quan để tự đánh giá:** Sinh viên khó biết mình đã "thuộc" hay chỉ "quen mặt chữ", vì không có ai để kiểm tra được mức độ hiểu biết của mình.
 - **Ôn tập không có kế hoạch:** Trước deadline hoặc kỳ thi, sinh viên thường ôn dồn, không chia nhỏ nội dung theo mức độ ưu tiên hoặc thời gian còn lại.
 
@@ -68,14 +68,14 @@ Sinh viên năm 1-2 các ngành kỹ thuật/khoa học tự nhiên, đặc bi�
 
 ### 5.2. Focus Session
 
-- Có thể lựa chọn các phương pháo học tập (mặc định là Pomodoro).
+- Có thể lựa chọn các phương pháp học tập (mặc định là Pomodoro).
 - Lưu lịch sử phiên học để hiển thị thống kê thời gian ôn tập.
 
 ### 5.3. AI Examiner - Interview vấn đáp nhiều lượt (tính năng cốt lõi)
 
 Đây là điểm khác biệt chính của sản phẩm, không phải Q&A rời rạc hỏi 1 câu chấm 1 câu.
 
-- **Hội thoại nhiều lượt (multi-turn), có trạng thái**: AI giữ lịch sử hội thoại trong suốt phiên vấn đáp, không xử lý từng câu độc lập. Dựa trên câu trả lời của người dùng, AI tự quyết định bước tiếp theo: - Nếu câu trả lời tốt -> hỏi đào sâu hơn (Ví dụ: "Bạn vừa nói X, vậy tại sao Y lại xảy ra?"). - Nếu câu trả lời hời hợt/học vẹt -> AI phát hiện và truy vấn thêm để kiếm tra độ hiểu thật, không chấp nhận câu trả lời chung chung. - Nếu câu trả lời sai/thiếu -> AI chỉ ra chỗ sai, có thể họi lại khái niệm nền tảng trước khi tiếp tục.
+- **Hội thoại nhiều lượt (multi-turn), có trạng thái**: AI giữ lịch sử hội thoại trong suốt phiên vấn đáp, không xử lý từng câu độc lập. Dựa trên câu trả lời của người dùng, AI tự quyết định bước tiếp theo: - Nếu câu trả lời tốt -> hỏi đào sâu hơn (Ví dụ: "Bạn vừa nói X, vậy tại sao Y lại xảy ra?"). - Nếu câu trả lời hời hợt/học vẹt -> AI phát hiện và truy vấn thêm để kiếm tra độ hiểu thật, không chấp nhận câu trả lời chung chung. - Nếu câu trả lời sai/thiếu -> AI chỉ ra chỗ sai, có thể hỏi lại khái niệm nền tảng trước khi tiếp tục.
 - **Neo chặt vào tài liệu gốc:** Toàn bộ câu hỏi và đánh giá đều dựa trên đúng nội dung người dùng đã tải lên - đây là khác biệt so với việc tự hỏi ChatGPT/Claude thông thường, vốn không có ngữ cảnh tài liệu cụ thể và không theo dõi trạng thái mức hiểu bài của người đọc qua thời gian.
 - **Nhận xét tổng hợp cuối phiên:** Kết thúc, AI đưa đánh giá tổng thể (giống giám khảo thật chốt nhận xét sau buổi vấn đáp): những phần đã nắm vững, những phần còn yếu, gợi ý nên ôn lại gì.
 - **Voice input (nice-to-have, không cam kết trong MVP):** Cân nhắc thêm Speech-to-Text để trả lời bằng giọng nói ở giai đoạn sau.
