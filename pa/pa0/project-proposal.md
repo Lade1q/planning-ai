@@ -105,7 +105,7 @@ Sinh viên năm 1-2 các ngành kỹ thuật/khoa học tự nhiên, đặc bi�
 
 AI Examiner là tính năng vận hành trực tiếp cơ chế kiểm chứng kiến thức của sản phẩm, khác việc hỏi-đáp rời rạc từng câu độc lập:
 
-- **Hội thoại nhiều lượt, có trạng thái, giới hạn rõ ràng**: Dựa trên câu trả lời của người dùng, hệ thống quyết định bước tiếp theo trong phạm vi một máy trạng thái có giới hạn: tối đa N lượt hỏi-đáp cho mỗi khái niệm (ví dụ 3 lượt),, nhằm kiểm soát chi phí gọi AI và thời gian phản hồi.
+- **Hội thoại nhiều lượt, có trạng thái, giới hạn rõ ràng**: Dựa trên câu trả lời của người dùng, hệ thống quyết định bước tiếp theo trong phạm vi một máy trạng thái có giới hạn: tối đa N lượt hỏi-đáp cho mỗi khái niệm (ví dụ 3 lượt), nhằm kiểm soát chi phí gọi AI và thời gian phản hồi.
   - Câu trả lời thể hiện mức hiểu bản chất -> hỏi đào sâu hơn trong giới hạn lượt còn lại (ví dụ: "Bạn vừa nói X, vây tại sao Y lại xảy ra?").
   - Câu trả lời hời hợt/học vẹt -> AI truy vấn thêm để kiểm tra độ hiểu thật, không chấp nhận câu trả lời chung chung.
   - Câu trả lời thiếu/sai -> AI chỉ ra chỗ sai; nếu liên quan đến khái niệm nền, hệ thống chuyển sang cơ chế truy ngược ở mục 5.4 thay vì để AI tự quyết định hỏi lại khái niệm nào.
