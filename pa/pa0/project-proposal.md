@@ -330,7 +330,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | --------------------------------------- | --------- | ----------- | --------- | -------- | ---------- |
 | Quản lý tiến độ Sprint                  | R/A       | C           | I         | I        | I          |
 | Thiết kế kiến trúc                      | C         | R/A         | I         | C        | C          |
-| Thiết kế UI/UX                          | R/A       | C           | I         | C        | I          |
+| Thiết kế UI/UX                          | R/A       | C           | C         | C        | C          |
 | Thiết kế & cài đặt Concept Graph Engine | C         | R/A         | C         | I        | C          |
 | Trực quan hóa đồ thị trên Dashboard     | I         | C           | I         | R/A      | C          |
 | Phát triển Frontend                     | I         | C           | I         | R/A      | I          |
