@@ -201,7 +201,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | 2   | Đăng ký / Đăng nhập     | Form email + mật khẩu                                                                                                           | 3                                      |
 | 3   | Dashboard               | Tổng quan các kế hoạch đang học, deadline gần nhất, đồ thị khái niệm tô màu theo mức độ vững/yếu                                | 3 -> hoàn thiện phần đồ thị ở Sprint 5 |
 | 4   | Tạo kế hoạch ôn tập        | Nhập text/ảnh/pdf/docx tài liệu, nhập deadline, xem và chỉnh sửa đồ thị khái niệm do AI đề xuất, gửi cho AI Study Planner xử lý | 3                                      |
-| 5   | Focus Session           | Lựa chọn phương pháo học tập (Pomodoro, ...)                                                                                    | 3                                      |
+| 5   | Focus Session           | Lựa chọn phương pháp học tập (Pomodoro, ...)                                                                                    | 3                                      |
 | 6   | AI Examiner - Interview | Giao diện hội thoại nhiều lượt giữa người dùng và AI giám khảo, dựa trên tài liệu đã tải                                        | 4                                      |
 | 7   | Kết quả phiên Interview | Nhận xét tổng hợp cuối phiên: phần đã vững, phần còn yếu, gợi ý ôn lại                                                          | 4                                      |
 | 8   | Lịch sử & Tiến độ       | Đồ thị khái niệm theo thời gian, lịch sử các phiên Interview và Focus Session                                                   | 5                                      |
