@@ -36,7 +36,7 @@ Khi sinh viên trả lời sai, hệ thống không chỉ hẹn lại đúng câ
 
 ### 2.2. Vấn đề & động lực
 
-- **Học thụ động, ôn tập hời hợt:** Đa số sinh viên ôn tập bằng cách đọc lại hoặc gạch highlight - phương pháo có hiệu quả ghi nhớ thấp so với tự kiểm tra (retrieval practice) theo nghiên cứu tâm lý học nhận thức.
+- **Học thụ động, ôn tập hời hợt:** Đa số sinh viên ôn tập bằng cách đọc lại hoặc gạch highlight - phương pháp có hiệu quả ghi nhớ thấp so với tự kiểm tra (retrieval practice) theo nghiên cứu tâm lý học nhận thức.
 - **Không có cách khách quan để tự đánh giá:** Sinh viên khó biết mình đã "thuộc" hay chỉ "quen mặt chữ", vì không có ai kiểm tra được mức độ hiểu biết thực sự của mình.
 - **Ôn tập không có kế hoạch:** Trước deadline hoặc kỳ thi, sinh viên thường ôn dồn, không chia nhỏ nội dung theo mức độ ưu tiên hoặc thời gian còn lại.
 
