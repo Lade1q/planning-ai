@@ -222,7 +222,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | Scheduling & Remediation Engine | Thuật toán tự viết: priority queue (lập lịch) + BFS ngược có giới hạn độ sâu (truy ngược tiên quyết)                                          |
 | Source Control                  | Git + GitHub                                                                                                                                  |
 | Project Mgmt                    | JIRA                                                                                                                                          |
-| Design                          | Figma                                                                                                                                         |
+| Design                          | Figma, Stitch                                                                                                                                        |
 | Communication                   | Discord                                                                                                                                       |
 
 ### 9.2. Lý do lựa chọn, ưu điểm và rủi ro
