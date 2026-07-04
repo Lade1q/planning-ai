@@ -62,7 +62,7 @@ Cơ chế truy ngược theo quan hệ tiên quyết không phải là một ý 
 ### 2.4 Kết quả mong muốn
 
 - Sinh viên tải tài liệu ôn tập lên và nhận được một kế hoạch ôn tập có cấu trúc, sắp xếp theo deadline, trong vòng vài phút.
-- Quan phiên vấn đáp nhiều lượt, hệ thống phân biệt được câu trả lời học vẹt và câu trả lời thực sự hiểu bản chất, dựa trên bằng chứng cụ thể trong hội thoại.
+- Luân phiên vấn đáp nhiều lượt, hệ thống phân biệt được câu trả lời học vẹt và câu trả lời thực sự hiểu bản chất, dựa trên bằng chứng cụ thể trong hội thoại.
 - Khi phát hiện một khái niệm bị yếu, hệ thống tự động xác định và đề xuất ôn lại đúng khái niệm nền tảng gây ra điểm yếu đó, không chờ sinh viên tự nhận ra.
 - Đến cuối kỳ ôn tập, sinh viên có một bức tranh trực quan (đồ thị khái niệm tô màu theo mức độ vững/yếu) về toàn bộ môn học, thay vì một danh sách điểm số rời rạc.
 - Nhóm chứng minh được năng lực thiết kế và cài đặt một hệ thống có logic điều phối thật (thuật toán lập lịch, truy ngược đồ thị) đứng sau lớp giao diện gọi AI.
