@@ -71,7 +71,7 @@ Cơ chế truy ngược theo quan hệ tiên quyết không phải là một ý 
 
 ## 3. Đối tượng người dùng
 
-Sinh viên năm 1-2 các ngành kỹ thuật/khoa học tự nhiên, đặc biệt có các môn có khối lượng lý thuyết lớn và có cấu trúc khái niệm phân tầng rõ ràng - nghĩa là việc hiểu một khái niệm thường đòi hỏi đã nắm vững khái niệm trước đó (ví dụ: mạng máy tính, hệ điều hành, DSA, các môn đại cương). Đặc điểm "phân tầng" này là điều kiện để tính năng truy ngược the quan hệ tiên quyết (mục 5.4) phát huy giá trị; với các môn có nội dung rời rạc, không phụ thuộc nhau, hệ thống vẫn hoạt động nhưng vận hành gần với một công cụ ôn tập bằng AI thông thường.
+Sinh viên năm 1-2 các ngành kỹ thuật/khoa học tự nhiên, đặc biệt có các môn có khối lượng lý thuyết lớn và có cấu trúc khái niệm phân tầng rõ ràng - nghĩa là việc hiểu một khái niệm thường đòi hỏi đã nắm vững khái niệm trước đó (ví dụ: mạng máy tính, hệ điều hành, DSA, các môn đại cương). Đặc điểm "phân tầng" này là điều kiện để tính năng truy ngược quan hệ tiên quyết (mục 5.4) phát huy giá trị; với các môn có nội dung rời rạc, không phụ thuộc nhau, hệ thống vẫn hoạt động nhưng vận hành gần với một công cụ ôn tập bằng AI thông thường.
 
 ---
 
