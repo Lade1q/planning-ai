@@ -122,7 +122,7 @@ AI Examiner là tính năng vận hành trực tiếp cơ chế kiểm chứng k
 **Cơ chế:**
 
 - 1. **Trích xuất:** Ở bước Ingest, ngoài danh sách khái niệm, AI được yêu cầu trả về thêm quan hệ tiên quyest giữa các khái niệm, dạng `{concept_id, prerequisite_of:[concept_id, ...]}`. Hệ thống kiểm tra đầu ra này tạo thành một đồ thị không chu trình (DAG) trước khi lưu; nếu phát hiện quan hệ vòng, hệ thống yêu cầu sinh lại hoặc loại bỏ cạnh gây vòng và ghi log để xem xét.
-- 2. **Xác nhận thủ công:** Người dùng xem đồ thị dưới dạng sơ đồ trực quan, có thể sửa, xóa hoặc thêm quan hệ trước khi bắt đầu học. Hệ thống không tự động tin tưởng hoàn taonf vào kết quả AI sinh ra.
+- 2. **Xác nhận thủ công:** Người dùng xem đồ thị dưới dạng sơ đồ trực quan, có thể sửa, xóa hoặc thêm quan hệ trước khi bắt đầu học. Hệ thống không tự động tin tưởng hoàn toàn vào kết quả AI sinh ra.
 - 3. **Lưu trữ:** Đồ thị được lưu trong PostgreSQL bằng hai bảng quan hệ, không cần graph database riêng:
   - `concepts (id, plan_id, name, mastery_score, last_tested_at)`
   - `concept_edges (from_concept_id, to_concept_id)` - trong đó `from` là tiên quyết của `to`.
