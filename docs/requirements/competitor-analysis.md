@@ -179,3 +179,4 @@ Khi Recall AI vượt ra khỏi giai đoạn MVP, kiến trúc "Stateless Monoli
 ---
 
 *Ghi chú: Các thông tin kỹ thuật về Jira trong tài liệu này được tổng hợp và đối chiếu với tài liệu công khai của Atlassian Developer (developer.atlassian.com) tính đến 07/2026.*
+
