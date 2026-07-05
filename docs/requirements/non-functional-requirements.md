@@ -219,3 +219,4 @@ Bảng dưới tổng hợp các chỉ số định lượng quan trọng nhất
 > **Ghi chú về phạm vi MVP:** Tất cả các ràng buộc trên được thiết kế phù hợp với một nhóm 5 sinh viên, thời gian 10 tuần, môi trường staging (không phải production thương mại). Các NFR có thể được xem xét và điều chỉnh khi dự án chuyển sang giai đoạn triển khai thực tế.
 
 ---
+
