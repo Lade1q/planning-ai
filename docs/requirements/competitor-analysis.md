@@ -174,6 +174,8 @@ Khi Recall AI vượt ra khỏi giai đoạn MVP, kiến trúc "Stateless Monoli
 *   **Workflow Engine tùy biến vô hạn:** phù hợp với quản lý dự án doanh nghiệp nhưng không cần thiết cho một ứng dụng học tập cá nhân — sẽ làm tăng độ phức tạp không cần thiết.
 *   **Cộng tác thời gian thực (@mention, phân quyền dự án):** nằm ngoài phạm vi sản phẩm hiện tại (Recall AI tập trung vào trải nghiệm cá nhân hóa), chỉ nên cân nhắc nếu sau này mở rộng sang tính năng học nhóm.
 
+
+
 ---
 
 *Ghi chú: Các thông tin kỹ thuật về Jira trong tài liệu này được tổng hợp và đối chiếu với tài liệu công khai của Atlassian Developer (developer.atlassian.com) tính đến 07/2026.*
