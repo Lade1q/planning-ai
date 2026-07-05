@@ -149,3 +149,4 @@ Server backend sẽ khởi chạy và lắng nghe kết nối tại cổng cấu
     *   *Cách xử lý:* Tắt dịch vụ Postgres native đang chạy ngầm (trên Windows: Mở Services ➔ Tìm `postgresql` ➔ Chọn `Stop`; trên macOS: Chạy `brew services stop postgresql`). Hoặc sửa cổng binding trong file `docker-compose.yml` từ `"5432:5432"` thành `"5433:5432"` (và nhớ sửa lại `DATABASE_URL` trong `.env` sử dụng cổng `5433`).
 *   **Lỗi: `Prisma schema has not been found`**
     *   *Cách xử lý:* Đảm bảo bạn đang đứng ở thư mục gốc của dự án có chứa thư mục `prisma` chứa file `schema.prisma`.
+
