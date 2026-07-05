@@ -9,6 +9,19 @@ _Recall AI - Trợ lý ôn tập chủ động, truy ngược tận gốc kiến
 
 ## Mục lục
 
+- [Phần 1: Thông tin nhóm](#1-thông-tin-nhóm)
+- [Phần 2: Giới thiệu dự án](#2-giới-thiệu-dự-án)
+- [Phần 3: Đối tượng người dùng](#3-đối-tượng-người-dùng)
+- [Phần 4: Giá trị cốt lõi và vòng lặp trải nghiệm](#4-giá-trị-cốt-lõi--vòng-lặp-trải-nghiệm)
+- [Phần 5: Vấn đề & Động lực](#5-vấn-đề--động-lực)
+- [Phần 6: Yếu tố Agentic](#6-yếu-tố-agentic)
+- [Phần 7: Phỏng vấn người dùng](#7-phỏng-vấn-người-dùng)
+- [Phần 8: Danh sách màn hình, quy mô MVP](#8-danh-sách-màn-hình-dự-kiến-quy-mô-hệ-thống-mvp)
+- [Phần 9: Công nghệ (Tech Stack)](#9-công-nghệ-tech-stack)
+- [Phần 10: Phân công vai trò và trách nhiệm](#10-phân-công-vai-trò-và-trách-nhiệm)
+- [Phần 11: Kế hoạch thực hiện (Project Schedule)](#11-kế-hoạch-thực-hiện-project-schedule)
+- [Phần 12: Rủi ro và giả định](#12-rủi-ro--giả-định)
+
 ---
 
 ## 1. Thông tin nhóm
@@ -200,7 +213,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | 1   | Landing Page            | Trang giới thiệu ứng dụng, CTA đăng ký                                                                                          | 3                                      |
 | 2   | Đăng ký / Đăng nhập     | Form email + mật khẩu                                                                                                           | 3                                      |
 | 3   | Dashboard               | Tổng quan các kế hoạch đang học, deadline gần nhất, đồ thị khái niệm tô màu theo mức độ vững/yếu                                | 3 -> hoàn thiện phần đồ thị ở Sprint 5 |
-| 4   | Tạo kế hoạch ôn tập        | Nhập text/ảnh/pdf/docx tài liệu, nhập deadline, xem và chỉnh sửa đồ thị khái niệm do AI đề xuất, gửi cho AI Study Planner xử lý | 3                                      |
+| 4   | Tạo kế hoạch ôn tập     | Nhập text/ảnh/pdf/docx tài liệu, nhập deadline, xem và chỉnh sửa đồ thị khái niệm do AI đề xuất, gửi cho AI Study Planner xử lý | 3                                      |
 | 5   | Focus Session           | Lựa chọn phương pháp học tập (Pomodoro, ...)                                                                                    | 3                                      |
 | 6   | AI Examiner - Interview | Giao diện hội thoại nhiều lượt giữa người dùng và AI giám khảo, dựa trên tài liệu đã tải                                        | 4                                      |
 | 7   | Kết quả phiên Interview | Nhận xét tổng hợp cuối phiên: phần đã vững, phần còn yếu, gợi ý ôn lại                                                          | 4                                      |
@@ -222,7 +235,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | Scheduling & Remediation Engine | Thuật toán tự viết: priority queue (lập lịch) + BFS ngược có giới hạn độ sâu (truy ngược tiên quyết)                                          |
 | Source Control                  | Git + GitHub                                                                                                                                  |
 | Project Mgmt                    | JIRA                                                                                                                                          |
-| Design                          | Figma, Stitch                                                                                                                                        |
+| Design                          | Figma, Stitch                                                                                                                                 |
 | Communication                   | Discord                                                                                                                                       |
 
 ### 9.2. Lý do lựa chọn, ưu điểm và rủi ro
