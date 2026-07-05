@@ -126,6 +126,7 @@ _Recall AI – Trợ lý ôn tập chủ động, truy ngược tận gốc ki�
 | NFR-U5 | Thông báo lỗi phải **rõ ràng, bằng tiếng Việt**, chỉ rõ người dùng cần làm gì tiếp theo (không chỉ mã lỗi kỹ thuật) | Ví dụ: "File quá lớn (tối đa 10 MB), vui lòng chọn file khác." |
 | NFR-U6 | Các thao tác tốn thời gian (gọi AI, tải file) phải hiển thị **trạng thái loading** rõ ràng cho người dùng | Spinner, skeleton screen, hoặc thanh tiến trình tùy ngữ cảnh |
 | NFR-U7 | Hành động không thể hoàn tác (xóa kế hoạch, xóa tài khoản) phải có **bước xác nhận** trước khi thực hiện | Dialog xác nhận với mô tả hậu quả cụ thể |
+| NFR-U8 | Tùy chọn cài đặt ngôn ngữ (Tiếng Anh / Tiếng Việt) | Optional, Ưu tiên Tiếng Việt trước |
 
 ### 3.3 Khả năng tiếp cận (Accessibility)
 
@@ -211,6 +212,7 @@ Bảng dưới tổng hợp các chỉ số định lượng quan trọng nhất
 | Bảo mật | Xác thực session | JWT (access + refresh) |
 | Khả dụng | Trình duyệt hỗ trợ | Bắt buộc Chrome (các trình duyệt khác Optional) |
 | Khả dụng | Nền tảng ưu tiên | Desktop-first (≥ 1280px) |
+| Khả dụng | Tùy chọn cài đặt ngôn ngữ | Optional, Ưu tiên Tiếng Việt trước |
 | Sẵn sàng | Uptime trong các buổi báo cáo/demo Sprint | Đảm bảo 100% |
 | Sẵn sàng | Dự phòng khi AI lỗi | Fallback flashcard tĩnh |
 | Bảo trì | Unit test thuật toán Concept Graph Engine | Bắt buộc |
