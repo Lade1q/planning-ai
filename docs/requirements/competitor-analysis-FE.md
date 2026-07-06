@@ -261,4 +261,4 @@ Recall AI không cạnh tranh trực tiếp với cả hai. Notion và Todoist �
 
 ---
 
-*Ghi chú: Các thông tin kỹ thuật về Notion và Todoist/TickTick trong tài liệu này được tổng hợp từ tài liệu công khai, bài viết kỹ thuật, và quan sát trực tiếp hành vi ứng dụng. Thông tin về Recall AI được dựa trực tiếp từ [Project Proposal (PA0)](file:///Users/nguyenphuonggiabao/Documents/Project%20file/planning-ai/pa/pa0/project-proposal.md) tính đến 07/2026.*
+*Ghi chú: Các thông tin kỹ thuật về Notion và Todoist/TickTick trong tài liệu này được tổng hợp từ tài liệu công khai, bài viết kỹ thuật, và quan sát trực tiếp hành vi ứng dụng. Thông tin về Recall AI được dựa trực tiếp từ [Project Proposal (PA0)](../../pa/pa0/project-proposal.md) tính đến 07/2026.*
