@@ -134,7 +134,7 @@ sequenceDiagram
 Notion tổ chức "cùng 1 dataset, nhiều cách hiển thị" bằng cách tách biệt hoàn toàn **data layer** và **presentation layer**:
 
 ```
-DatabaseStore (Zustand)
+DatabaseStore (client store)
     │
     ├── useTableView()    → <TableView />     (rows × columns)
     ├── useBoardView()    → <BoardView />     (columns × cards)
