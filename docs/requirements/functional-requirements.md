@@ -117,6 +117,8 @@ Mức độ ưu tiên được phân loại:
 - [ ] AC3: Kết quả phải được render và hiển thị trực quan dưới dạng **sơ đồ cây / đồ thị phân cấp**, không phải văn bản thuần túy.
 - [ ] AC4: Mỗi task có tên, mô tả ngắn và đề xuất thứ tự học tập.
 - [ ] AC5: Toàn bộ quá trình xử lý của AI phải hoàn thành trong vòng tối đa [10 giây].
+- [ ] AC6: Định dạng đầu ra của AI bắt buộc là JSON schema cố định để phục vụ xử lý logic (không dùng văn bản tự do).
+- [ ] AC7: Có cơ chế thử lại (retry) hoặc chia nhỏ văn bản nếu xử lý bằng AI gặp lỗi định dạng.
 
 ---
 
@@ -132,6 +134,8 @@ Mức độ ưu tiên được phân loại:
 - [ ] AC1: Người dùng có thể thêm mới, xóa bỏ hoặc đổi tên bất kỳ task/khái niệm nào.
 - [ ] AC2: Người dùng có thể thay đổi thứ tự và quan hệ kết nối giữa các task bằng cách kéo thả.
 - [ ] AC3: Mọi thay đổi sẽ được lưu tự động sau mỗi hành động chỉnh sửa.
+- [ ] AC4: Người dùng bắt buộc phải bấm "Xác nhận kế hoạch" trước khi bắt đầu học (không tự động tin tưởng 100% AI).
+- [ ] AC5: Hệ thống phải kiểm tra tính chất không chu trình (DAG) khi lưu đồ thị, nếu phát hiện vòng lặp (A -> B -> A) sẽ cảnh báo hoặc từ chối lưu.
 
 ---
 
@@ -276,6 +280,7 @@ Mức độ ưu tiên được phân loại:
 - [ ] AC1: Với đáp án sai, AI phải phản hồi rõ "Sai ở đâu" và "Tại sao sai".
 - [ ] AC2: AI phải cung cấp đáp án đúng và đính kèm nội dung tham chiếu (citation) từ tài liệu gốc.
 - [ ] AC3: Nếu đáp án chỉ đúng một phần, AI có khả năng đặt ra câu hỏi "follow-up" để dẫn dắt người dùng đi đúng hướng.
+- [ ] AC4: Hệ thống cung cấp nút "Khiếu nại/Phản hồi" để người dùng báo cáo nếu AI chấm sai hoặc không hợp lý.
 
 ---
 
@@ -336,6 +341,21 @@ Mức độ ưu tiên được phân loại:
 - [ ] AC1: Khi một concept bị đánh giá "Yếu" (mastery score thấp) sau phiên Verify, AI phải kiểm tra các node (khái niệm) tiên quyết kết nối trước nó trong Graph.
 - [ ] AC2: Hệ thống tự động đẩy các concept nền tảng đó vào danh sách "Ưu tiên ôn tập".
 - [ ] AC3: Hiển thị thông báo giải thích rõ cho người dùng lý do tại sao hệ thống lại gợi ý quay ngược lại học bài cũ.
+
+---
+
+#### **FR-VERIFY-07 – Chế độ dự phòng khi lỗi AI (Fallback Flashcard)**
+
+| Trường | Nội dung |
+|---|---|
+| **ID** | FR-VERIFY-07 |
+| **Mô tả chức năng** | Hệ thống phải cung cấp chế độ kiểm tra tự chấm bằng Flashcard tĩnh trong trường hợp API AI gặp lỗi hoặc hết quota. |
+| **Mức độ ưu tiên** | Trung bình |
+
+**Tiêu chí chấp nhận:**
+- [ ] AC1: Tự động chuyển sang giao diện câu hỏi tĩnh đã sinh từ trước khi tính năng AI chat không khả dụng.
+- [ ] AC2: Người dùng tự nhẩm câu trả lời và tự đánh giá (Đúng/Sai/Nhớ mang máng).
+- [ ] AC3: Kết quả tự đánh giá vẫn được cập nhật vào `mastery_score` và đồ thị để lập lịch ôn tập.
 
 ---
 
