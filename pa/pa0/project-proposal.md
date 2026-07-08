@@ -15,12 +15,11 @@ _Recall AI - Trợ lý ôn tập chủ động, truy ngược tận gốc kiến
 - [Phần 4: Giá trị cốt lõi và vòng lặp trải nghiệm](#4-giá-trị-cốt-lõi--vòng-lặp-trải-nghiệm)
 - [Phần 5: Vấn đề & Động lực](#5-vấn-đề--động-lực)
 - [Phần 6: Yếu tố Agentic](#6-yếu-tố-agentic)
-- [Phần 7: Phỏng vấn người dùng](#7-phỏng-vấn-người-dùng)
-- [Phần 8: Danh sách màn hình, quy mô MVP](#8-danh-sách-màn-hình-dự-kiến-quy-mô-hệ-thống-mvp)
-- [Phần 9: Công nghệ (Tech Stack)](#9-công-nghệ-tech-stack)
-- [Phần 10: Phân công vai trò và trách nhiệm](#10-phân-công-vai-trò-và-trách-nhiệm)
-- [Phần 11: Kế hoạch thực hiện (Project Schedule)](#11-kế-hoạch-thực-hiện-project-schedule)
-- [Phần 12: Rủi ro và giả định](#12-rủi-ro--giả-định)
+- [Phần 7: Danh sách màn hình & quy mô hệ thống MVP](#7-danh-sách-màn-hình-dự-kiến-quy-mô-hệ-thống-mvp)
+- [Phần 8: Công nghệ (Tech Stack)](#8-công-nghệ-tech-stack)
+- [Phần 9: Phân công vai trò và trách nhiệm (Team Roles & Responsibilities)](#9-phân-công-vai-trò-và-trách-nhiệm)
+- [Phần 10: Kế hoạch thực hiện (Project Schedule)](#10-kế-hoạch-thực-hiện-project-schedule)
+- [Phần 11: Rủi ro & giả định](#11-rủi-ro--giả-định)
 
 ---
 
@@ -176,37 +175,7 @@ KHI concept C có mastery_score < ngưỡng (ví dụ 0.6):
 
 > Ghi chú: Đây là phần được đầu tư kỹ thuật trong giai đoạn giữa dự án (thiết kế schema đồ thị, thuật toán truy ngược), và cững là phần dễ chứng minh nhất khi báo cáo rằng sản phẩm không chỉ là giao diện gọi API.
 
-## 7. Phỏng vấn người dùng
-
-### 7.1 Bảng tổng hợp kế quả phỏng vấn
-
-| STT | Tên người được phỏng vấn | Nghề nghiệp / Nền tảng | Ngày phỏng vấn | Hình thức (Trực tiếp/Online) | Link bằng chứng |
-| --- | ------------------------ | ---------------------- | -------------- | ---------------------------- | --------------- |
-| 1   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                       | [Điền link]     |
-| 2   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                       | [Điền link]     |
-| 3   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                       | [Điền link]     |
-| 4   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                       | [Điền link]     |
-| 5   | [Điền tên]               | [Điền]                 | [Điền]         | [Điền]                       | [Điền link]     |
-
-### 7.2. Các phát hiện chính từ phỏng vấn
-
-_(Nhóm điền sau khi thực hiện phỏng vấn)_
-
-- **Phát hiện 1:** [Mô tả]
-- **Phát hiện 2:** [Mô tả]
-- **Phát hiện 3:** [Mô tả]
-
-### 7.3. Điều chỉnh dự án dựa trên phản hồi phỏng vấn
-
-_(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
-
-| Ý tưởng/Thay đổi | Nguồn gốc (Từ phỏng vấn nào) | Quyết định (Áp dụng/Bỏ qua) | Lý do   |
-| ---------------- | ---------------------------- | --------------------------- | ------- |
-| [Mô tả thay đổi] | [Phỏng vấn số #]             | [Áp dụng/Bỏ qua]            | [Lý do] |
-
----
-
-## 8. Danh sách màn hình dự kiến (Quy mô hệ thống MVP)
+## 7. Danh sách màn hình dự kiến (Quy mô hệ thống MVP)
 
 | STT | Màn hình                | Mô tả ngắn                                                                                                                      | Sprint dự kiến                         |
 | --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -220,9 +189,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | 8   | Lịch sử & Tiến độ       | Đồ thị khái niệm theo thời gian, lịch sử các phiên Interview và Focus Session                                                   | 5                                      |
 | 9   | Hồ sơ các nhân          | Thông tin tài khoản cơ bản, đổi mật khẩu                                                                                        | 3 (tối giản)                           |
 
-## 9. Công nghệ (Tech Stack)
-
-### 9.1. Bảng tổng quan
+## 8. Công nghệ (Tech Stack)
 
 | Thành phần                      | Công nghệ                                                                                                                                     |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -238,96 +205,9 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | Design                          | Figma, Stitch                                                                                                                                 |
 | Communication                   | Discord                                                                                                                                       |
 
-### 9.2. Lý do lựa chọn, ưu điểm và rủi ro
+## 9. Phân công vai trò và trách nhiệm
 
-#### Frontend: React (Vite) + TypeScript + Tailwind CSS + shadcn/ui
-
-**Lý do lựa chọn:** Recall AI là ứng dụng Single Page Application (SPA) không cần SEO. React kết hợp Vite là giải pháp gọn nhẹ nhất cho SPA. TypeScript giúp bắt lỗi chặt chẽ, giảm bug tiềm ẩn. shadcn/ui giúp xây dựng các màn hình giao diện chất lượng cao nhanh chóng mà không cần code component phức tạp từ đầu.
-
-**Ưu điểm:**
-
-- TypeScript đảm bảo type-safety, giúp Frontend và Backend đồng bộ cấu trúc dữ liệu, IntelliSense hỗ trợ dev nhanh hơn.
-- shadcn/ui cung cấp component có sẵn chất lượng cao, tùy biến được vì code component nằm ngay trong dự án.
-- Vite cung cấp Hot Module Replacement (HMR) nhanh.
-- Tailwind CSS cho phép xây dựng giao diện nhanh, tích hợp tốt với shadcn/ui.
-  **Rủi ro:**
-- TypeScript có đường cong học tập nhất định với người mới — giảm thiểu bằng cách Frontend Leader thiết lập các type cơ bản và hướng dẫn cặp (pair programming).
-- Dễ ngợp với lượng code sinh ra từ shadcn/ui — giảm thiểu bằng cách chỉ cài các component thật sự cần thiết.
-
-#### Backend: Node.js + Express.js
-
-**Lý do lựa chọn:** Express.js là framework tối giản, linh hoạt, có đường cong học tập thấp nhất trong hệ sinh thái Node.js. Với thời gian 10 tuần và nhóm 5 người, một framework nặng hơn như NestJS sẽ tốn thời gian học thay vì tập trung vào logic nghiệp vụ.
-
-**Ưu điểm:**
-
-- Cùng ngôn ngữ JavaScript/TypeScript với Frontend, chia sẻ được type/interface giữa hai tầng.
-- Cộng đồng lớn, có sẵn middleware phổ biến (cors, helmet, morgan, multer...).
-- Kiến trúc không áp đặt, cho phép nhóm tổ chức code theo cách phù hợp nhất.
-  **Rủi ro:**
-- Không có cấu trúc dự án mặc định, dễ dẫn đến code không nhất quán — giảm thiểu bằng quy ước thư mục rõ ràng (`routes/`, `controllers/`, `services/`, `middlewares/`) và ESLint/Prettier ngay từ đầu.
-- Xử lý lỗi và validation cần cấu hình thủ công — giảm thiểu bằng thư viện validation như Zod.
-
-#### Database: PostgreSQL + Prisma ORM
-
-**Lý do lựa chọn:** Dữ liệu của Recall AI có quan hệ rõ ràng (User → Plan → Concept → ConceptEdge → FocusSession → VerifyResult). PostgreSQL đảm bảo tính toàn vẹn dữ liệu tốt hơn NoSQL cho mô hình quan hệ này, bao gồm cả việc biểu diễn đồ thị khái niệm bằng hai bảng quan hệ thay vì một graph database riêng. Prisma ORM tự sinh TypeScript types từ schema, giúp phát hiện lỗi lúc code thay vì lúc chạy.
-
-**Ưu điểm:**
-
-- PostgreSQL hỗ trợ ACID transactions, đảm bảo dữ liệu nhất quán khi nhiều thao tác xảy ra đồng thời.
-- Prisma Migrate tự động hóa quản lý thay đổi schema qua các Sprint.
-- Prisma Client sinh truy vấn type-safe, giảm lỗi runtime liên quan đến database.
-- Không phát sinh thêm một loại cơ sở dữ liệu mới trong hệ thống chỉ để phục vụ đồ thị khái niệm, giữ kiến trúc đơn giản, phù hợp với một nhóm 5 người trong 10 tuần.
-  **Rủi ro:**
-- Prisma có ngôn ngữ schema riêng (`.prisma`), cần thời gian làm quen — giảm thiểu bằng cách dành thời gian ở Sprint 2 để thiết kế schema cẩn thận, bao gồm cả bảng `concepts`/`concept_edges`.
-- Thay đổi schema giữa các Sprint có thể gây migration conflict — giảm thiểu bằng cách thiết kế kỹ ở giai đoạn Elaboration, hạn chế thay đổi lớn ở giai đoạn Construction.
-- Với đồ thị rất lớn, truy vấn quan hệ đệ quy trên bảng quan hệ sẽ chậm hơn một graph database chuyên dụng; ở quy mô MVP (một tài liệu ôn tập, thường dưới 50 khái niệm) rủi ro này không đáng kể.
-
-#### Authentication: JWT + bcrypt
-
-**Lý do lựa chọn:** Tự xây dựng hệ thống xác thực giúp nhóm hiểu sâu cơ chế bảo mật — kiến thức quan trọng của môn học — đồng thời không phát sinh chi phí dịch vụ bên thứ ba.
-
-**Ưu điểm:**
-
-- Toàn quyền kiểm soát luồng xác thực, dễ tùy chỉnh.
-- bcrypt là thuật toán hash mật khẩu đã được chứng minh an toàn, tự động thêm salt.
-- JWT cho phép xác thực stateless, giảm tải cho server.
-  **Rủi ro:**
-- Cần tự triển khai refresh token rotation, token blacklist khi đăng xuất, và bảo vệ chống CSRF/XSS — giảm thiểu bằng cách tuân thủ best practices có sẵn tài liệu và review code kỹ phần authentication.
-- Lỗ hổng bảo mật tiềm ẩn nếu triển khai không đúng cách — giảm thiểu bằng cách ưu tiên review phần authentication cao nhất.
-
-#### AI Services: Gemini API (Google)
-
-**Lý do lựa chọn:** Gemini là model đa phương thức (text và image), phù hợp với yêu cầu AI Study Planner (người dùng có thể chụp ảnh tài liệu hoặc nhập văn bản). Tier miễn phí đủ cho giai đoạn phát triển và demo.
-
-**Ưu điểm:**
-
-- Hỗ trợ tiếng Việt tốt, quan trọng cho sản phẩm nhắm đến người dùng Việt Nam.
-- API đơn giản, tài liệu rõ ràng, tích hợp nhanh.
-- Xử lý đa phương thức (text + image) trong cùng một API call, không cần pipeline OCR riêng.
-  **Rủi ro:**
-- Phụ thuộc dịch vụ bên ngoài: nếu API gặp sự cố hoặc đổi pricing, ứng dụng bị ảnh hưởng — giảm thiểu bằng một lớp abstraction (AI service layer) để có thể chuyển provider nếu cần.
-- Rate limit trên tier miễn phí có thể giới hạn số request — giảm thiểu bằng cache kết quả AI và giới hạn request mỗi người dùng mỗi ngày.
-- Chất lượng output không đồng đều, đặc biệt với input phức tạp hoặc ảnh chất lượng thấp — giảm thiểu bằng cách thiết kế prompt kỹ và luôn bắt buộc output theo JSON schema có thể validate.
-
-#### Concept Graph & Trực quan hóa: PostgreSQL (bảng quan hệ) + react-flow
-
-**Lý do lựa chọn:** Quan hệ tiên quyết giữa các khái niệm biểu diễn đầy đủ bằng hai bảng quan hệ (`concepts`, `concept_edges`) trong PostgreSQL đã chọn cho toàn hệ thống — không cần đầu tư một graph database riêng (ví dụ Neo4j), vốn làm tăng độ phức tạp vận hành không cần thiết ở quy mô MVP. Để trực quan hóa đồ thị trên Dashboard, nhóm dùng react-flow — thư viện React dựng sẵn cho giao diện node-link — nhằm dồn thời gian phát triển cho thuật toán truy ngược thay vì tự vẽ từ đầu.
-
-**Ưu điểm:**
-
-- Không phát sinh thêm loại cơ sở dữ liệu mới, giữ kiến trúc đơn giản.
-- Prisma ORM truy vấn các bảng này như mọi bảng khác, không cần driver riêng.
-- react-flow xử lý sẵn bố cục, tương tác kéo-thả và zoom cho sơ đồ node-link.
-
-**Rủi ro:**
-
-- react-flow có đường cong học tập riêng cho nhóm Frontend — giảm thiểu bằng cách chỉ dùng API cơ bản (node, edge, tô màu) cần cho MVP.
-
----
-
-## 10. Phân công vai trò và trách nhiệm
-
-### 10.1. Bảng phân công chi tiết
+### 9.1. Bảng phân công chi tiết
 
 | Thành viên            | Vai trò chính   | Phạm vi trách nhiệm                                                                                      |
 | --------------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
@@ -337,7 +217,7 @@ _(Nhóm điền sau khi phân tích kết quả phỏng vấn)_
 | Nguyễn Phương Gia Bảo | Frontend Leader | Lead team frontend, implement UI components, trực quan hóa đồ thị khái niệm, tích hợp API                |
 | Ngô Văn Phong         | Backend Leader  | Lead team backend, implement API endpoints, quản lý database                                             |
 
-### 10.2. Ma trận RACI (cho các hoạt động chính)
+### 9.2. Ma trận RACI (cho các hoạt động chính)
 
 | Hoạt động                               | Kiệt (PM) | Quân (Arch) | Phát (QA) | Bảo (FE) | Phong (BE) |
 | --------------------------------------- | --------- | ----------- | --------- | -------- | ---------- |
@@ -356,7 +236,7 @@ _R = Responsible (Thực hiện), A = Accountable (Chịu trách nhiệm), C = C
 
 ---
 
-## 11. Kế hoạch thực hiện (Project Schedule)
+## 10. Kế hoạch thực hiện (Project Schedule)
 
 | Sprint | Giai đoạn RUP | Thời gian   | Assignment | Mục tiêu chính                                      | Nội dung                                                                                                                                                                                                                                                                                       |
 | ------ | ------------- | ----------- | ---------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -370,7 +250,7 @@ Concept Graph Engine — thành phần rủi ro cao nhất và giá trị cao nh
 
 ---
 
-## 12. Rủi ro & giả định
+## 11. Rủi ro & giả định
 
 - **Chất lượng câu hỏi AI Examiner phụ thuộc chất lượng tài liệu đầu vào:** giới hạn đầu vào rõ ràng ở MVP (text thuần hoặc ảnh chữ rõ) để tránh lỗi trích xuất.
 - **Đánh giá câu trả lời tự luận bằng AI có thể sai lệch:** rubric được trích xuất từ tài liệu gốc một lần ở bước Ingest, hạn chế AI tự đặt tiêu chí chấm tùy tiện mỗi lượt; cho phép người dùng phản hồi/khiếu nại kết quả chấm.
