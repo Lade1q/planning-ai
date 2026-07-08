@@ -433,3 +433,5 @@ Dựa trên yêu cầu, các chức năng hệ thống bị ràng buộc bởi c
 
 ---
 
+*Ghi chú: tài liệu này đc thiết kế theo format có thể copy paste vào tài liệu srs sau này (chỉnh sửa lại format hay nội dung sau nếu cần)*
+
