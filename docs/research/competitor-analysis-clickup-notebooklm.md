@@ -94,8 +94,8 @@ PUT /task/{task_id}                → Cập nhật Task
   },
   "creator": {
     "id": 183,
-    "username": "nguyen-the-quan",
-    "email": "quan@example.com"
+    "username": "nguyen-van-a",
+    "email": "abc@example.com"
   },
   "assignees": [],
   "due_date": "1720000000000",
@@ -233,7 +233,7 @@ Người dùng vào Studio panel → Click "Quizzes"
     │
     ▼
 [Popup cấu hình]: Chọn độ khó + số câu
-Difficulty: ● Easy  ○ Medium  ○ Hard
+Difficulty: Easy | Medium | Hard
 Questions:  [5] ± (spinner)
     │
     ▼ Nhấn "Generate"
@@ -249,17 +249,17 @@ Questions:  [5] ± (spinner)
 | "Theo nguồn tài liệu, thuật toán BFS   |
 |  được dùng để..."                      |
 |                                         |
-|  ○ A. Tìm đường ngắn nhất có trọng số  |
-|  ● B. Duyệt đồ thị theo chiều rộng     |
-|  ○ C. Sắp xếp các node                 |
-|  ○ D. Phát hiện chu trình              |
+|  A. Tìm đường ngắn nhất có trọng số  |
+|  B. Duyệt đồ thị theo chiều rộng     |
+|  C. Sắp xếp các node                 |
+|  D. Phát hiện chu trình              |
 |                                         |
 | [Submit Answer]                         |
 +-----------------------------------------+
     │
     ▼ Sau khi submit
     │
-[✅ Correct! / ❌ Incorrect — Đáp án đúng là B]
+[Correct! / Incorrect — Đáp án đúng là B]
 [Explain] → Mở rộng panel giải thích sâu kèm citation
 ```
 
@@ -289,27 +289,6 @@ Cùng Concept Graph data có thể render 2 mode không cần API call thêm:
 - **Graph View** (react-flow) — đã có trong thiết kế
 - **Table View** (sortable table: tên khái niệm | mastery_score | ngày kiểm tra gần nhất | trạng thái)
 
-### 6.3. Bài học từ NotebookLM's AI Waiting State
-
-```
-Người dùng nhấn "Generate Audio Overview"
-    │
-    ▼
-[Progress Bar thật]: ████████░░░░  65%
-"Creating your audio overview..."
-"This usually takes 30–60 seconds"
-    │
-    ▼ (30–60 giây)
-    │
-[Audio Player xuất hiện]:
-▶ ━━━━━━━━━━━━━━━━ 0:00 / 12:34
-[Download] [Share]
-```
-
-Đây là approach tốt nhất cho Recall AI khi xử lý AI Study Planner (≤ 15 giây):
-- Có **progress indicator** (không nhất thiết phải chính xác, nhưng phải có)
-- Có **ước tính thời gian** để quản lý kỳ vọng người dùng
-- UI **không bị lock** hoàn toàn — người dùng có thể làm việc khác
 
 ---
 
@@ -344,14 +323,7 @@ Recall AI nằm trong vùng giao thoa giữa NotebookLM (AI reading docs) và An
 | **Error Fallback** | Khi AI không tìm thấy → nói thẳng, không hallucinate | AI Examiner phải có fallback rõ ràng: "Khái niệm này không có đủ thông tin trong tài liệu để tạo câu hỏi chất lượng" |
 | **RAG grounding** | Mọi câu trả lời đều gắn citation về nguồn | Đảm bảo AI Examiner không sinh câu hỏi ngoài scope tài liệu người dùng upload |
 
-### 7.4. Tính năng KHÔNG nên học theo
-
-- **ClickUp's 15+ views:** Quá phức tạp và không phù hợp với learning app cá nhân. Recall AI chỉ cần Graph View + Table View là đủ.
-- **ClickUp's Team collaboration:** Ngoài phạm vi MVP và mục tiêu cá nhân hóa của Recall AI.
-- **NotebookLM's Audio Overview:** Viral nhưng không phải core learning mechanism. Tốn engineering effort lớn cho value không tương xứng với mục tiêu Recall AI.
-- **NotebookLM's bắt buộc Google Account:** Recall AI nên giữ email/password + Google OAuth optional để không phụ thuộc một provider.
-
-### 7.5. Lợi thế cạnh tranh cốt lõi của Recall AI cần bảo vệ
+### 7.4. Lợi thế cạnh tranh cốt lõi của Recall AI cần bảo vệ
 
 Sau khi audit, 3 điểm Recall AI vượt trội cả ClickUp lẫn NotebookLM:
 
@@ -361,4 +333,4 @@ Sau khi audit, 3 điểm Recall AI vượt trội cả ClickUp lẫn NotebookLM:
 
 ---
 
-*Ghi chú: Tài liệu này tổng hợp từ tài liệu công khai của ClickUp (developer.clickup.com, clickup.com), Google NotebookLM (notebooklm.google, blog.google), và quan sát trực tiếp hành vi sản phẩm tính đến 07/2026.*
+
