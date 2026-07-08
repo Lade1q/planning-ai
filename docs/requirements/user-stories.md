@@ -64,7 +64,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-AUTH-01 |
-| **User Story** | Là một sinh viên mới, tôi muốn đăng ký tài khoản bằng email và mật khẩu để tôi có thể lưu trữ kế hoạch học tập và lịch sử phiên học một cách an toàn. |
+| **User Story** | Là một sinh viên tiếp cận ứng dụng có tính cá nhân hóa như bao ứng dụng khác, tôi muốn đăng ký tài khoản bằng email và mật khẩu để tôi có thể lưu trữ kế hoạch học tập và lịch sử phiên học một cách an toàn. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Tất cả 5 người dùng (ngầm định – cần tài khoản để lưu dữ liệu cá nhân) |
 
@@ -81,7 +81,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-AUTH-02 |
-| **User Story** | Là người dùng đã có tài khoản, tôi muốn đăng nhập bằng email và mật khẩu để truy cập dữ liệu học tập cá nhân và tiếp tục từ nơi tôi đã dừng lại. |
+| **User Story** | Là sinh viên tiếp cận ứng dụng có tính cá nhân hóa như bao ứng dụng khác, tôi muốn đăng nhập bằng email và mật khẩu để truy cập dữ liệu học tập cá nhân và tiếp tục từ nơi tôi đã dừng lại. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Tất cả 5 người dùng |
 
@@ -98,7 +98,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-AUTH-03 |
-| **User Story** | Là người dùng đã đăng nhập, tôi muốn đăng xuất khỏi tài khoản để dữ liệu cá nhân của tôi được bảo mật khi sử dụng thiết bị chung. |
+| **User Story** | Là sinh viên thường xuyên sử dụng máy tính thư viện trường để học, tôi muốn đăng xuất khỏi tài khoản để dữ liệu cá nhân của tôi được bảo mật khi sử dụng thiết bị chung. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Phạm Chí Tâm, Nguyễn Phi Hùng (đề cập quyền riêng tư) |
 
@@ -114,7 +114,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-AUTH-04 |
-| **User Story** | Là người dùng, tôi muốn xem và cập nhật thông tin hồ sơ cá nhân để tài khoản phản ánh đúng thông tin hiện tại của tôi. |
+| **User Story** | Là sinh viên muốn cá nhân hóa không gian học tập, tôi muốn xem và cập nhật thông tin hồ sơ cá nhân để tài khoản phản ánh đúng thông tin hiện tại của tôi. |
 | **Ưu tiên** | Thấp |
 | **Nguồn phỏng vấn** | Ngầm định từ cấu trúc hệ thống |
 
@@ -135,7 +135,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-PLAN-01 |
-| **User Story** | Là sinh viên, tôi muốn tải lên tài liệu học tập (văn bản, file hoặc hình ảnh) và để AI tạo ra danh sách task có cấu trúc để tôi biết chính xác bắt đầu từ đâu và làm gì tiếp theo. |
+| **User Story** | Là sinh viên đang choáng ngợp trước một tài liệu học thuật rất dài và phức tạp, tôi muốn tải lên tài liệu học tập (văn bản, file hoặc hình ảnh) và để AI tạo ra danh sách task có cấu trúc để tôi biết chính xác bắt đầu từ đâu và làm gì tiếp theo. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Tạ Minh Đạt, Ngô Văn Phong, Nguyễn Minh Phát, Nguyễn Phi Hùng |
 
@@ -153,7 +153,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-PLAN-02 |
-| **User Story** | Là sinh viên, tôi muốn chỉnh sửa, sắp xếp lại hoặc xóa các task trong kế hoạch AI tạo ra để kế hoạch phù hợp với lịch thực tế và sở thích của tôi. |
+| **User Story** | Là sinh viên có lịch học trên trường hay thay đổi đột xuất, tôi muốn chỉnh sửa, sắp xếp lại hoặc xóa các task trong kế hoạch AI tạo ra để kế hoạch phù hợp với lịch thực tế và sở thích của tôi. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Nguyễn Phi Hùng (kế hoạch cần linh hoạt, không ép buộc), Nguyễn Minh Phát |
 
@@ -169,7 +169,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-PLAN-03 |
-| **User Story** | Là sinh viên, tôi muốn đánh dấu task là đã hoàn thành để theo dõi tiến độ học tập và cảm nhận được sự tiến bộ của bản thân. |
+| **User Story** | Là sinh viên cần động lực nhỏ để duy trì việc tự học mỗi ngày, tôi muốn đánh dấu task là đã hoàn thành để theo dõi tiến độ học tập và cảm nhận được sự tiến bộ của bản thân. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Ngô Văn Phong (đang dùng app To-do), Phạm Chí Tâm |
 
@@ -186,7 +186,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-PLAN-04 |
-| **User Story** | Là sinh viên, tôi muốn xem lại các kế hoạch học tập đã tạo trước đây để có thể quay lại hoặc tiếp tục các task cũ mà không mất lịch sử làm việc. |
+| **User Story** | Là sinh viên đang chuẩn bị cho kỳ thi cuối kỳ tổng hợp kiến thức, tôi muốn xem lại các kế hoạch học tập đã tạo trước đây để có thể quay lại hoặc tiếp tục các task cũ mà không mất lịch sử làm việc. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Nguyễn Minh Phát (hay bị trôi lịch sử chat khi dùng ChatGPT) |
 
@@ -224,7 +224,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-FOCUS-01 |
-| **User Story** | Là sinh viên hay bị xao nhãng, tôi muốn bắt đầu một phiên học có giới hạn thời gian để làm việc theo các khoảng thời gian có cấu trúc và tránh mất quá nhiều thời gian vào mạng xã hội. |
+| **User Story** | Là sinh viên mắc hội chứng mất tập trung ngắn hạn (nghiện lướt Tiktok/Facebook), tôi muốn bắt đầu một phiên học có giới hạn thời gian để làm việc theo các khoảng thời gian có cấu trúc và tránh mất quá nhiều thời gian vào mạng xã hội. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Ngô Văn Phong (rất cần), Nguyễn Phi Hùng (hữu ích nhưng cần linh hoạt) |
 
@@ -242,7 +242,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-FOCUS-02 |
-| **User Story** | Là sinh viên, tôi muốn ghi lại những khoảnh khắc tôi bị xao nhãng trong phiên học để AI có thể dùng dữ liệu đó để kiểm tra tôi đúng vào phần nội dung tôi đã bỏ lỡ. |
+| **User Story** | Là sinh viên thường xuyên bị gián đoạn bởi thông báo điện thoại, tôi muốn ghi lại những khoảnh khắc tôi bị xao nhãng trong phiên học để AI có thể dùng dữ liệu đó để kiểm tra tôi đúng vào phần nội dung tôi đã bỏ lỡ. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Nguyễn Phi Hùng (đề xuất trực tiếp tính năng này) |
 
@@ -259,7 +259,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-FOCUS-03 |
-| **User Story** | Là sinh viên, tôi muốn xem tóm tắt phiên học sau khi kết thúc để nhìn lại hiệu suất học tập và quyết định có muốn bắt đầu phiên kiểm chứng không. |
+| **User Story** | Là sinh viên không tự đánh giá được độ hiệu quả sau mỗi buổi học, tôi muốn xem tóm tắt phiên học sau khi kết thúc để nhìn lại hiệu suất học tập và quyết định có muốn bắt đầu phiên kiểm chứng không. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Ngô Văn Phong, Nguyễn Phi Hùng |
 
@@ -275,7 +275,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-FOCUS-04 |
-| **User Story** | Là sinh viên, tôi muốn liên kết một phiên học với một task cụ thể trong kế hoạch của tôi để việc theo dõi thời gian được gắn với chủ đề học tập thực tế. |
+| **User Story** | Là sinh viên không biết cách sắp xếp thời gian học hiệu quả, tôi muốn liên kết một phiên học với một task cụ thể trong kế hoạch của tôi để việc theo dõi thời gian được gắn với chủ đề học tập thực tế. |
 | **Ưu tiên** | Thấp |
 | **Nguồn phỏng vấn** | Ngô Văn Phong (cần công cụ hướng dẫn và kiểm tra kết quả) |
 
@@ -297,7 +297,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-VERIFY-01 |
-| **User Story** | Là sinh viên vừa học xong, tôi muốn bắt đầu phiên vấn đáp do AI dẫn dắt về chủ đề vừa học để xác nhận mức độ hiểu bài và tìm ra lỗ hổng kiến thức trước khi chuyển sang bài tiếp theo. |
+| **User Story** | Là sinh viên thường hay phân vân, mơ hồ về bài học vừa học, tôi muốn bắt đầu phiên vấn đáp do AI dẫn dắt về chủ đề vừa học để xác nhận mức độ hiểu bài và tìm ra lỗ hổng kiến thức trước khi chuyển sang bài tiếp theo. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Tất cả 5 người dùng |
 
@@ -316,7 +316,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-VERIFY-02 |
-| **User Story** | Là sinh viên, tôi muốn AI chỉ ra trực tiếp lỗi sai của tôi và giải thích tại sao sai để tôi có thể sửa ngay mà không cần đoán mò. |
+| **User Story** | Là sinh viên hay bị nhầm lẫn giữa các định nghĩa/khái niệm chuyên ngành tương đương nhau, tôi muốn AI chỉ ra trực tiếp lỗi sai của tôi và giải thích tại sao sai để tôi có thể sửa ngay mà không cần đoán mò. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Phạm Chí Tâm (AI chỉ ra trực tiếp lỗi), Tạ Minh Đạt (lấp đầy lỗ hổng) |
 
@@ -333,7 +333,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-VERIFY-03 |
-| **User Story** | Là sinh viên, tôi muốn xem tóm tắt kết quả sau phiên kiểm chứng để biết chủ đề nào tôi cần ôn tập thêm. |
+| **User Story** | Là sinh viên cần biết chắc chắn mình đã sẵn sàng cho bài kiểm tra sắp tới hay chưa, tôi muốn xem tóm tắt kết quả sau phiên kiểm chứng để biết chủ đề nào tôi cần ôn tập thêm. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Phạm Chí Tâm (nhớ bài lâu hơn), Nguyễn Phi Hùng (tổng hợp ý chính nhanh) |
 
@@ -350,7 +350,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-VERIFY-04 |
-| **User Story** | Là sinh viên, tôi muốn AI ưu tiên đặt câu hỏi về phần nội dung mà tôi bị xao nhãng trong lúc học để tôi không bỏ lỡ kiến thức quan trọng từ những khoảnh khắc không tập trung. |
+| **User Story** | Là sinh viên lo lắng mình đã lỡ mất thông tin quan trọng trong vài phút mất tập trung, tôi muốn AI ưu tiên đặt câu hỏi về phần nội dung mà tôi bị xao nhãng trong lúc học để tôi không bỏ lỡ kiến thức quan trọng từ những khoảnh khắc không tập trung. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Nguyễn Phi Hùng (đề xuất tích hợp dữ liệu xao nhãng từ Focus Session) |
 
@@ -382,7 +382,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-VERIFY-06 |
-| **User Story** | Là sinh viên, khi tôi không hiểu bài, tôi muốn AI đóng vai trò như một giáo viên phát hiện ra lỗ hổng kiến thức nền tảng của tôi và hướng dẫn ôn lại phần đó, để tôi hiểu sâu bản chất thay vì bị hổng kiến thức rời rạc. |
+| **User Story** | Là sinh viên bị hổng kiến thức nền tảng (mất gốc) từ các môn học của học kỳ trước, khi tôi không hiểu bài, tôi muốn AI đóng vai trò như một giáo viên phát hiện ra lỗ hổng kiến thức nền tảng của tôi và hướng dẫn ôn lại phần đó, để tôi hiểu sâu bản chất thay vì bị hổng kiến thức rời rạc. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Tạ Minh Đạt ("giáo viên lấp đầy lỗ hổng kiến thức"), Nguyễn Minh Phát ("tránh kiến thức rời rạc, mau quên") |
 
@@ -404,7 +404,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-DASH-01 |
-| **User Story** | Là sinh viên, tôi muốn xem tổng quan tiến độ học tập trên Dashboard để tôi nhanh chóng hiểu mình đã hoàn thành bao nhiêu và còn bao nhiêu việc chưa làm. |
+| **User Story** | Là sinh viên đang ôn thi cuối kỳ cho 4-5 môn học cùng lúc, tôi muốn xem tổng quan tiến độ học tập trên Dashboard để tôi nhanh chóng hiểu mình đã hoàn thành bao nhiêu và còn bao nhiêu việc chưa làm. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Ngô Văn Phong (cần kiểm soát chất lượng), Nguyễn Minh Phát (theo dõi thực lực) |
 
@@ -421,7 +421,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-DASH-02 |
-| **User Story** | Là sinh viên, tôi muốn xem mình đang mạnh hoặc yếu ở chủ đề nào dựa trên kết quả các phiên kiểm chứng để tôi ưu tiên thời gian học còn lại một cách hiệu quả. |
+| **User Story** | Là sinh viên đang trong giai đoạn nước rút không biết mình đang yếu ở phần nào để tập trung, tôi muốn xem mình đang mạnh hoặc yếu ở chủ đề nào dựa trên kết quả các phiên kiểm chứng để tôi ưu tiên thời gian học còn lại một cách hiệu quả. |
 | **Ưu tiên** | Cao |
 | **Nguồn phỏng vấn** | Phạm Chí Tâm (review giúp nhớ lâu hơn), Nguyễn Minh Phát (theo dõi thực lực) |
 
@@ -438,7 +438,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-DASH-03 |
-| **User Story** | Là sinh viên, tôi muốn xem lịch sử các phiên học và phiên kiểm chứng theo thời gian để theo dõi thói quen học tập của mình. |
+| **User Story** | Là sinh viên muốn phân tích thói quen tự học của bản thân trong 30 ngày qua để tìm cách cải thiện, tôi muốn xem lịch sử các phiên học và phiên kiểm chứng theo thời gian để theo dõi thói quen học tập của mình. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Nguyễn Phi Hùng, Ngô Văn Phong |
 
@@ -454,7 +454,7 @@ Mức độ ưu tiên được xác định dựa trên tần suất đề cập
 | Trường | Nội dung |
 |---|---|
 | **ID** | US-DASH-04 |
-| **User Story** | Là sinh viên, tôi muốn xem tổng thời gian học mỗi tuần để hiểu thói quen học tập và điều chỉnh nếu cần. |
+| **User Story** | Là sinh viên muốn đảm bảo mình đang phân bổ đủ thời lượng tự học tối thiểu mỗi tuần, tôi muốn xem tổng thời gian học mỗi tuần để hiểu thói quen học tập và điều chỉnh nếu cần. |
 | **Ưu tiên** | Trung bình |
 | **Nguồn phỏng vấn** | Ngô Văn Phong (cần công cụ kiểm tra kết quả), Nguyễn Phi Hùng |
 

@@ -1,6 +1,5 @@
 # FUNCTIONAL REQUIREMENTS (Yêu cầu chức năng) – Recall AI
 > **Phiên bản:** 1.0  
-> **Ngày tạo:** 08/07/2026  
 > **Trạng thái:** Draft  
 
 ---
@@ -410,3 +409,7 @@ Dựa trên yêu cầu, các chức năng hệ thống bị ràng buộc bởi c
 1. **Ràng buộc Hallucination (Grounded AI)**: Toàn bộ quá trình sinh kế hoạch và sinh câu hỏi kiểm chứng bắt buộc phải neo (grounded) 100% vào tài liệu gốc mà người dùng đã tải lên. AI Examiner không được phép tự sáng tác câu hỏi dựa trên kiến thức bên ngoài (trừ khi liên quan đến logic suy luận cơ bản).
 2. **Ràng buộc Token & Chi phí**: Phiên AI Verify phải giới hạn số lượt context qua lại (vd: max 3-5 lượt cho một concept) để quản lý chi phí API và tránh lỗi LLM bị "trôi context" khi chat quá dài.
 3. **Quy tắc Human-in-the-loop**: Hệ thống không tự động thay đổi lịch học một cách cứng nhắc. Việc tái cơ cấu kế hoạch (như thêm bài ôn tập) phải được người dùng phê duyệt hoặc điều chỉnh linh hoạt thủ công (như tính năng FR-PLAN-02).
+
+
+---
+
