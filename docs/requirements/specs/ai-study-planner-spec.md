@@ -12,8 +12,6 @@
 
 > **Tài liệu nguồn:** Project Proposal - Recall AI
 
-> **Tài liệu liên quan (chưa soạn):** Spec Concept Graph Engine, Spec AI Examiner
-
 ---
 
 ## 1. Bối cảnh & Vấn đề
@@ -50,8 +48,7 @@ AI Study Planner là bước đầu tiên trong vòng lặp trải nghiệm sả
 ### 4.1 Functional Requirements
 
 **FR1 - Nhập tài liệu đầu vào**
-Hệ thống chấp nhận input dạng text (dán trực tiếp) hoặc ảnh chụp tài liệu (§5.1). Người dùng nhập deadline cho kế hoạch tương ứng (§7, màn hình "Tạo kế hoạch ôn tập").
-**[Cần chốt]** §5.1 chỉ nói text/ảnh, nhưng §7 (danh sách màn hình) liệt kê thêm pdf/docx, còn §11 giới hạn "text thuần hoặc ảnh chữ rõ" (câu này nằm trong phần rủi ro về chất lượng AI Examiner, nhưng đang nói về cùng tài liệu ở bước ingest). Ba chỗ ba phạm vi khác nhau - cần một quyết định duy nhất trước khi FE dựng UI upload ở Sprint 3.
+Hệ thống chấp nhận input dạng text (dán trực tiếp) hoặc ảnh chụp tài liệu hoặc file PDF (§5.1). Người dùng nhập deadline cho kế hoạch tương ứng (§7, màn hình "Tạo kế hoạch ôn tập").
 
 **FR2 - Trích xuất bằng AI**
 Gọi Gemini API, yêu cầu output JSON schema cố định: danh sách khái niệm, quan hệ tiên quyết dạng `{concept_id, prerequisite_of: [concept_id, ...]}`, độ khó ước lượng (§5.1, §5.4, §8). Không dùng văn bản tự do cho phần logic hệ thống sử dụng.
@@ -140,14 +137,13 @@ Proposal chưa định nghĩa metric riêng cho feature này - đề xuất dư�
 
 ## 8. Open Questions
 
-1. Phạm vi định dạng input chính xác - §5.1 (text/ảnh), §7 (thêm pdf/docx), §11 (chỉ "text thuần hoặc ảnh chữ rõ") đang không khớp nhau.
-2. Fallback khi AI liên tục trả sai định dạng sau khi đã retry + chia nhỏ tài liệu.
-3. DAG check có chạy lại khi user tự chỉnh sửa đồ thị hay chỉ chạy một lần lúc AI trả về?
-4. Deadline bắt buộc hay optional? Nếu optional, priority queue (FR6) ưu tiên thế nào khi thiếu?
-5. Ngưỡng thời gian cụ thể cho "vài phút" (§2.4) - cần số đo được để viết test case.
-6. Giới hạn độ dài/kích thước tài liệu đầu vào (số từ, số trang, dung lượng ảnh) - chưa định nghĩa.
-7. Một plan có nhận nhiều tài liệu nguồn không, hay bắt buộc 1 tài liệu = 1 plan?
-8. "Phiên ôn tập nhỏ" (output của Schedule, §4) có phải cùng khái niệm "session" với Focus Session (§5.2) không? Cần xác nhận trước khi hai bên code interface khác nhau.
+1. Fallback khi AI liên tục trả sai định dạng sau khi đã retry + chia nhỏ tài liệu.
+2. DAG check có chạy lại khi user tự chỉnh sửa đồ thị hay chỉ chạy một lần lúc AI trả về?
+3. Deadline bắt buộc hay optional? Nếu optional, priority queue (FR6) ưu tiên thế nào khi thiếu?
+4. Ngưỡng thời gian cụ thể cho "vài phút" (§2.4) - cần số đo được để viết test case.
+5. Giới hạn độ dài/kích thước tài liệu đầu vào (số từ, số trang, dung lượng ảnh) - chưa định nghĩa.
+6. Một plan có nhận nhiều tài liệu nguồn không, hay bắt buộc 1 tài liệu = 1 plan?
+7. "Phiên ôn tập nhỏ" (output của Schedule, §4) có phải cùng khái niệm "session" với Focus Session (§5.2) không? Cần xác nhận trước khi hai bên code interface khác nhau.
 
 ## 9. Dependencies
 
