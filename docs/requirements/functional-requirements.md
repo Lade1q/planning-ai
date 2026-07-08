@@ -430,8 +430,6 @@ Dựa trên yêu cầu, các chức năng hệ thống bị ràng buộc bởi c
 2. **Ràng buộc Token & Chi phí**: Phiên AI Verify phải giới hạn số lượt context qua lại (vd: max 3-5 lượt cho một concept) để quản lý chi phí API và tránh lỗi LLM bị "trôi context" khi chat quá dài.
 3. **Quy tắc Human-in-the-loop**: Hệ thống không tự động thay đổi lịch học một cách cứng nhắc. Việc tái cơ cấu kế hoạch (như thêm bài ôn tập) phải được người dùng phê duyệt hoặc điều chỉnh linh hoạt thủ công (như tính năng FR-PLAN-02).
 
-
 ---
 
-*Ghi chú: tài liệu này đc thiết kế theo format có thể copy paste vào tài liệu srs sau này (chỉnh sửa lại format hay nội dung sau nếu cần)*
-
+*Ghi chú: tài liệu này đc thiết kế dựa trên user-stories và ý tưởng dự án, theo format có thể copy paste vào tài liệu srs sau này (chỉnh sửa lại format hay nội dung sau nếu cần)*
