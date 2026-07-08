@@ -103,7 +103,7 @@ Sinh viên năm 1-2 các ngành kỹ thuật/khoa học tự nhiên, đặc bi�
 
 ### 5.1. AI Study Planner
 
-- Đầu vào: text (dán đề cương/ghi chú) hoặc ảnh chụp tài liệu, xử lí trực tiếp qua LLM.
+- Đầu vào: text (dán đề cương/ghi chú) hoặc ảnh chụp tài liệu hoặc PDF, xử lí trực tiếp qua LLM.
 - AI trả về kết quả dạng JSON có cấu trúc cố định: danh sách khái niệm, quan hệ tiên quyết giữa chúng, độ khó ước lượng - không phải văn bản tự do, để hệ thống dùng trực tiếp cho bước lập lịch mà không cần diễn giải lại.
 - Nếu AI trả sai định dạng, hệ thống thử lại hoặc chia nhỏ tài liệu theo heading/đoạn văn để không làm cả tính năng thất bại.
 - Người dùng chỉnh sửa, sắp xếp lại thứ tự thủ công nếu muốn.
@@ -177,17 +177,17 @@ KHI concept C có mastery_score < ngưỡng (ví dụ 0.6):
 
 ## 7. Danh sách màn hình dự kiến (Quy mô hệ thống MVP)
 
-| STT | Màn hình                | Mô tả ngắn                                                                                                                      | Sprint dự kiến                         |
-| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| 1   | Landing Page            | Trang giới thiệu ứng dụng, CTA đăng ký                                                                                          | 3                                      |
-| 2   | Đăng ký / Đăng nhập     | Form email + mật khẩu                                                                                                           | 3                                      |
-| 3   | Dashboard               | Tổng quan các kế hoạch đang học, deadline gần nhất, đồ thị khái niệm tô màu theo mức độ vững/yếu                                | 3 -> hoàn thiện phần đồ thị ở Sprint 5 |
-| 4   | Tạo kế hoạch ôn tập     | Nhập text/ảnh/pdf/docx tài liệu, nhập deadline, xem và chỉnh sửa đồ thị khái niệm do AI đề xuất, gửi cho AI Study Planner xử lý | 3                                      |
-| 5   | Focus Session           | Lựa chọn phương pháp học tập (Pomodoro, ...)                                                                                    | 3                                      |
-| 6   | AI Examiner - Interview | Giao diện hội thoại nhiều lượt giữa người dùng và AI giám khảo, dựa trên tài liệu đã tải                                        | 4                                      |
-| 7   | Kết quả phiên Interview | Nhận xét tổng hợp cuối phiên: phần đã vững, phần còn yếu, gợi ý ôn lại                                                          | 4                                      |
-| 8   | Lịch sử & Tiến độ       | Đồ thị khái niệm theo thời gian, lịch sử các phiên Interview và Focus Session                                                   | 5                                      |
-| 9   | Hồ sơ các nhân          | Thông tin tài khoản cơ bản, đổi mật khẩu                                                                                        | 3 (tối giản)                           |
+| STT | Màn hình                | Mô tả ngắn                                                                                                                 | Sprint dự kiến                         |
+| --- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 1   | Landing Page            | Trang giới thiệu ứng dụng, CTA đăng ký                                                                                     | 3                                      |
+| 2   | Đăng ký / Đăng nhập     | Form email + mật khẩu                                                                                                      | 3                                      |
+| 3   | Dashboard               | Tổng quan các kế hoạch đang học, deadline gần nhất, đồ thị khái niệm tô màu theo mức độ vững/yếu                           | 3 -> hoàn thiện phần đồ thị ở Sprint 5 |
+| 4   | Tạo kế hoạch ôn tập     | Nhập text/ảnh/pdf tài liệu, nhập deadline, xem và chỉnh sửa đồ thị khái niệm do AI đề xuất, gửi cho AI Study Planner xử lý | 3                                      |
+| 5   | Focus Session           | Lựa chọn phương pháp học tập (Pomodoro, ...)                                                                               | 3                                      |
+| 6   | AI Examiner - Interview | Giao diện hội thoại nhiều lượt giữa người dùng và AI giám khảo, dựa trên tài liệu đã tải                                   | 4                                      |
+| 7   | Kết quả phiên Interview | Nhận xét tổng hợp cuối phiên: phần đã vững, phần còn yếu, gợi ý ôn lại                                                     | 4                                      |
+| 8   | Lịch sử & Tiến độ       | Đồ thị khái niệm theo thời gian, lịch sử các phiên Interview và Focus Session                                              | 5                                      |
+| 9   | Hồ sơ các nhân          | Thông tin tài khoản cơ bản, đổi mật khẩu                                                                                   | 3 (tối giản)                           |
 
 ## 8. Công nghệ (Tech Stack)
 
@@ -252,7 +252,7 @@ Concept Graph Engine — thành phần rủi ro cao nhất và giá trị cao nh
 
 ## 11. Rủi ro & giả định
 
-- **Chất lượng câu hỏi AI Examiner phụ thuộc chất lượng tài liệu đầu vào:** giới hạn đầu vào rõ ràng ở MVP (text thuần hoặc ảnh chữ rõ) để tránh lỗi trích xuất.
+- **Chất lượng câu hỏi AI Examiner phụ thuộc chất lượng tài liệu đầu vào:** giới hạn đầu vào rõ ràng ở MVP (text thuần, ảnh chữ rõ, hoặc PDF) để tránh lỗi trích xuất.
 - **Đánh giá câu trả lời tự luận bằng AI có thể sai lệch:** rubric được trích xuất từ tài liệu gốc một lần ở bước Ingest, hạn chế AI tự đặt tiêu chí chấm tùy tiện mỗi lượt; cho phép người dùng phản hồi/khiếu nại kết quả chấm.
 - **Quản lý hội thoại nhiều lượt tốn chi phí API hơn Q&A rời rạc:** giới hạn tối đa số lượt hỏi-đáp cho mỗi khái niệm (ví dụ 3 lượt) và số khái niệm được hỏi mỗi phiên, để kiểm soát chi phí và thời gian phản hồi.
 - **AI trích xuất sai quan hệ tiên quyết giữa các khái niệm:** người dùng bắt buộc xác nhận/chỉnh sửa đồ thị trước khi bắt đầu học; hệ thống không tự động tin tưởng hoàn toàn kết quả AI sinh ra.
