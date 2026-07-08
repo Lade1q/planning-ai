@@ -352,7 +352,7 @@ Mức độ ưu tiên được phân loại:
 **Tiêu chí chấp nhận:**
 - [ ] AC1: Hiển thị tổng quan số lượng task (hoàn thành / tổng số) cho mỗi kế hoạch học tập hiện tại.
 - [ ] AC2: Tỷ lệ hoàn thành được render thành biểu đồ (progress bar hoặc hình vòng tròn).
-- [ ] AC3: Dashboard áp dụng nguyên tắc thiết kế tối giản, hỗ trợ giao diện tối (Dark mode) và tải xong dữ liệu trong dưới 2 giây.
+- [ ] AC3: Dashboard áp dụng nguyên tắc thiết kế tối giản, và tải xong dữ liệu trong dưới 2 giây.
 
 ---
 
