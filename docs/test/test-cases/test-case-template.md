@@ -1,13 +1,16 @@
-# Mẫu Test Case — [Tên Module]
+﻿# Test Cases — [Tên Module]
 
-> **Module:** [VD: Authentication / AI Planning / Focus Session / ...]  
-> **Người viết:** [Họ tên]  
-> **Ngày tạo:** [YYYY-MM-DD]  
-> **Phiên bản:** [1.0]
+> **Module:** [VD: Authentication / Study Plan / Focus Session / ...]
+> **Use Cases:** [VD: UC-01, UC-02]
+> **Phiên bản:** 1.0
 
 ---
 
-## TC-[MODULE]-001: [Tên ngắn gọn của test case]
+## Test Suite 1: [Tên nhóm tính năng A]
+
+> Mô tả ngắn: Nhóm này kiểm thử [chức năng cụ thể gì].
+
+### TC-[MODULE]-001: [Tên ngắn gọn của test case]
 
 | Trường | Nội dung |
 |--------|---------|
@@ -15,7 +18,7 @@
 | **Tiêu đề** | [Mô tả rõ test case này kiểm tra điều gì] |
 | **Loại kiểm thử** | [Functionality / Security / Usability / Interface / Database / Compatibility / Performance] |
 | **Độ ưu tiên** | [High / Medium / Low] |
-| **Điều kiện tiên quyết** | [Cần chuẩn bị gì trước khi test? VD: Đã có tài khoản test, app đang chạy] |
+| **Điều kiện tiên quyết** | [Cần chuẩn bị gì trước khi test?] |
 | **Các bước thực hiện** | 1. [Bước 1]<br>2. [Bước 2]<br>3. [Bước 3] |
 | **Dữ liệu đầu vào** | [Nhập gì vào form/field? VD: Email: test@example.com · Mật khẩu: Test@1234] |
 | **Kết quả mong đợi** | - [Điều gì phải xảy ra — đây là chuẩn để đánh giá Pass/Fail]<br>- [Có thể liệt kê nhiều dòng] |
@@ -25,7 +28,7 @@
 
 ---
 
-## TC-[MODULE]-002: [Tên ngắn gọn]
+### TC-[MODULE]-002: [Tên ngắn gọn]
 
 | Trường | Nội dung |
 |--------|---------|
@@ -43,12 +46,35 @@
 
 ---
 
+## Test Suite 2: [Tên nhóm tính năng B]
+
+> Mô tả ngắn: Nhóm này kiểm thử [chức năng cụ thể gì].
+
+### TC-[MODULE]-003: [Tên ngắn gọn]
+
+| Trường | Nội dung |
+|--------|---------|
+| **Mã TC** | TC-[MODULE]-003 |
+| **Tiêu đề** | |
+| **Loại kiểm thử** | |
+| **Độ ưu tiên** | |
+| **Điều kiện tiên quyết** | |
+| **Các bước thực hiện** | 1. <br>2. <br>3. |
+| **Dữ liệu đầu vào** | |
+| **Kết quả mong đợi** | - |
+| **Kết quả thực tế** | *(điền sau khi test)* |
+| **Trạng thái** | Not Run |
+| **Ghi chú** | |
+
+---
+
 ## Bảng tóm tắt — [Tên Module]
 
-| Mã TC | Tiêu đề | Loại | Độ ưu tiên | Trạng thái |
-|-------|---------|------|------------|------------|
-| TC-[MODULE]-001 | | | | Not Run |
-| TC-[MODULE]-002 | | | | Not Run |
+| Mã TC | Test Suite | Tiêu đề | Loại | Độ ưu tiên | Trạng thái |
+|-------|------------|---------|------|------------|------------|
+| TC-[MODULE]-001 | Suite 1: [Tên Suite] | | | | Not Run |
+| TC-[MODULE]-002 | Suite 1: [Tên Suite] | | | | Not Run |
+| TC-[MODULE]-003 | Suite 2: [Tên Suite] | | | | Not Run |
 
 ---
 
@@ -69,8 +95,10 @@
 |--------------|-----------------|------------------|
 | **Functionality** | Tính năng có hoạt động đúng như mô tả không? | Đăng nhập thành công với email/mật khẩu hợp lệ |
 | **Security** | Dữ liệu người dùng có được bảo vệ không? | Người dùng A không truy cập được data của người dùng B |
-| **Usability** | Người dùng có dễ sử dụng, dễ hiểu không? | Thông báo lỗi có rõ ràng không? Người dùng có bị nhầm lẫn không? |
+| **Usability** | Người dùng có dễ sử dụng, dễ hiểu không? | Thông báo lỗi có rõ ràng không? |
 | **Interface** | Các thành phần hệ thống có giao tiếp đúng không? | Frontend gửi dữ liệu → Backend nhận và xử lý đúng |
 | **Database** | Dữ liệu có được lưu/đọc/xóa đúng không? | Sau khi tạo plan, database có record đúng không? |
 | **Compatibility** | App có chạy đúng trên các trình duyệt khác nhau không? | Tính năng upload ảnh có hoạt động trên Firefox không? |
-| **Performance** | App có chạy nhanh, không bị lag không? | Trang Dashboard load dưới 3 giây? |
+| **Performance** | App có chạy nhanh, không bị lag không? | Trang Dashboard load dưới 2 giây? |
+
+---
