@@ -55,6 +55,6 @@ Thông qua việc đối chiếu thang đo Likert và các câu hỏi hành vi, 
 
 * **Coaching (Gợi mở để tự suy nghĩ):** Phần ít sinh viên chọn cách trả lời này.
 
-![Xếp hạng chức năng](imgs/ai-answer.png)
+![Kỳ vọng về câu trả lời của AI](imgs/ai-answer.png)
 
 ---
