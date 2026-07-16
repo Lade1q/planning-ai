@@ -3,6 +3,7 @@
 Dưới đây là cấu trúc các thư mục và file trong dự án:
 
 - `/src`: Thư mục chứa mã nguồn của ứng dụng.
+  - `/src/server`: Mã nguồn dự án Backend (Node.js + Express + TypeScript).
 - `/docs`: Thư mục chứa tài liệu thiết kế, phân tích, kiểm thử và quản lý dự án.
   - `/docs/management/`: Kế hoạch dự án, báo cáo tiến độ.
   - `/docs/requirements/`: Yêu cầu dự án, tài liệu đặc tả (NFRs, Use case, Vision).
