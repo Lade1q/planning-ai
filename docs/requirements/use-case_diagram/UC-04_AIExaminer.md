@@ -1,9 +1,10 @@
-# UC-04: Module AI Examiner — Interview
+# UC-04: Module AI Examiner - Interview
 
 > **Module:** AI Examiner
 > **Sprint:** 4 (AI Examiner), nối vào Concept Graph Engine từ Sprint 3
 > **DB liên quan:** `interview_sessions`, `interview_turns`, `concepts` (cập nhật `mastery_score`)
 > **AI calls:**
+>
 > - `generate_question` → trả về `{question_text, concept_id, question_type}`
 > - `grade_answer` → trả về `{score: 0.0-1.0, feedback: string, verdict: "deep"|"shallow"|"wrong"}`
 
@@ -11,11 +12,11 @@
 
 ## UC-11: Phiên Interview vấn đáp nhiều lượt ⭐ (Use-case phức tạp nhất)
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student, AI Service, Scheduling & Remediation Engine |
-| **Mục tiêu** | Kiểm chứng khách quan mức độ hiểu bài thực sự của Student cho một hoặc nhiều khái niệm |
-| **Điều kiện tiên quyết** | Student đã đăng nhập, đã có plan với đồ thị khái niệm đã xác nhận |
+| Trường                              | Nội dung                                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Actor**                           | Student, AI Service, Scheduling & Remediation Engine                                               |
+| **Mục tiêu**                        | Kiểm chứng khách quan mức độ hiểu bài thực sự của Student cho một hoặc nhiều khái niệm             |
+| **Điều kiện tiên quyết**            | Student đã đăng nhập, đã có plan với đồ thị khái niệm đã xác nhận                                  |
 | **Điều kiện kết thúc (thành công)** | `mastery_score` của các khái niệm được phỏng vấn được cập nhật vào DB, lịch ôn tập được điều chỉnh |
 
 ### Luồng chính
@@ -33,7 +34,7 @@ START
 ├─ [AI Call] grade_answer(question, answer, rubric=<rubric từ tài liệu>)
 │   └─ Trả về: {score, feedback, verdict: "deep|shallow|wrong"}
 │
-├─ [State Machine — Logic phần mềm tất định]
+├─ [State Machine - Logic phần mềm tất định]
 │   ├─ verdict == "deep" && turns_remaining > 0
 │   │   └─ generate_question(deeper=True) → lặp lại vòng hỏi-đáp
 │   │
@@ -54,11 +55,13 @@ END
 ```
 
 ### Giới hạn State Machine
+
 - **Tối đa N lượt hỏi-đáp cho mỗi khái niệm** (N = 3, có thể cấu hình)
 - **Số khái niệm tối đa mỗi phiên** để kiểm soát thời gian và chi phí API
 - Mọi quyết định điều phối là **logic phần mềm tất định**, không phụ thuộc AI
 
 ### Luồng ngoại lệ
+
 - **[E1] AI Service lỗi / timeout trong lúc sinh câu hỏi:** → Kích hoạt UC-12 (Fallback Flashcard)
 - **[E2] AI Service lỗi / timeout trong lúc chấm điểm:** → Retry 1 lần → nếu vẫn lỗi → UC-12
 - **[E3] AI trả về JSON sai schema:** → Retry 1 lần → nếu vẫn sai → UC-12
@@ -69,16 +72,17 @@ END
 
 ---
 
-## UC-12: Fallback — Tự chấm bằng Flashcard tĩnh
+## UC-12: Fallback - Tự chấm bằng Flashcard tĩnh
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student, System |
+| Trường        | Nội dung                                                                |
+| ------------- | ----------------------------------------------------------------------- |
+| **Actor**     | Student, System                                                         |
 | **Kích hoạt** | Tự động khi AI Service không phản hồi trong UC-11 (extend relationship) |
-| **Mục tiêu** | Đảm bảo học tập không bị gián đoạn hoàn toàn dù AI fail |
-| **Điều kiện** | Phải có câu hỏi đã được sinh sẵn từ phiên trước (cached) |
+| **Mục tiêu**  | Đảm bảo học tập không bị gián đoạn hoàn toàn dù AI fail                 |
+| **Điều kiện** | Phải có câu hỏi đã được sinh sẵn từ phiên trước (cached)                |
 
 ### Luồng chính
+
 1. Hệ thống thông báo: "AI tạm thời không khả dụng. Chuyển sang chế độ Flashcard tự chấm."
 2. Hiển thị câu hỏi đã sinh sẵn từ lần phân tích trước (cached trong DB)
 3. Student đọc câu hỏi, tự trả lời trong đầu
@@ -87,18 +91,19 @@ END
 6. Cập nhật `mastery_score` bình thường → Scheduling & Remediation Engine vẫn hoạt động
 
 ### Luồng ngoại lệ
+
 - **[E1] Không có câu hỏi cached (lần đầu tiên, chưa có lịch sử):** Thông báo "Không thể chuyển sang chế độ Flashcard do chưa có câu hỏi sẵn. Vui lòng thử lại sau khi AI khả dụng."
 
 ---
 
 ## UC-13: Truy ngược khái niệm tiên quyết (Concept Traceback) ⭐ (Use-case Agentic)
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | System (Scheduling & Remediation Engine) → thông báo kết quả cho Student |
+| Trường        | Nội dung                                                                     |
+| ------------- | ---------------------------------------------------------------------------- |
+| **Actor**     | System (Scheduling & Remediation Engine) → thông báo kết quả cho Student     |
 | **Kích hoạt** | Tự động khi `mastery_score(C) < ngưỡng` (ví dụ 0.6) sau khi chấm trong UC-11 |
-| **Mục tiêu** | Tự động xác định và chèn phiên ôn lại đúng khái niệm gốc rễ gây ra điểm yếu |
-| **Tính chất** | Hoàn toàn tất định — không gọi AI — có thể unit test với dữ liệu giả lập |
+| **Mục tiêu**  | Tự động xác định và chèn phiên ôn lại đúng khái niệm gốc rễ gây ra điểm yếu  |
+| **Tính chất** | Hoàn toàn tất định - không gọi AI - có thể unit test với dữ liệu giả lập     |
 
 ### Thuật toán BFS ngược (pseudocode)
 
@@ -129,6 +134,7 @@ FUNCTION traceback(C):
 ```
 
 ### Luồng chính
+
 1. Sau mỗi lượt chấm trong UC-11, Scheduling & Remediation Engine kiểm tra `mastery_score(C)`
 2. Nếu `mastery_score < 0.6`: chạy thuật toán BFS ngược
 3. Tìm các tiên quyết P cần ôn lại (tối đa 2 tầng)
@@ -138,6 +144,7 @@ FUNCTION traceback(C):
 6. Student xem và có thể điều chỉnh thủ công nếu không đồng ý
 
 ### Luồng ngoại lệ
+
 - **[E1] Khái niệm C không có tiên quyết nào trong đồ thị:**
   - Không chạy BFS
   - Áp dụng spaced repetition thông thường ngay lập tức
@@ -152,13 +159,14 @@ FUNCTION traceback(C):
 
 ## UC-14: Xem kết quả tổng hợp cuối phiên Interview
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student, AI Service |
-| **Kích hoạt** | Tự động sau khi UC-11 kết thúc toàn bộ hàng đợi khái niệm |
-| **Mục tiêu** | Cung cấp nhận xét tổng hợp có ngữ nghĩa, không chỉ là danh sách điểm số |
+| Trường        | Nội dung                                                                |
+| ------------- | ----------------------------------------------------------------------- |
+| **Actor**     | Student, AI Service                                                     |
+| **Kích hoạt** | Tự động sau khi UC-11 kết thúc toàn bộ hàng đợi khái niệm               |
+| **Mục tiêu**  | Cung cấp nhận xét tổng hợp có ngữ nghĩa, không chỉ là danh sách điểm số |
 
 ### Luồng chính
+
 1. Hệ thống thu thập tất cả `{concept_name, mastery_score, verdict_history}` của phiên vừa xong
 2. **[AI Call]** Gửi dữ liệu điểm số đến AI, yêu cầu viết nhận xét tự nhiên:
    - Phần kiến thức đã vững (score >= 0.7)
@@ -171,19 +179,21 @@ FUNCTION traceback(C):
    - Nút "Bắt đầu phiên học tiếp theo"
 
 ### Luồng ngoại lệ
+
 - **[E1] AI fail khi tổng hợp nhận xét:** Hiển thị báo cáo điểm số dạng structured (bảng), không dùng AI viết nhận xét. Thông báo: "Không thể tổng hợp nhận xét lúc này."
 
 ---
 
 ## UC-15: Phản hồi / khiếu nại kết quả chấm điểm
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student |
-| **Mục tiêu** | Cho phép Student phản hồi khi không đồng ý với điểm AI chấm |
-| **Phạm vi MVP** | Chỉ ghi nhận feedback (log), không tự động điều chỉnh điểm |
+| Trường          | Nội dung                                                    |
+| --------------- | ----------------------------------------------------------- |
+| **Actor**       | Student                                                     |
+| **Mục tiêu**    | Cho phép Student phản hồi khi không đồng ý với điểm AI chấm |
+| **Phạm vi MVP** | Chỉ ghi nhận feedback (log), không tự động điều chỉnh điểm  |
 
 ### Luồng chính
+
 1. Student xem lại từng lượt hỏi-đáp trong phiên kết quả
 2. Click "Không đồng ý với điểm này" ở một lượt cụ thể
 3. Nhập lý do ngắn gọn (tùy chọn)
@@ -191,5 +201,6 @@ FUNCTION traceback(C):
 5. Thông báo: "Phản hồi của bạn đã được ghi nhận"
 
 ### Ghi chú
+
 - Ở giai đoạn MVP, feedback chỉ được log, không tự động thay đổi `mastery_score`
 - Có thể mở rộng sau để team review và cải thiện rubric/prompt chấm điểm

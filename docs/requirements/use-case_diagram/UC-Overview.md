@@ -1,28 +1,15 @@
-# Use-Case Overview — Recall AI
-
-> **Dự án:** Recall AI — Trợ lý ôn tập chủ động, truy ngược tận gốc kiến thức còn yếu
-> **Phương pháp:** Multi-agent analysis + debate (5 module analysts + 1 actor analyst)
-> **Phiên bản:** 2.0 — 10/07/2026
-> **Nguồn tham chiếu:** `project-proposal.md`, `Vision-Document_v1.0.pdf`
+# Use-Case Overview - Recall AI
 
 ---
 
-## 1. Danh sách Actors (đã chốt)
-
-> Được chốt sau quá trình tranh luận giữa main agent và actor analyst subagent.
+## 1. Danh sách Actors
 
 | #   | Actor                               | Loại                  | Mô tả                                                                                                         | UC tham gia                                     |
 | --- | ----------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| 1   | **Student**                         | Primary Actor (Human) | Người dùng cuối duy nhất — sinh viên năm 1-2 ngành kỹ thuật/KHTN                                              | Hầu hết 42 UC                                   |
+| 1   | **Student**                         | Primary Actor (Human) | Người dùng cuối duy nhất - sinh viên năm 1-2 ngành kỹ thuật/KHTN                                              | Hầu hết 42 UC                                   |
 | 2   | **AI Service (Google Gemini)**      | External System Actor | LLM bên ngoài, 3 calls cố định: `extract_concepts`, `generate_question`, `grade_answer` + `summarize_session` | SP-01, AE-02, AE-06, AE-09                      |
-| 3   | **Scheduling & Remediation Engine** | Internal System Actor | Module thuật toán tất định: priority queue (lập lịch) + BFS ngược (traceback) — unit-testable, không gọi AI   | SP-01, SP-07, FS-01, FS-06, AE-07, DB-01, DB-04 |
-| 4   | **Google OAuth**                    | External System Actor | Dịch vụ xác thực Google — dùng trong luồng thay thế đăng ký/đăng nhập                                         | AM-01, AM-02                                    |
-
-**Actors đã loại & lý do:**
-
-- ~~System (Recall AI)~~: Không phải Actor theo UML chuẩn — chỉ là System Response trong flow
-- ~~Notification Service~~: In-app/browser notification, không có external service dependency trong MVP
-- ~~Course Instructor/Evaluator~~: Stakeholder, không tương tác trực tiếp (không có UC nào)
+| 3   | **Scheduling & Remediation Engine** | Internal System Actor | Module thuật toán tất định: priority queue (lập lịch) + BFS ngược (traceback) - unit-testable, không gọi AI   | SP-01, SP-07, FS-01, FS-06, AE-07, DB-01, DB-04 |
+| 4   | **Google OAuth**                    | External System Actor | Dịch vụ xác thực Google - dùng trong luồng thay thế đăng ký/đăng nhập                                         | AM-01, AM-02                                    |
 
 ---
 
@@ -39,7 +26,7 @@
 | AM-05 | Quên mật khẩu / Đặt lại mật khẩu     | Student               | Medium   | ✅          |
 | AM-06 | Liên kết / Hủy liên kết Google OAuth | Student, Google OAuth | Low      | ⚠️ POST-MVP |
 
-### MODULE 2: AI STUDY PLANNER — INGEST & MAP (SP)
+### MODULE 2: AI STUDY PLANNER - INGEST & MAP (SP)
 
 | ID    | Tên Use-case                                         | Actors                                               | Priority | MVP?        |
 | ----- | ---------------------------------------------------- | ---------------------------------------------------- | -------- | ----------- |
@@ -66,7 +53,7 @@
 | FS-06 | Xem gợi ý khái niệm từ Scheduling & Remediation Engine | Student, Scheduling & Remediation Engine | **High** | ✅            |
 | FS-07 | Xem thống kê học tập (Streak & Total Hours)            | Student                                  | Medium   | ✅ Sprint 5   |
 
-### MODULE 4: AI EXAMINER — INTERVIEW (AE)
+### MODULE 4: AI EXAMINER - INTERVIEW (AE)
 
 | ID    | Tên Use-case                                           | Actors                                               | Priority | MVP?        |
 | ----- | ------------------------------------------------------ | ---------------------------------------------------- | -------- | ----------- |
@@ -74,7 +61,7 @@
 | AE-02 | Phiên Interview vấn đáp nhiều lượt (State Machine)     | Student, AI Service, Scheduling & Remediation Engine | **High** | ✅          |
 | AE-03 | Tạm dừng và Tiếp tục phiên Interview                   | Student                                              | **High** | ✅          |
 | AE-04 | Bỏ qua khái niệm trong phiên (Skip Concept)            | Student                                              | Medium   | ✅ Sprint 5 |
-| AE-05 | Fallback — Tự chấm bằng Flashcard tĩnh                 | Student                                              | **High** | ✅          |
+| AE-05 | Fallback - Tự chấm bằng Flashcard tĩnh                 | Student                                              | **High** | ✅          |
 | AE-06 | Pre-generate & Cache câu hỏi (Background)              | AI Service                                           | **High** | ✅          |
 | AE-07 | Truy ngược khái niệm tiên quyết (Concept Traceback) ⭐ | Scheduling & Remediation Engine                      | **High** | ✅          |
 | AE-08 | Thông báo kết quả Traceback cho Student                | Student                                              | Medium   | ✅          |
@@ -106,9 +93,9 @@
   MODULE ACCOUNT MANAGEMENT
 ═══════════════════════════════════════════════════════════
 AM-02 (Đăng nhập)
-  └── <<extend>> AM-05 (Quên mật khẩu) — khi click "Quên mật khẩu?"
+  └── <<extend>> AM-05 (Quên mật khẩu) - khi click "Quên mật khẩu?"
 AM-03 (Quản lý hồ sơ)
-  └── <<include>> AM-06 (Liên kết Google) — POST-MVP
+  └── <<include>> AM-06 (Liên kết Google) - POST-MVP
 
 ═══════════════════════════════════════════════════════════
   MODULE STUDY PLANNER
@@ -117,7 +104,7 @@ SP-01 (Tạo kế hoạch)
   ├── <<include>> AI Service (extract_concepts)
   ├── <<include>> SP-02 (Xem & chỉnh sửa đồ thị)
   ├── <<include>> Scheduling & Remediation Engine (tạo lịch đầu)
-  └── <<extend>> SP-06 (Async Polling — khi timeout > 30s)
+  └── <<extend>> SP-06 (Async Polling - khi timeout > 30s)
 
 SP-05 (Re-analyze)
   ├── <<include>> AI Service
@@ -130,9 +117,9 @@ SP-08 (Chỉnh sửa lịch) <<extend>> SP-07 (Xem lịch)
 ═══════════════════════════════════════════════════════════
 FS-01 (Bắt đầu Focus Session)
   ├── <<include>> FS-06 (Xem gợi ý từ Scheduling & Remediation Engine)
-  ├── <<include>> FS-02 (Cấu hình Pomodoro — nếu Student muốn)
-  ├── <<extend>> FS-04 (Xem tài liệu gốc — tùy chọn)
-  └── <<extend>> FS-05 (Ghi chú nhanh — tùy chọn)
+  ├── <<include>> FS-02 (Cấu hình Pomodoro - nếu Student muốn)
+  ├── <<extend>> FS-04 (Xem tài liệu gốc - tùy chọn)
+  └── <<extend>> FS-05 (Ghi chú nhanh - tùy chọn)
 
 FS-07 (Thống kê) <<extend>> FS-03 (Lịch sử phiên học)
 
@@ -141,14 +128,14 @@ FS-07 (Thống kê) <<extend>> FS-03 (Lịch sử phiên học)
 ═══════════════════════════════════════════════════════════
 AE-01 (Cấu hình phiên)
   ├── <<sequence>> AE-02 (Interview chạy sau cấu hình)
-  └── <<extend>> AE-03 (Tiếp tục phiên dở — khi phát hiện PAUSED)
+  └── <<extend>> AE-03 (Tiếp tục phiên dở - khi phát hiện PAUSED)
 
 AE-02 (Phiên Interview)
   ├── <<include>> AI Service (generate_question + grade_answer)
-  ├── <<include>> AE-07 (Traceback — khi verdict=wrong & has_prereqs)
-  ├── <<extend>> AE-05 (Fallback Flashcard — khi AI fail)
-  ├── <<extend>> AE-03 (Tạm dừng — khi Student click Pause)
-  └── <<extend>> AE-04 (Skip Concept — khi Student click Bỏ qua)
+  ├── <<include>> AE-07 (Traceback - khi verdict=wrong & has_prereqs)
+  ├── <<extend>> AE-05 (Fallback Flashcard - khi AI fail)
+  ├── <<extend>> AE-03 (Tạm dừng - khi Student click Pause)
+  └── <<extend>> AE-04 (Skip Concept - khi Student click Bỏ qua)
 
 AE-05 (Fallback Flashcard) ← phụ thuộc AE-06 (Cache câu hỏi)
 AE-06 (Pre-generate Cache) <<include>> AI Service
@@ -160,7 +147,7 @@ AE-07 (Traceback)
 AE-09 (Kết quả tổng hợp)
   ├── <<include>> AI Service (summarize_session)
   ├── <<include>> AE-08 (Hiển thị traceback info)
-  └── <<extend>> AE-10 (Khiếu nại điểm — tùy chọn)
+  └── <<extend>> AE-10 (Khiếu nại điểm - tùy chọn)
 
 ═══════════════════════════════════════════════════════════
   MODULE DASHBOARD & VISUALIZATION
@@ -168,18 +155,18 @@ AE-09 (Kết quả tổng hợp)
 DB-01 (Dashboard)
   ├── <<include>> DB-02 (mini Concept Graph)
   ├── <<include>> DB-04 (Gợi ý hôm nay từ Scheduling & Remediation Engine)
-  └── <<extend>> DB-07 (Deadline Calendar — khi click "Xem lịch")
+  └── <<extend>> DB-07 (Deadline Calendar - khi click "Xem lịch")
 
 DB-02 (Concept Graph)
-  ├── <<extend>> DB-05 (Lọc/Tìm kiếm — khi Student click filter)
-  └── <<extend>> DB-06 (Concept Detail Panel — khi click node)
+  ├── <<extend>> DB-05 (Lọc/Tìm kiếm - khi Student click filter)
+  └── <<extend>> DB-06 (Concept Detail Panel - khi click node)
 
 DB-06 (Concept Detail Panel)
   ├── <<extend>> AE-01 (Bắt đầu Interview từ đây)
   └── <<extend>> FS-01 (Bắt đầu Focus Session từ đây)
 
 DB-04 (Agentic Reminder)
-  └── <<extend>> DB-09 (Dismiss/Snooze — khi Student muốn điều chỉnh)
+  └── <<extend>> DB-09 (Dismiss/Snooze - khi Student muốn điều chỉnh)
 
 DB-03 (Lịch sử Interview) ↔ [tabs với] DB-08 (Lịch sử Focus Session)
 ```
@@ -217,7 +204,7 @@ DB-03 (Lịch sử Interview) ↔ [tabs với] DB-08 (Lịch sử Focus Session)
 
 ---
 
-## 5. Ghi chú kiến trúc quan trọng (từ multi-agent analysis)
+## 5. Ghi chú kiến trúc quan trọng
 
 ### 5.1 Tách biệt AI vs Logic phần mềm
 
@@ -240,7 +227,7 @@ Dùng tuple `(concept_id, depth)` trong queue. Giới hạn `max_depth = 2`. Ph�
 
 ### 5.4 Weighted Mastery Score Formula
 
-`mastery_score(C) = weighted_avg(turn_scores, weights=[0.2, 0.3, 0.5])` cho N=3 turns — lượt sau quan trọng hơn vì câu hỏi sâu hơn.
+`mastery_score(C) = weighted_avg(turn_scores, weights=[0.2, 0.3, 0.5])` cho N=3 turns - lượt sau quan trọng hơn vì câu hỏi sâu hơn.
 
 ### 5.5 DB Schema bổ sung (phát hiện qua phân tích UC)
 
@@ -292,6 +279,6 @@ ALTER TABLE users ADD COLUMN pomodoro_config JSONB DEFAULT '{"work":25,"short_br
 
 ### 5.6 Use-case ngoài MVP (không implement Sprint 3-5)
 
-- AM-06: Liên kết/Hủy liên kết Google — chỉ cần silent merge email trong MVP
+- AM-06: Liên kết/Hủy liên kết Google - chỉ cần silent merge email trong MVP
 - SP-10: Import kế hoạch từ file
 - Voice Input (đề cập trong proposal nhưng không có UC chính thức)

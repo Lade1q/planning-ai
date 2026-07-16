@@ -8,22 +8,24 @@
 
 ## UC-16: Xem Dashboard tổng quan
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student |
-| **Mục tiêu** | Có cái nhìn tổng thể nhanh về toàn bộ tiến độ ôn tập |
-| **Điều kiện tiên quyết** | Student đã đăng nhập |
+| Trường                   | Nội dung                                             |
+| ------------------------ | ---------------------------------------------------- |
+| **Actor**                | Student                                              |
+| **Mục tiêu**             | Có cái nhìn tổng thể nhanh về toàn bộ tiến độ ôn tập |
+| **Điều kiện tiên quyết** | Student đã đăng nhập                                 |
 
 ### Luồng chính
+
 1. Student vào Dashboard (màn hình mặc định sau đăng nhập)
 2. Hệ thống tải và hiển thị:
    - **Kế hoạch đang active:** danh sách plan, % tiến độ, deadline, số ngày còn lại
    - **Deadline sắp tới:** timeline các kỳ thi / deadline đang đếm ngược
    - **Khái niệm cần ôn hôm nay:** danh sách do Scheduling & Remediation Engine tính toán
-   - **Đồ thị khái niệm tô màu** (xem UC-17) — mini version trên Dashboard
+   - **Đồ thị khái niệm tô màu** (xem UC-17) - mini version trên Dashboard
    - **Thống kê nhanh:** tổng thời gian ôn tuần này, số phiên Interview đã làm
 
 ### Luồng ngoại lệ
+
 - **[E1] Chưa có kế hoạch nào:** Hiển thị màn hình onboarding với CTA "Tạo kế hoạch đầu tiên"
 - **[E2] Tất cả kế hoạch đã hết deadline:** Gợi ý tạo kế hoạch mới
 
@@ -31,21 +33,23 @@
 
 ## UC-17: Xem và tương tác với Concept Graph Visualization
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student |
-| **Mục tiêu** | Nhìn thấy bức tranh trực quan toàn bộ môn học, xác định ngay điểm yếu và vị trí của nó trong chuỗi kiến thức |
-| **Điều kiện tiên quyết** | Kế hoạch đã được tạo và đã có ít nhất một phiên Interview |
+| Trường                   | Nội dung                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **Actor**                | Student                                                                                                      |
+| **Mục tiêu**             | Nhìn thấy bức tranh trực quan toàn bộ môn học, xác định ngay điểm yếu và vị trí của nó trong chuỗi kiến thức |
+| **Điều kiện tiên quyết** | Kế hoạch đã được tạo và đã có ít nhất một phiên Interview                                                    |
 
 ### Màu sắc node (theo mastery_score)
-| Màu | mastery_score | Ý nghĩa |
-|---|---|---|
-| Xám | `null` | Chưa được kiểm tra lần nào |
-| Đỏ | < 0.4 | Yếu — cần ôn lại ngay |
-| Cam | 0.4 – 0.6 | Trung bình — cần củng cố |
-| Xanh lá | > 0.7 | Vững |
+
+| Màu     | mastery_score | Ý nghĩa                    |
+| ------- | ------------- | -------------------------- |
+| Xám     | `null`        | Chưa được kiểm tra lần nào |
+| Đỏ      | < 0.4         | Yếu - cần ôn lại ngay      |
+| Cam     | 0.4 – 0.6     | Trung bình - cần củng cố   |
+| Xanh lá | > 0.7         | Vững                       |
 
 ### Luồng chính
+
 1. Student xem đồ thị react-flow (node = khái niệm, edge = quan hệ tiên quyết)
 2. Quan sát màu sắc để nhận biết ngay điểm yếu và vị trí trong chuỗi kiến thức
 3. Click vào node để xem panel chi tiết:
@@ -57,6 +61,7 @@
 4. Zoom in/out, kéo thả để điều hướng đồ thị (tính năng của react-flow)
 
 ### Luồng ngoại lệ
+
 - **[E1] Đồ thị quá nhiều node (> 50):**
   - Cảnh báo performance: "Đồ thị lớn có thể chậm"
   - Cung cấp bộ lọc: hiển thị theo nhóm / chỉ hiện node yếu
@@ -68,13 +73,14 @@
 
 ## UC-18: Xem lịch sử phiên Interview
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | Student |
+| Trường       | Nội dung                                                         |
+| ------------ | ---------------------------------------------------------------- |
+| **Actor**    | Student                                                          |
 | **Mục tiêu** | Theo dõi tiến độ theo thời gian, xem lại các lượt hỏi-đáp cụ thể |
-| **Sprint** | 5 |
+| **Sprint**   | 5                                                                |
 
 ### Luồng chính
+
 1. Student vào trang "Lịch sử & Tiến độ"
 2. Xem danh sách các phiên Interview đã làm (ngày, số khái niệm, điểm trung bình)
 3. Click vào một phiên → xem chi tiết:
@@ -83,19 +89,21 @@
 4. Xem biểu đồ đường thể hiện `mastery_score` theo thời gian cho từng khái niệm
 
 ### Luồng ngoại lệ
+
 - **[E1] Chưa có phiên Interview nào:** Hiển thị trạng thái rỗng, gợi ý bắt đầu phiên đầu tiên
 
 ---
 
 ## UC-19: Nhận nhắc nhở ôn tập chủ động (Agentic)
 
-| Trường | Nội dung |
-|---|---|
-| **Actor** | System (Scheduling & Remediation Engine) → thông báo đến Student |
-| **Mục tiêu** | Nhắc nhở đúng lúc, đúng khái niệm, dựa trên ngữ cảnh học tập thực tế |
-| **Tính chất** | Agentic — hệ thống tự tính toán, không theo lịch cố định |
+| Trường        | Nội dung                                                             |
+| ------------- | -------------------------------------------------------------------- |
+| **Actor**     | System (Scheduling & Remediation Engine) → thông báo đến Student     |
+| **Mục tiêu**  | Nhắc nhở đúng lúc, đúng khái niệm, dựa trên ngữ cảnh học tập thực tế |
+| **Tính chất** | Agentic - hệ thống tự tính toán, không theo lịch cố định             |
 
 ### Logic tính toán (Scheduling & Remediation Engine)
+
 ```text
 HÀM NGÀY: tính_khuyến_nghị_hôm_nay()
   Với mỗi concept C trong tất cả plan active:
@@ -108,11 +116,13 @@ HÀM NGÀY: tính_khuyến_nghị_hôm_nay()
 ```
 
 ### Luồng chính
+
 1. Scheduling & Remediation Engine chạy tính toán (định kỳ hoặc khi Student đăng nhập)
 2. Tạo danh sách "Cần ôn hôm nay" với lý do cụ thể cho từng khái niệm
 3. Hiển thị trên Dashboard (UC-16) và gửi thông báo (nếu Student cho phép)
 4. Student click vào khái niệm gợi ý → chọn Focus Session hoặc Interview
 
 ### Luồng ngoại lệ
+
 - **[E1] Student đã ôn đủ tất cả khái niệm trong ngày:** Không hiển thị gợi ý, thay bằng "Bạn đã hoàn thành kế hoạch hôm nay 🎉"
 - **[E2] Không còn deadline nào sắp tới:** Gợi ý ôn lại các khái niệm có `mastery_score` thấp nhất
