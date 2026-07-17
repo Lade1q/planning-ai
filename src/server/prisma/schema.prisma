@@ -7,5 +7,152 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
+
+// ============================================
+// Enum Definitions
+// ============================================
+
+enum StudyPlanStatus {
+  draft
+  active
+  archived
+}
+
+enum ConceptSource {
+  ai_generated
+  manual
+  imported
+}
+
+enum ConceptStatus {
+  active
+  deprecated
+}
+
+enum AnalysisJobStatus {
+  pending
+  processing
+  done
+  failed
+}
+
+// ============================================
+// Model Definitions
+// ============================================
+
+/// Tai khoan nguoi dung (sinh vien)
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String   @map("password_hash") @db.VarChar(255)
+  name           String?  @db.VarChar(100)
+  pomodoroConfig Json     @default("{\"work\":25,\"short_break\":5,\"long_break\":15,\"cycles\":4,\"sound\":true}") @map("pomodoro_config")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  studyPlans StudyPlan[]
+
+  @@map("users")
+}
+
+/// Ke hoach on tap - chua DAG cac khai niem
+model StudyPlan {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  name             String          @db.VarChar(255)
+  deadline         DateTime?
+  status           StudyPlanStatus @default(active)
+  dagAutoFixed     Boolean         @default(false) @map("dag_auto_fixed")
+  tracebackEnabled Boolean         @default(true) @map("traceback_enabled")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concepts     Concept[]
+  conceptEdges ConceptEdge[]
+
+  @@index([userId])
+  @@map("study_plans")
+}
+
+/// Khai niem trong do thi kien thuc
+/// Luu y: difficulty range [1-5], mastery_score range [0.0-1.0] -- enforce tai application layer (Zod)
+model Concept {
+  id           String        @id @default(uuid()) @db.Uuid
+  planId       String        @map("plan_id") @db.Uuid
+  name         String        @db.VarChar(255)
+  difficulty   Int?          @default(1)
+  masteryScore Float?        @map("mastery_score")
+  source       ConceptSource @default(ai_generated)
+  status       ConceptStatus @default(active)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  plan           StudyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  edgesFrom      ConceptEdge[]   @relation("EdgeFrom")
+  edgesTo        ConceptEdge[]   @relation("EdgeTo")
+  questionCaches QuestionCache[]
+
+  @@index([planId])
+  @@map("concepts")
+}
+
+/// Canh trong do thi DAG - bieu dien quan he prerequisite
+/// Luu y: Self-loop (fromConceptId = toConceptId) phai duoc validate tai application layer
+model ConceptEdge {
+  id            String @id @default(uuid()) @db.Uuid
+  planId        String @map("plan_id") @db.Uuid
+  fromConceptId String @map("from_concept_id") @db.Uuid
+  toConceptId   String @map("to_concept_id") @db.Uuid
+
+  plan        StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  fromConcept Concept   @relation("EdgeFrom", fields: [fromConceptId], references: [id], onDelete: Cascade)
+  toConcept   Concept   @relation("EdgeTo", fields: [toConceptId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, fromConceptId, toConceptId])
+  @@index([planId])
+  @@index([fromConceptId])
+  @@index([toConceptId])
+  @@map("concept_edges")
+}
+
+/// Job phan tich tai lieu bat dong bo (SP-06)
+/// Luu y: planDraftId khong co FK constraint vi plan draft co the chua ton tai (async flow)
+model AnalysisJob {
+  id          String            @id @default(uuid()) @db.Uuid
+  planDraftId String?           @map("plan_draft_id") @db.Uuid
+  status      AnalysisJobStatus @default(pending)
+  retryCount  Int               @default(0) @map("retry_count")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  completedAt DateTime?         @map("completed_at")
+
+  @@index([planDraftId])
+  @@index([status])
+  @@map("analysis_jobs")
+}
+
+/// Cache cau hoi pre-generated cho AI Examiner fallback (AE-05, AE-06)
+/// Sprint 3 chi tao bang, viec populate data se o Sprint 4
+model QuestionCache {
+  id           String   @id @default(uuid()) @db.Uuid
+  conceptId    String   @map("concept_id") @db.Uuid
+  questionText String   @map("question_text")
+  questionType String?  @map("question_type") @db.VarChar(50)
+  answerHint   String?  @map("answer_hint")
+  generatedAt  DateTime @default(now()) @map("generated_at")
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@index([conceptId])
+  @@map("question_cache")
+}
+
+// ============================================
+// Deferred Models (se implement o Sprint 3-5)
+// ============================================
+// - FocusSession: FS-01, FS-03 (Sprint 3)
+// - InterviewSession: AE-01, AE-02, AE-03 (Sprint 3)
+// - InterviewTurn: AE-02 luu tung luot hoi-dap (Sprint 3)
+// - SessionNote: FS-05 ghi chu nhanh (Sprint 4-5)
+// - GradingFeedback: AE-10 phan hoi diem (Sprint 5)
