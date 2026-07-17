@@ -3,7 +3,7 @@ import { defineConfig, env } from "prisma/config";
 
 /**
  * Prisma 7 configuration file.
- * Quan ly database URL cho migration va CLI commands.
+ * Quản lý database URL cho migration và CLI commands.
  */
 export default defineConfig({
   schema: "prisma/schema.prisma",

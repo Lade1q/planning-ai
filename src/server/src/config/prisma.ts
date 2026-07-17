@@ -3,8 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 /**
  * Singleton Prisma Client instance.
- * Tranh tao nhieu connection pool trong development (hot reload).
- * Su dung PrismaPg driver adapter theo yeu cau Prisma 7.
+ * Tránh tạo nhiều connection pool trong development (hot reload).
+ * Sử dụng PrismaPg driver adapter theo yêu cầu Prisma 7.
  */
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

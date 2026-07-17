@@ -15,11 +15,11 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 /**
- * Seed script tao du lieu mau cho development.
- * Tao 1 user test, 1 study plan mau, 3 concepts, 2 edges,
- * 1 analysis job, va 1 question cache entry.
+ * Seed script tạo dữ liệu mẫu cho development.
+ * Tạo 1 user test, 1 study plan mẫu, 3 concepts, 2 edges,
+ * 1 analysis job, và 1 question cache entry.
  *
- * Script nay KHONG duoc phep chay tren production.
+ * Script này KHÔNG được phép chạy trên production.
  */
 async function main() {
   // Production guard
@@ -29,7 +29,7 @@ async function main() {
   }
 
   await prisma.$transaction(async (tx) => {
-    // Xoa du lieu cu (thu tu: child -> parent)
+    // Xóa dữ liệu cũ (thứ tự: child -> parent)
     await tx.questionCache.deleteMany();
     await tx.conceptEdge.deleteMany();
     await tx.concept.deleteMany();
@@ -37,7 +37,7 @@ async function main() {
     await tx.studyPlan.deleteMany();
     await tx.user.deleteMany();
 
-    // Tao user test
+    // Tạo user test
     const testUser = await tx.user.create({
       data: {
         email: "test@recallai.dev",
@@ -48,11 +48,11 @@ async function main() {
 
     console.log("Created test user:", testUser.email);
 
-    // Tao study plan mau
+    // Tạo study plan mẫu
     const plan = await tx.studyPlan.create({
       data: {
         userId: testUser.id,
-        name: "Cau truc du lieu va Giai thuat",
+        name: "Cấu trúc dữ liệu và Giải thuật",
         deadline: new Date("2026-08-15"),
         status: StudyPlanStatus.active,
       },
@@ -60,7 +60,7 @@ async function main() {
 
     console.log("Created study plan:", plan.name);
 
-    // Tao 3 concepts mau (DAG: Array -> LinkedList -> BinaryTree)
+    // Tạo 3 concepts mẫu (DAG: Array -> LinkedList -> BinaryTree)
     const conceptArray = await tx.concept.create({
       data: {
         planId: plan.id,
@@ -93,7 +93,7 @@ async function main() {
 
     console.log("Created 3 concepts: Array, Linked List, Binary Tree");
 
-    // Tao 2 edges (prerequisite): Array -> LinkedList, LinkedList -> BinaryTree
+    // Tạo 2 edges (prerequisite): Array -> LinkedList, LinkedList -> BinaryTree
     await tx.conceptEdge.createMany({
       data: [
         {
@@ -111,7 +111,7 @@ async function main() {
 
     console.log("Created 2 prerequisite edges: Array -> Linked List -> Binary Tree");
 
-    // Tao 1 analysis job mau
+    // Tạo 1 analysis job mẫu
     await tx.analysisJob.create({
       data: {
         planDraftId: plan.id,
@@ -123,13 +123,13 @@ async function main() {
 
     console.log("Created 1 analysis job (status: done)");
 
-    // Tao 1 question cache entry mau
+    // Tạo 1 question cache entry mẫu
     await tx.questionCache.create({
       data: {
         conceptId: conceptArray.id,
-        questionText: "Giai thich su khac biet giua Array va Linked List ve mat bo nho.",
+        questionText: "Giải thích sự khác biệt giữa Array và Linked List về mặt bộ nhớ.",
         questionType: "open_ended",
-        answerHint: "Array luu tru lien tiep trong bo nho, Linked List luu tru phan tan voi con tro.",
+        answerHint: "Array lưu trữ liên tiếp trong bộ nhớ, Linked List lưu trữ phân tán với con trỏ.",
       },
     });
 

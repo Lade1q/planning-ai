@@ -41,7 +41,7 @@ enum AnalysisJobStatus {
 // Model Definitions
 // ============================================
 
-/// Tai khoan nguoi dung (sinh vien)
+/// Tài khoản người dùng (sinh viên)
 model User {
   id             String   @id @default(uuid()) @db.Uuid
   email          String   @unique @db.VarChar(255)
@@ -56,7 +56,7 @@ model User {
   @@map("users")
 }
 
-/// Ke hoach on tap - chua DAG cac khai niem
+/// Kế hoạch ôn tập - chứa DAG các khái niệm
 model StudyPlan {
   id               String          @id @default(uuid()) @db.Uuid
   userId           String          @map("user_id") @db.Uuid
@@ -76,8 +76,8 @@ model StudyPlan {
   @@map("study_plans")
 }
 
-/// Khai niem trong do thi kien thuc
-/// Luu y: difficulty range [1-5], mastery_score range [0.0-1.0] -- enforce tai application layer (Zod)
+/// Khái niệm trong đồ thị kiến thức
+/// Lưu ý: difficulty range [1-5], mastery_score range [0.0-1.0] -- enforce tại application layer (Zod)
 model Concept {
   id           String        @id @default(uuid()) @db.Uuid
   planId       String        @map("plan_id") @db.Uuid
@@ -98,8 +98,8 @@ model Concept {
   @@map("concepts")
 }
 
-/// Canh trong do thi DAG - bieu dien quan he prerequisite
-/// Luu y: Self-loop (fromConceptId = toConceptId) phai duoc validate tai application layer
+/// Cạnh trong đồ thị DAG - biểu diễn quan hệ prerequisite
+/// Lưu ý: Self-loop (fromConceptId = toConceptId) phải được validate tại application layer
 model ConceptEdge {
   id            String @id @default(uuid()) @db.Uuid
   planId        String @map("plan_id") @db.Uuid
@@ -117,8 +117,8 @@ model ConceptEdge {
   @@map("concept_edges")
 }
 
-/// Job phan tich tai lieu bat dong bo (SP-06)
-/// Luu y: planDraftId khong co FK constraint vi plan draft co the chua ton tai (async flow)
+/// Job phân tích tài liệu bất đồng bộ (SP-06)
+/// Lưu ý: planDraftId không có FK constraint vì plan draft có thể chưa tồn tại (async flow)
 model AnalysisJob {
   id          String            @id @default(uuid()) @db.Uuid
   planDraftId String?           @map("plan_draft_id") @db.Uuid
@@ -132,8 +132,8 @@ model AnalysisJob {
   @@map("analysis_jobs")
 }
 
-/// Cache cau hoi pre-generated cho AI Examiner fallback (AE-05, AE-06)
-/// Sprint 3 chi tao bang, viec populate data se o Sprint 4
+/// Cache câu hỏi pre-generated cho AI Examiner fallback (AE-05, AE-06)
+/// Sprint 3 chỉ tạo bảng, việc populate data sẽ ở Sprint 4
 model QuestionCache {
   id           String   @id @default(uuid()) @db.Uuid
   conceptId    String   @map("concept_id") @db.Uuid
@@ -149,10 +149,10 @@ model QuestionCache {
 }
 
 // ============================================
-// Deferred Models (se implement o Sprint 3-5)
+// Deferred Models (sẽ implement ở Sprint 3-5)
 // ============================================
 // - FocusSession: FS-01, FS-03 (Sprint 3)
 // - InterviewSession: AE-01, AE-02, AE-03 (Sprint 3)
-// - InterviewTurn: AE-02 luu tung luot hoi-dap (Sprint 3)
-// - SessionNote: FS-05 ghi chu nhanh (Sprint 4-5)
-// - GradingFeedback: AE-10 phan hoi diem (Sprint 5)
+// - InterviewTurn: AE-02 lưu từng lượt hỏi-đáp (Sprint 3)
+// - SessionNote: FS-05 ghi chú nhanh (Sprint 4-5)
+// - GradingFeedback: AE-10 phản hồi điểm (Sprint 5)
