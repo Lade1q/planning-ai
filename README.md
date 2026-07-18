@@ -4,6 +4,11 @@ Dưới đây là cấu trúc các thư mục và file trong dự án:
 
 - `/src`: Thư mục chứa mã nguồn của ứng dụng.
   - `/src/server`: Mã nguồn dự án Backend (Node.js + Express + TypeScript).
+    - `prisma/schema.prisma` - Prisma database schema (6 models)
+    - `prisma/seed.ts` - Database seed script
+    - `prisma/migrations/` - Database migration files
+    - `prisma.config.ts` - Prisma 7 configuration (datasource URL, seed command)
+    - `src/config/prisma.ts` - Centralized Prisma Client singleton
 - `/docs`: Thư mục chứa tài liệu thiết kế, phân tích, kiểm thử và quản lý dự án.
   - `/docs/management/`: Kế hoạch dự án, báo cáo tiến độ.
   - `/docs/requirements/`: Yêu cầu dự án, tài liệu đặc tả (NFRs, Use case, Vision).
