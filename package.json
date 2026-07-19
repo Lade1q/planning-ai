@@ -4,19 +4,6 @@
   "scripts": {
     "prepare": "husky"
   },
-  "lint-staged": {
-    "src/client/**/*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "src/server/**/*.ts": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "**/*.{json,md,yaml,yml}": [
-      "prettier --write"
-    ]
-  },
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
