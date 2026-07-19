@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, release]
+  pull_request:
+    branches: [main, release]
+
+jobs:
+  frontend:
+    name: Frontend — Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend — Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
