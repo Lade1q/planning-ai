@@ -1,0 +1,13 @@
+{
+  "name": "planning-ai",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.9.5",
+    "prettier-plugin-tailwindcss": "^0.6.14"
+  }
+}
