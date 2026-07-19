@@ -120,8 +120,19 @@ Dưới đây là sơ đồ cây cấu trúc các thư mục và file trong dự
         │   ├── app.ts
         │   ├── config
         │   │   └── prisma.ts
+        │   ├── controllers
+        │   │   └── auth.controller.ts
         │   ├── middleware
+        │   │   ├── auth.middleware.ts
         │   │   └── errorHandler.ts
+        │   ├── routes
+        │   │   └── auth.routes.ts
+        │   ├── services
+        │   │   └── auth.service.ts
+        │   ├── types
+        │   │   └── express.d.ts
+        │   ├── utils
+        │   │   └── jwt.ts
         │   └── server.ts
         └── tsconfig.json
 ```

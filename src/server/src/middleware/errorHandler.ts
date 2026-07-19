@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 
 /**
  * Custom application error class.
@@ -18,6 +19,18 @@ export class AppError extends Error {
  * Global centralized error handler middleware.
  */
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
+  // Handle Zod validation errors
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Dữ liệu đầu vào không hợp lệ',
+        details: err.issues,
+      },
+    });
+  }
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
@@ -48,4 +61,16 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       message: 'Lỗi hệ thống',
     },
   });
+}
+
+/**
+ * Async handler wrapper to catch unhandled promise rejections
+ * and forward them to the global error handler.
+ */
+export function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
 }
