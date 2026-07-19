@@ -1,4 +1,5 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
+import { AppError } from '../middleware/errorHandler';
 
 export interface JwtPayload {
   userId: string;
@@ -11,11 +12,14 @@ export interface JwtPayload {
 export function generateAccessToken(payload: JwtPayload): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET is not defined in environment variables');
+    throw new AppError(
+      'JWT_SECRET is not defined in environment variables',
+      500,
+      'SERVER_CONFIG_ERROR'
+    );
   }
   const expiresIn = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
+  return jwt.sign(payload, secret, { expiresIn: expiresIn as SignOptions['expiresIn'] });
 }
 
 /**
@@ -24,11 +28,14 @@ export function generateAccessToken(payload: JwtPayload): string {
 export function generateRefreshToken(payload: JwtPayload): string {
   const secret = process.env.JWT_REFRESH_SECRET;
   if (!secret) {
-    throw new Error('JWT_REFRESH_SECRET is not defined in environment variables');
+    throw new AppError(
+      'JWT_REFRESH_SECRET is not defined in environment variables',
+      500,
+      'SERVER_CONFIG_ERROR'
+    );
   }
   const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
+  return jwt.sign(payload, secret, { expiresIn: expiresIn as SignOptions['expiresIn'] });
 }
 
 /**

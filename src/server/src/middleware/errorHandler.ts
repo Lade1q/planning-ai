@@ -25,7 +25,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Dữ liệu đầu vào không hợp lệ',
+        message: 'Invalid input data',
         details: err.issues,
       },
     });
@@ -58,7 +58,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
-      message: 'Lỗi hệ thống',
+      message: 'Internal server error',
     },
   });
 }

@@ -3,49 +3,8 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { generateAccessToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 import { AppError } from '../middleware/errorHandler';
-
-// ============================================
-// Zod Validation Schemas
-// ============================================
-
-export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(2),
-});
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
-export const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
-});
-
-// ============================================
-// Response Types
-// ============================================
-
-interface UserResponse {
-  id: string;
-  email: string;
-  name: string | null;
-}
-
-interface AuthResponse {
-  user: UserResponse;
-  accessToken: string;
-  refreshToken: string;
-}
-
-interface RefreshResponse {
-  accessToken: string;
-}
-
-// ============================================
-// Service Functions
-// ============================================
+import { registerSchema, loginSchema, refreshSchema } from '../schemas/auth.schema';
+import { AuthResponse, RefreshResponse, UserResponse } from '../types/auth.types';
 
 const SALT_ROUNDS = 10;
 
@@ -138,7 +97,7 @@ export async function refresh(data: z.infer<typeof refreshSchema>): Promise<Refr
     throw new AppError(
       'JWT_REFRESH_SECRET is not defined in environment variables',
       500,
-      'SERVER_ERROR'
+      'SERVER_CONFIG_ERROR'
     );
   }
 

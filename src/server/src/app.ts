@@ -18,7 +18,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // API Routes
-app.use('/api/auth', authRouter);
+app.use('/api/v1/auth', authRouter);
 
 // Catch-all route for non-existent resources
 app.use((_req: Request, _res: Response, next: NextFunction) => {
