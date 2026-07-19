@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
 export interface JwtPayload {
   userId: string;
@@ -11,9 +11,9 @@ export interface JwtPayload {
 export function generateAccessToken(payload: JwtPayload): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error("JWT_SECRET is not defined in environment variables");
+    throw new Error('JWT_SECRET is not defined in environment variables');
   }
-  return jwt.sign(payload, secret, { expiresIn: "15m" });
+  return jwt.sign(payload, secret, { expiresIn: '15m' });
 }
 
 /**
@@ -22,11 +22,9 @@ export function generateAccessToken(payload: JwtPayload): string {
 export function generateRefreshToken(payload: JwtPayload): string {
   const secret = process.env.JWT_REFRESH_SECRET;
   if (!secret) {
-    throw new Error(
-      "JWT_REFRESH_SECRET is not defined in environment variables",
-    );
+    throw new Error('JWT_REFRESH_SECRET is not defined in environment variables');
   }
-  return jwt.sign(payload, secret, { expiresIn: "7d" });
+  return jwt.sign(payload, secret, { expiresIn: '7d' });
 }
 
 /**

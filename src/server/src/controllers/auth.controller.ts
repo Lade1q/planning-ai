@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response } from 'express';
 import {
   register,
   login,
@@ -7,7 +7,7 @@ import {
   registerSchema,
   loginSchema,
   refreshSchema,
-} from "../services/auth.service";
+} from '../services/auth.service';
 
 /**
  * POST /api/auth/register
@@ -16,15 +16,12 @@ import {
  * Returns 409 with { error: "Email already exists" } on duplicate.
  * Returns 400 with { error: string } on validation failure.
  */
-export async function registerController(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function registerController(req: Request, res: Response): Promise<void> {
   try {
     // Validate input
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+      res.status(400).json({ error: 'Invalid input', details: parsed.error.issues });
       return;
     }
 
@@ -43,15 +40,12 @@ export async function registerController(
  * Returns 200 with user info + tokens on success.
  * Returns 401 with { error: "Email or password incorrect" } on failure.
  */
-export async function loginController(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function loginController(req: Request, res: Response): Promise<void> {
   try {
     // Validate input
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+      res.status(400).json({ error: 'Invalid input', details: parsed.error.issues });
       return;
     }
 
@@ -70,15 +64,12 @@ export async function loginController(
  * Returns 200 with { accessToken } on success.
  * Returns 401 on invalid/expired refresh token.
  */
-export async function refreshController(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function refreshController(req: Request, res: Response): Promise<void> {
   try {
     // Validate input
     const parsed = refreshSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+      res.status(400).json({ error: 'Invalid input', details: parsed.error.issues });
       return;
     }
 
@@ -97,13 +88,10 @@ export async function refreshController(
  * Requires authMiddleware to be applied before this handler.
  * Returns 200 with user info on success.
  */
-export async function getMeController(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function getMeController(req: Request, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 

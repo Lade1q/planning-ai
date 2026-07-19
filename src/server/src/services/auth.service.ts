@@ -1,11 +1,7 @@
-import bcrypt from "bcryptjs";
-import { z } from "zod/v4";
-import prisma from "../config/prisma";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyToken,
-} from "../utils/jwt";
+import bcrypt from 'bcryptjs';
+import { z } from 'zod/v4';
+import prisma from '../config/prisma';
+import { generateAccessToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 
 // ============================================
 // Zod Validation Schemas
@@ -60,16 +56,14 @@ const SALT_ROUNDS = 10;
  * - Creates user in DB
  * - Returns user info + token pair
  */
-export async function register(
-  data: z.infer<typeof registerSchema>,
-): Promise<AuthResponse> {
+export async function register(data: z.infer<typeof registerSchema>): Promise<AuthResponse> {
   // Check duplicate email
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email },
   });
 
   if (existingUser) {
-    const error = new Error("Email already exists") as Error & {
+    const error = new Error('Email already exists') as Error & {
       statusCode: number;
     };
     error.statusCode = 409;
@@ -106,16 +100,14 @@ export async function register(
  * - Compares password hash
  * - Returns user info + token pair
  */
-export async function login(
-  data: z.infer<typeof loginSchema>,
-): Promise<AuthResponse> {
+export async function login(data: z.infer<typeof loginSchema>): Promise<AuthResponse> {
   // Find user by email
   const user = await prisma.user.findUnique({
     where: { email: data.email },
   });
 
   if (!user) {
-    const error = new Error("Email or password incorrect") as Error & {
+    const error = new Error('Email or password incorrect') as Error & {
       statusCode: number;
     };
     error.statusCode = 401;
@@ -126,7 +118,7 @@ export async function login(
   const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
 
   if (!isPasswordValid) {
-    const error = new Error("Email or password incorrect") as Error & {
+    const error = new Error('Email or password incorrect') as Error & {
       statusCode: number;
     };
     error.statusCode = 401;
@@ -151,14 +143,10 @@ export async function login(
  * - Checks user still exists in DB
  * - Issues new access token
  */
-export async function refresh(
-  data: z.infer<typeof refreshSchema>,
-): Promise<RefreshResponse> {
+export async function refresh(data: z.infer<typeof refreshSchema>): Promise<RefreshResponse> {
   const secret = process.env.JWT_REFRESH_SECRET;
   if (!secret) {
-    throw new Error(
-      "JWT_REFRESH_SECRET is not defined in environment variables",
-    );
+    throw new Error('JWT_REFRESH_SECRET is not defined in environment variables');
   }
 
   // Verify refresh token
@@ -166,7 +154,7 @@ export async function refresh(
   try {
     decoded = verifyToken(data.refreshToken, secret);
   } catch {
-    const error = new Error("Invalid or expired refresh token") as Error & {
+    const error = new Error('Invalid or expired refresh token') as Error & {
       statusCode: number;
     };
     error.statusCode = 401;
@@ -179,7 +167,7 @@ export async function refresh(
   });
 
   if (!user) {
-    const error = new Error("User not found") as Error & {
+    const error = new Error('User not found') as Error & {
       statusCode: number;
     };
     error.statusCode = 401;
@@ -204,7 +192,7 @@ export async function getMe(userId: string): Promise<UserResponse> {
   });
 
   if (!user) {
-    const error = new Error("User not found") as Error & {
+    const error = new Error('User not found') as Error & {
       statusCode: number;
     };
     error.statusCode = 404;
