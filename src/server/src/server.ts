@@ -1,10 +1,11 @@
-import dotenv from "dotenv";
-import path from "path";
+/* eslint-disable no-console */
+import dotenv from 'dotenv';
+import path from 'path';
 
 // Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-import { app } from "./app";
+import { app } from './app';
 
 const PORT = process.env.PORT || 3001;
 
@@ -14,8 +15,8 @@ const server = app.listen(PORT, () => {
 });
 
 // Centralized handler for uncaught promise rejections
-process.on("unhandledRejection", (err: unknown) => {
-  console.error("UNHANDLED REJECTION! Shutting down gracefully...");
+process.on('unhandledRejection', (err: unknown) => {
+  console.error('UNHANDLED REJECTION! Shutting down gracefully...');
   if (err instanceof Error) {
     console.error(err.name, err.message, err.stack);
   } else {
@@ -27,8 +28,8 @@ process.on("unhandledRejection", (err: unknown) => {
 });
 
 // Centralized handler for uncaught runtime exceptions
-process.on("uncaughtException", (err: Error) => {
-  console.error("UNCAUGHT EXCEPTION! Shutting down gracefully...");
+process.on('uncaughtException', (err: Error) => {
+  console.error('UNCAUGHT EXCEPTION! Shutting down gracefully...');
   console.error(err.name, err.message, err.stack);
   process.exit(1);
 });
