@@ -118,5 +118,3 @@ npm run dev
 Server sẽ khởi động tại địa chỉ: `http://localhost:3001`
 
 ---
-
-_Lưu ý: Đặc tả API (API Endpoints Spec) đã được chuyển sang `docs/api/auth.md`_
