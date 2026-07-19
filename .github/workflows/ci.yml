@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, release]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches: [main, release]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+
+jobs:
+  build-and-test:
+    name: CI - Lint & Build (FE & BE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            src/client/package-lock.json
+            src/server/package-lock.json
+
+      # --- PHẦN 1: FRONTEND ---
+      - name: Install Frontend dependencies
+        run: npm ci --prefix src/client
+      - name: Run Frontend Lint
+        run: npm run lint --prefix src/client
+      - name: Build Frontend
+        run: npm run build --prefix src/client
+
+      # --- PHẦN 2: BACKEND ---
+      - name: Install Backend dependencies
+        run: npm ci --prefix src/server
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=src/server/prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/recall_ai
+      - name: Run Backend Lint
+        run: npm run lint --prefix src/server
+      - name: Build Backend
+        run: npm run build --prefix src/server
