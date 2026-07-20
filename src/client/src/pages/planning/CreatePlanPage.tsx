@@ -1,9 +1,9 @@
-/** Trang tạo kế hoạch học tập — placeholder, sẽ được xây dựng đầy đủ ở Sprint 2. */
+/** Trang tạo kế hoạch học tập - placeholder, sẽ được xây dựng đầy đủ ở issues sau. */
 export default function CreatePlanPage() {
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <h1 className="mb-2 text-2xl font-bold">Create Plan</h1>
-      <p className="text-muted-foreground text-sm">Placeholder - Sprint 2</p>
+      <p className="text-muted-foreground text-sm">Placeholder</p>
     </div>
   );
 }
