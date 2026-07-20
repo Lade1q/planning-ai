@@ -19,7 +19,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -27,6 +26,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AuthCard } from '@/components/shared/AuthCard';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -68,7 +68,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="mx-auto w-full max-w-sm rounded-xl shadow-sm">
+    <AuthCard>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold">Login</CardTitle>
         <CardDescription>Enter your email below to login to your account</CardDescription>
@@ -152,6 +152,6 @@ export default function LoginPage() {
           Don&apos;t have an account? Register
         </Link>
       </CardFooter>
-    </Card>
+    </AuthCard>
   );
 }

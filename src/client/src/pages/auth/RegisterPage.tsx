@@ -19,13 +19,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { AuthCard } from '@/components/shared/AuthCard';
 
 const registerSchema = z
   .object({
@@ -74,7 +74,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <Card className="mx-auto w-full max-w-sm rounded-xl shadow-sm">
+    <AuthCard>
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold">Register</CardTitle>
         <CardDescription>Create a new account</CardDescription>
@@ -172,6 +172,6 @@ export default function RegisterPage() {
           Already have an account? Sign In
         </Link>
       </CardFooter>
-    </Card>
+    </AuthCard>
   );
 }
