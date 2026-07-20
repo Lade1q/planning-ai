@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -49,15 +50,17 @@ export default function LoginPage() {
     mode: 'onBlur',
   });
 
-  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+  const onSubmit = async (values: z.infer<typeof loginSchema>): Promise<void> => {
     try {
       setIsSubmitting(true);
       await login(values.email, values.password);
       navigate('/dashboard');
     } catch (error: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Trích xuất error message từ Axios response nếu có, fallback về message mặc định
       const message =
-        (error as any)?.response?.data?.error?.message || 'Email or password incorrect';
+        isAxiosError(error) && error.response?.data?.error?.message
+          ? String(error.response.data.error.message)
+          : 'Email or password incorrect';
       toast.error(message);
     } finally {
       setIsSubmitting(false);
