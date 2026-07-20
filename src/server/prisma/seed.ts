@@ -4,9 +4,10 @@ import {
   ConceptSource,
   ConceptStatus,
   AnalysisJobStatus,
-} from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import "dotenv/config";
+} from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import bcrypt from 'bcryptjs';
+import 'dotenv/config';
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -23,10 +24,13 @@ const prisma = new PrismaClient({ adapter });
  */
 async function main() {
   // Production guard
-  if (process.env.NODE_ENV === "production") {
-    console.error("ABORTED: Seed script is NOT allowed in production!");
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ABORTED: Seed script is NOT allowed in production!');
     process.exit(1);
   }
+
+  const TEST_PASSWORD = 'Password123!';
+  const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
 
   await prisma.$transaction(async (tx) => {
     // Xóa dữ liệu cũ (thứ tự: child -> parent)
@@ -40,31 +44,31 @@ async function main() {
     // Tạo user test
     const testUser = await tx.user.create({
       data: {
-        email: "test@recallai.dev",
-        passwordHash: "$2b$10$placeholder_hash_for_seeding_only",
-        name: "Test User",
+        email: 'test@recallai.dev',
+        passwordHash,
+        name: 'Test User',
       },
     });
 
-    console.log("Created test user:", testUser.email);
+    console.log('Created test user:', testUser.email, '(password:', TEST_PASSWORD + ')');
 
     // Tạo study plan mẫu
     const plan = await tx.studyPlan.create({
       data: {
         userId: testUser.id,
-        name: "Cấu trúc dữ liệu và Giải thuật",
-        deadline: new Date("2026-08-15"),
+        name: 'Cấu trúc dữ liệu và Giải thuật',
+        deadline: new Date('2026-08-15'),
         status: StudyPlanStatus.active,
       },
     });
 
-    console.log("Created study plan:", plan.name);
+    console.log('Created study plan:', plan.name);
 
     // Tạo 3 concepts mẫu (DAG: Array -> LinkedList -> BinaryTree)
     const conceptArray = await tx.concept.create({
       data: {
         planId: plan.id,
-        name: "Array",
+        name: 'Array',
         difficulty: 1,
         source: ConceptSource.ai_generated,
         status: ConceptStatus.active,
@@ -74,7 +78,7 @@ async function main() {
     const conceptLinkedList = await tx.concept.create({
       data: {
         planId: plan.id,
-        name: "Linked List",
+        name: 'Linked List',
         difficulty: 2,
         source: ConceptSource.ai_generated,
         status: ConceptStatus.active,
@@ -84,14 +88,14 @@ async function main() {
     const conceptBinaryTree = await tx.concept.create({
       data: {
         planId: plan.id,
-        name: "Binary Tree",
+        name: 'Binary Tree',
         difficulty: 3,
         source: ConceptSource.ai_generated,
         status: ConceptStatus.active,
       },
     });
 
-    console.log("Created 3 concepts: Array, Linked List, Binary Tree");
+    console.log('Created 3 concepts: Array, Linked List, Binary Tree');
 
     // Tạo 2 edges (prerequisite): Array -> LinkedList, LinkedList -> BinaryTree
     await tx.conceptEdge.createMany({
@@ -109,7 +113,7 @@ async function main() {
       ],
     });
 
-    console.log("Created 2 prerequisite edges: Array -> Linked List -> Binary Tree");
+    console.log('Created 2 prerequisite edges: Array -> Linked List -> Binary Tree');
 
     // Tạo 1 analysis job mẫu
     await tx.analysisJob.create({
@@ -121,27 +125,28 @@ async function main() {
       },
     });
 
-    console.log("Created 1 analysis job (status: done)");
+    console.log('Created 1 analysis job (status: done)');
 
     // Tạo 1 question cache entry mẫu
     await tx.questionCache.create({
       data: {
         conceptId: conceptArray.id,
-        questionText: "Giải thích sự khác biệt giữa Array và Linked List về mặt bộ nhớ.",
-        questionType: "open_ended",
-        answerHint: "Array lưu trữ liên tiếp trong bộ nhớ, Linked List lưu trữ phân tán với con trỏ.",
+        questionText: 'Giải thích sự khác biệt giữa Array và Linked List về mặt bộ nhớ.',
+        questionType: 'open_ended',
+        answerHint:
+          'Array lưu trữ liên tiếp trong bộ nhớ, Linked List lưu trữ phân tán với con trỏ.',
       },
     });
 
-    console.log("Created 1 question cache entry");
+    console.log('Created 1 question cache entry');
   });
 
-  console.log("Seed completed successfully.");
+  console.log('Seed completed successfully.');
 }
 
 main()
   .catch((e) => {
-    console.error("Seed failed:", e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
