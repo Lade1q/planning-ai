@@ -146,10 +146,12 @@ Dưới đây là sơ đồ cây cấu trúc các thư mục và file trong dự
     - `vite.config.ts`: Cấu hình cho Vite bundler.
     - `src/`: Mã nguồn logic của FrontEnd client:
       - `assets/`: Chứa các hình ảnh, tài nguyên tĩnh được import trực tiếp trong code.
-      - `components/`: Chứa các React components tái sử dụng (như nút bấm `ui/button.tsx`).
-      - `hooks/`: Chứa các custom hooks của React.
-      - `lib/`: Chứa các thư viện và hàm tiện ích (như `utils.ts` quản lý tailwind merge/classnames).
-      - `pages/`: Định nghĩa các trang giao diện của ứng dụng.
+      - `components/`: Chứa các React components tái sử dụng.
+        - `shared/`: Shared components (layouts, ProtectedRoute).
+        - `ui/`: Các component UI (như `button.tsx`, `sidebar.tsx`).
+      - `hooks/`: Chứa các custom hooks của React (như `useAuth.ts` - Auth state management hook).
+      - `lib/`: Chứa các thư viện và hàm tiện ích (`utils.ts`, `apiClient.ts` - Axios instance centralized với interceptors, `endpoints.ts` - API endpoint constants).
+      - `pages/`: Định nghĩa các trang giao diện của ứng dụng (LoginPage, RegisterPage, DashboardPage, CreatePlanPage, NotFoundPage).
       - `types/`: Chứa các định nghĩa kiểu dữ liệu TypeScript.
       - `global.css` & `App.css`: Quản lý styles toàn cục và style cho App component.
       - `App.tsx` & `main.tsx`: File cấu hình giao diện chính và điểm khởi tạo ứng dụng Client.
