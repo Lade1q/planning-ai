@@ -99,13 +99,20 @@ Dưới đây là sơ đồ cây cấu trúc các thư mục và file trong dự
     │   │   ├── components
     │   │   │   ├── README.md
     │   │   │   ├── shared
+    │   │   │   │   ├── AuthCard.tsx
     │   │   │   │   ├── ProtectedRoute.tsx
     │   │   │   │   └── layouts
     │   │   │   │       ├── AuthLayout.tsx
     │   │   │   │       └── MainLayout.tsx
     │   │   │   └── ui
     │   │   │       ├── button.tsx
-    │   │   │       └── sidebar.tsx
+    │   │   │       ├── card.tsx
+    │   │   │       ├── checkbox.tsx
+    │   │   │       ├── form.tsx
+    │   │   │       ├── input.tsx
+    │   │   │       ├── label.tsx
+    │   │   │       ├── sidebar.tsx
+    │   │   │       └── sonner.tsx
     │   │   ├── global.css
     │   │   ├── hooks
     │   │   │   ├── README.md
@@ -193,8 +200,8 @@ Dưới đây là sơ đồ cây cấu trúc các thư mục và file trong dự
     - `src/`: Mã nguồn logic của FrontEnd client:
       - `assets/`: Chứa các hình ảnh, tài nguyên tĩnh được import trực tiếp trong code.
       - `components/`: Chứa các React components tái sử dụng:
-        - `shared/`: Các components layout dùng chung (`AuthLayout.tsx`, `MainLayout.tsx`) và Route bảo vệ (`ProtectedRoute.tsx`).
-        - `ui/`: Các UI base components (như `button.tsx`, `sidebar.tsx`).
+        - `shared/`: Các components layout dùng chung (`AuthLayout.tsx`, `MainLayout.tsx`), Route bảo vệ (`ProtectedRoute.tsx`), và Component card wrapper cho phần xác thực (`AuthCard.tsx`).
+        - `ui/`: Các UI base components từ shadcn/ui (như `button.tsx`, `card.tsx`, `checkbox.tsx`, `form.tsx`, `input.tsx`, `label.tsx`, `sidebar.tsx`, `sonner.tsx`).
       - `hooks/`: Chứa các custom hooks của React (như `useAuth.ts` quản lý trạng thái xác thực và gọi các tác vụ đăng nhập/đăng ký/đăng xuất).
       - `lib/`: Chứa các cấu hình thư viện và hàm tiện ích (`utils.ts`, `apiClient.ts` khởi tạo Axios instance tích hợp interceptors tự động gán token, `endpoints.ts` quản lý danh sách hằng số API endpoint).
       - `pages/`: Định nghĩa các trang giao diện của ứng dụng:
