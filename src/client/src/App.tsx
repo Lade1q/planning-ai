@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
+import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
 import { AuthLayout } from '@/components/shared/layouts/AuthLayout';
@@ -51,6 +52,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
+      <Toaster position="bottom-right" />
     </AuthContext.Provider>
   );
 }
