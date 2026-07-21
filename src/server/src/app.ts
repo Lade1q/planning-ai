@@ -3,7 +3,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { errorHandler, AppError } from './middleware/errorHandler';
+import { authMiddleware } from './middleware/auth.middleware';
 import { authRouter } from './routes/auth.routes';
+import { planRouter } from './routes/plan.routes';
 
 const app = express();
 
@@ -19,6 +21,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/plans', authMiddleware, planRouter);
 
 // Catch-all route for non-existent resources
 app.use((_req: Request, _res: Response, next: NextFunction) => {

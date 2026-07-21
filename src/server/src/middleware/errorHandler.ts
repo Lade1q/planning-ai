@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { ZodError } from 'zod';
 
 /**
@@ -19,6 +20,26 @@ export class AppError extends Error {
  * Global centralized error handler middleware.
  */
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
+  // Handle Multer upload errors
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'File size exceeds maximum limit of 10MB',
+        },
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_ERROR',
+        message: err.message,
+      },
+    });
+  }
+
   // Handle Zod validation errors
   if (err instanceof ZodError) {
     return res.status(400).json({

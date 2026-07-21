@@ -1,0 +1,20 @@
+### 1. Đăng nhập để lấy Access Token mới (khi token hết hạn)
+POST http://localhost:3001/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "phongngo08012006@gmail.com",
+  "password": "Phongdz*123"
+}
+
+### ----------------------------------------------------
+
+### 2. Xem DANH SÁCH tất cả các Plan
+GET http://localhost:3001/api/v1/plans
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4YTIzOTQwZS03NGM1LTQ5YjktYmJmMi05MmU2MDYxNjA0MTgiLCJlbWFpbCI6InBob25nbmdvMDgwMTIwMDZAZ21haWwuY29tIiwiaWF0IjoxNzg0NjMxOTE4LCJleHAiOjE3ODQ2MzI4MTh9.6E18nd3V9nO3gTQG9U3U3M3CtwG4GxV4BaKzF4SsuDo
+
+### ----------------------------------------------------
+
+### 3. Xem CHI TIẾT 1 Plan theo ID chuẩn
+GET http://localhost:3001/api/v1/plans/c2ea8353-9636-4e92-bc22-e39030a1a4b0
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4YTIzOTQwZS03NGM1LTQ5YjktYmJmMi05MmU2MDYxNjA0MTgiLCJlbWFpbCI6InBob25nbmdvMDgwMTIwMDZAZ21haWwuY29tIiwiaWF0IjoxNzg0NjMxOTE4LCJleHAiOjE3ODQ2MzI4MTh9.6E18nd3V9nO3gTQG9U3U3M3CtwG4GxV4BaKzF4SsuDo
