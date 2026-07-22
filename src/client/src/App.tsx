@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
+import { AuthProvider } from '@/hooks/useAuth';
 import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
@@ -22,10 +22,8 @@ import InterviewPage from '@/pages/verify/InterviewPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 function App() {
-  const auth = useAuthProvider();
-
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthProvider>
       <Toaster />
       <BrowserRouter>
         <Routes>
@@ -53,7 +51,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
-    </AuthContext.Provider>
+    </AuthProvider>
   );
 }
 
