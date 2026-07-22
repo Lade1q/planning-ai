@@ -1,4 +1,3 @@
-import type {} from './types/express';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
