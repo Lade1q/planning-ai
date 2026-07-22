@@ -7,7 +7,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { isAxiosError } from "axios"
 
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth } from "@/features/auth/context/AuthContext"
 import { loginSchema, type LoginFormData } from "@/features/auth/schemas/auth.schema"
 import { Button } from "@/components/ui/button"
 import {

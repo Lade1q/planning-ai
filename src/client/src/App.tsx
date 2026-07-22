@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
+import { AuthProvider } from '@/features/auth/context/AuthContext';
+import { ProtectedRoute } from '@/components/shared/ProtectedRoute';
 import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
 import { AuthLayout } from '@/components/shared/layouts/AuthLayout';
 import { MainLayout } from '@/components/shared/layouts/MainLayout';
-import { ProtectedRoute } from '@/components/shared/ProtectedRoute';
 
 // Pages — Auth
 import LoginPage from '@/pages/auth/LoginPage';
@@ -22,10 +22,8 @@ import InterviewPage from '@/pages/verify/InterviewPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 function App() {
-  const auth = useAuthProvider();
-
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthProvider>
       <Toaster />
       <BrowserRouter>
         <Routes>
@@ -53,7 +51,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
-    </AuthContext.Provider>
+    </AuthProvider>
   );
 }
 
