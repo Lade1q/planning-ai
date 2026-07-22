@@ -22,15 +22,12 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem('access_token')));
 
     // Verify access token on application startup (GET /api/v1/auth/me)
     useEffect(() => {
         const token = localStorage.getItem('access_token');
-        if (!token) {
-            setIsLoading(false);
-            return;
-        }
+        if (!token) return;
         apiClient
             .get<{ data: User }>(ENDPOINTS.AUTH.ME)
             .then(({ data }) => setUser(data.data))
