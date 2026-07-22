@@ -1,12 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/apiClient';
 import { ENDPOINTS } from '@/lib/endpoints';
-
-interface User {
-  id: string;
-  email: string;
-  name: string | null;
-}
+import { loginApi, registerApi, type User } from '@/features/auth/api/auth.api';
 
 interface AuthContextValue {
   user: User | null;
@@ -48,12 +43,10 @@ export function useAuthProvider(): AuthContextValue {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data } = await apiClient.post<{
-      data: { user: User; accessToken: string; refreshToken: string };
-    }>(ENDPOINTS.AUTH.LOGIN, { email, password });
-    localStorage.setItem('access_token', data.data.accessToken);
-    localStorage.setItem('refresh_token', data.data.refreshToken);
-    setUser(data.data.user);
+    const res = await loginApi({ email, password });
+    localStorage.setItem('access_token', res.data.accessToken);
+    localStorage.setItem('refresh_token', res.data.refreshToken);
+    setUser(res.data.user);
   }, []);
 
   const logout = useCallback(() => {
@@ -63,12 +56,10 @@ export function useAuthProvider(): AuthContextValue {
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
-    const { data } = await apiClient.post<{
-      data: { user: User; accessToken: string; refreshToken: string };
-    }>(ENDPOINTS.AUTH.REGISTER, { email, password, name });
-    localStorage.setItem('access_token', data.data.accessToken);
-    localStorage.setItem('refresh_token', data.data.refreshToken);
-    setUser(data.data.user);
+    const res = await registerApi({ email, password, name, confirmPassword: password });
+    localStorage.setItem('access_token', res.data.accessToken);
+    localStorage.setItem('refresh_token', res.data.refreshToken);
+    setUser(res.data.user);
   }, []);
 
   return {

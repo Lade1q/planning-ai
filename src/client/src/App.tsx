@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
+import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
 import { AuthLayout } from '@/components/shared/layouts/AuthLayout';
@@ -25,6 +26,7 @@ function App() {
 
   return (
     <AuthContext.Provider value={auth}>
+      <Toaster />
       <BrowserRouter>
         <Routes>
           {/* Root redirect */}
@@ -36,7 +38,7 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
           </Route>
 
-          {/* Protected routes — ProtectedRoute kiểm tra auth, MainLayout render UI */}
+          {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
