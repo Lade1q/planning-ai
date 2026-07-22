@@ -48,3 +48,5 @@ jobs:
         run: npm run lint --prefix src/server
       - name: Build Backend
         run: npm run build --prefix src/server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/recall_ai
