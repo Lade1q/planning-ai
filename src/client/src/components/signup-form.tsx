@@ -36,7 +36,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    mode: "onBlur",
+    mode: "onChange",
   })
 
   const onSubmit = async (data: RegisterFormData) => {
