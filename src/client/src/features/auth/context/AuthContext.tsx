@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import apiClient from '@/lib/apiClient';
 import { ENDPOINTS } from '@/lib/endpoints';
 import { loginApi, registerApi, type User } from '@/features/auth/api/auth.api';
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -20,18 +20,14 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export function useAuthProvider(): AuthContextValue {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem('access_token')));
 
-  // Verify token khi app khởi động bằng cách gọi GET /api/v1/auth/me
+  // Verify access token on application startup (GET /api/v1/auth/me)
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-    if (!token) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLoading(false);
-      return;
-    }
+    if (!token) return;
     apiClient
       .get<{ data: User }>(ENDPOINTS.AUTH.ME)
       .then(({ data }) => setUser(data.data))
@@ -62,17 +58,19 @@ export function useAuthProvider(): AuthContextValue {
     setUser(res.data.user);
   }, []);
 
-  return {
-    user,
-    isAuthenticated: user !== null,
-    isLoading,
-    login,
-    logout,
-    register,
-  };
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: user !== null,
+        isLoading,
+        login,
+        logout,
+        register,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuthProvider();
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
-}

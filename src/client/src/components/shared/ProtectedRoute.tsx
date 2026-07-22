@@ -1,11 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/context/AuthContext';
 
 /**
- * Bảo vệ nhóm route cần đăng nhập bằng Outlet pattern.
- * - Đang verify token: hiển thị loading spinner.
- * - Chưa xác thực: redirect về /login (lưu lại vị trí hiện tại để redirect sau khi login).
- * - Đã xác thực: render route con qua <Outlet />.
+ * Route protection component for authenticated pages.
+ * - While verifying token: Renders loading spinner
+ * - Unauthenticated: Redirects to /login preserving current location
+ * - Authenticated: Renders child routes via <Outlet />
  */
 export function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();

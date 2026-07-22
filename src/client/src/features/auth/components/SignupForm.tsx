@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { isAxiosError } from "axios"
 
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth } from "@/features/auth/context/AuthContext"
 import { registerSchema, type RegisterFormData } from "@/features/auth/schemas/auth.schema"
 import { Button } from "@/components/ui/button"
 import {
