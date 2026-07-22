@@ -1,8 +1,9 @@
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { isAxiosError } from "axios"
 
 import { cn } from "@/lib/utils"
@@ -31,6 +32,7 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -38,18 +40,19 @@ export function LoginForm({
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    mode: "onBlur",
   })
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password)
-      toast.success("Đăng nhập thành công!")
+      toast.success("Signed in successfully!")
       navigate("/dashboard")
     } catch (error) {
       const serverMessage = isAxiosError(error)
-        ? error.response?.data?.message
+        ? error.response?.data?.error?.message
         : undefined
-      toast.error(serverMessage || "Email hoặc mật khẩu không chính xác")
+      toast.error(serverMessage || "Email or password incorrect")
     }
   }
 
@@ -72,6 +75,7 @@ export function LoginForm({
                   type="email"
                   placeholder="m@example.com"
                   autoComplete="email"
+                  autoFocus
                   {...register("email")}
                 />
                 {errors.email?.message && (
@@ -85,17 +89,34 @@ export function LoginForm({
                   <a
                     href="#"
                     onClick={(e) => e.preventDefault()}
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-muted-foreground"
+                    className="ml-auto inline-block text-sm text-muted-foreground underline-offset-4 hover:underline"
                   >
                     Forgot password?
                   </a>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register("password")}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    className="pr-10"
+                    {...register("password")}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="sr-only">Toggle password visibility</span>
+                  </Button>
+                </div>
                 {errors.password?.message && (
                   <FieldError>{errors.password.message}</FieldError>
                 )}
@@ -120,3 +141,4 @@ export function LoginForm({
     </div>
   )
 }
+
