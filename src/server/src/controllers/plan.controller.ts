@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
-import { createPlan, getUserPlans, getPlanById } from '../services/plan.service';
+import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs';
+import { createPlanInDb, getUserPlans, getPlanById } from '../services/plan.service';
 import { createPlanSchema } from '../schemas/plan.schema';
+import { createStorageService } from '../services/storage.service';
 import { AppError } from '../middleware/errorHandler';
+
+const storageService = createStorageService();
 
 /**
  * POST /api/v1/plans
@@ -17,17 +23,53 @@ export async function createPlanController(req: Request, res: Response): Promise
     throw new AppError('File is required', 400, 'FILE_REQUIRED');
   }
 
-  const input = createPlanSchema.parse(req.body);
+  const localFilePath = req.file.path;
+  let uploadedFileKey: string | null = null;
 
-  const plan = await createPlan(req.userId, input, req.file.path);
+  try {
+    // 1. Validate inputs (Zod) trước tiên
+    const input = createPlanSchema.parse(req.body);
 
-  res.status(201).json({
-    success: true,
-    data: {
-      plan,
-      message: 'Plan created',
-    },
-  });
+    // 2. Generate uuid cho StudyPlan trước
+    const planId = crypto.randomUUID();
+    const ext = path.extname(req.file.originalname);
+    uploadedFileKey = `plans/${planId}/${Date.now()}${ext}`;
+
+    // 3. Upload lên Storage Service ngoài DB transaction
+    await storageService.upload(localFilePath, uploadedFileKey);
+
+    // 4. Lưu metadata vào DB
+    const plan = await createPlanInDb(req.userId, planId, input, uploadedFileKey);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        plan,
+        message: 'Plan created',
+      },
+    });
+  } catch (error) {
+    // 5. Cleanup orphaned files on any error (validation, DB, etc.)
+
+    // Delete staging file if it hasn't been moved yet
+    try {
+      await fs.promises.access(localFilePath);
+      await fs.promises.unlink(localFilePath);
+    } catch {
+      // File already moved or doesn't exist — no cleanup needed
+    }
+
+    // Delete uploaded file from storage if DB transaction failed after upload
+    if (uploadedFileKey) {
+      try {
+        await storageService.delete(uploadedFileKey);
+      } catch (err) {
+        console.error('Failed to delete uploaded file key from storage:', err);
+      }
+    }
+
+    throw error;
+  }
 }
 
 /**

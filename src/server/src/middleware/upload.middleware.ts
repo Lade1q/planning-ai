@@ -3,11 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import { AppError } from './errorHandler';
 
-// Resolve uploads directory relative to working directory or server root
-const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
+// Temporary staging directory — files are moved to final storage by StorageService
+const STAGING_DIR = path.resolve(process.cwd(), 'uploads', '.staging');
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+if (!fs.existsSync(STAGING_DIR)) {
+  fs.mkdirSync(STAGING_DIR, { recursive: true });
 }
 
 const ALLOWED_MIMES = ['application/pdf', 'text/plain', 'image/png', 'image/jpeg'];
@@ -15,7 +15,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
+    cb(null, STAGING_DIR);
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;

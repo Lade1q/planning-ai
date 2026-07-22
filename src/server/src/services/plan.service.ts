@@ -6,16 +6,18 @@ import { CreatePlanResponse, PlanItemResponse, PlanDetailResponse } from '../typ
 /**
  * Creates a new StudyPlan (draft status) and associated AnalysisJob (pending status) atomically.
  */
-export async function createPlan(
+export async function createPlanInDb(
   userId: string,
+  planId: string,
   input: CreatePlanInput,
-  filePath: string
+  fileKey: string
 ): Promise<CreatePlanResponse> {
   const deadlineDate = new Date(input.deadline);
 
   const result = await prisma.$transaction(async (tx) => {
     const plan = await tx.studyPlan.create({
       data: {
+        id: planId,
         userId,
         name: input.name,
         deadline: deadlineDate,
@@ -26,7 +28,7 @@ export async function createPlan(
     await tx.analysisJob.create({
       data: {
         planDraftId: plan.id,
-        filePath,
+        fileKey,
         status: 'pending',
       },
     });
