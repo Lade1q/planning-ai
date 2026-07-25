@@ -72,21 +72,110 @@ Cộng thêm [#110 – Focus Session](https://github.com/Lade1q/planning-ai/issu
 
 ---
 
-## 3. Đường găng (Critical Path)
+## 3. Đường găng (Critical Path) và bản đồ phụ thuộc
 
+> **Nguồn sự thật là GitHub, không phải tài liệu này.** Toàn bộ quan hệ dưới đây đã được khai báo bằng **GitHub issue dependencies** – mở bất kỳ issue nào sẽ thấy khối _Blocked by / Blocking_ ở sidebar phải, và GitHub sẽ cảnh báo khi ai đó định đóng issue mà phần chặn chưa xong. Khi thay đổi quan hệ, sửa trên GitHub trước rồi mới cập nhật sơ đồ này.
+
+```mermaid
+graph LR
+    subgraph SP3["Nợ Sprint 3"]
+        I77["77<br/>DAG validation"]
+        I82["82<br/>Design System"]
+    end
+    subgraph E6["EPIC 108 · AI Examiner"]
+        I113["113 · I6.1<br/>Prisma schema"]
+        I114["114 · I6.2<br/>AI service"]
+        I115["115 · I6.3<br/>State machine + API"]
+        I116["116 · I6.4<br/>Cache + Fallback"]
+        I117["117 · I6.5<br/>summarize_session"]
+        I118["118 · I6.6<br/>UI Interview"]
+        I119["119 · I6.7<br/>UI Kết quả ⭐"]
+        I120["120 · I6.8<br/>QA flows"]
+        I121["121 · I6.9<br/>Voice (stretch)"]
+    end
+    subgraph E7["EPIC 109 · Concept Graph Engine"]
+        I122["122 · I7.1<br/>BFS Traceback"]
+        I123["123 · I7.2<br/>Weighted Mastery"]
+        I124["124 · I7.3<br/>Review Queue API"]
+        I125["125 · I7.4<br/>Unit test suite"]
+    end
+    subgraph E8["EPIC 110 · Focus Session"]
+        I126["126 · I8.1<br/>API Focus"]
+        I127["127 · I8.2<br/>UI Focus"]
+    end
+    subgraph E9["EPIC 111 · PA4 Delivery"]
+        I112["112 · I9.1<br/>Figma 3 màn"]
+        I128["128 · I9.2<br/>API spec"]
+        I129["129 · I9.3<br/>Sprint 3 Review<br/>(độc lập)"]
+        I130["130 · I9.4<br/>Beta 0.5 + Demo"]
+    end
+
+    I113 --> I114 --> I115
+    I113 --> I116
+    I114 --> I116
+    I113 --> I117
+    I113 --> I123
+    I113 --> I124
+    I113 --> I126
+    I115 --> I117
+    I115 --> I118
+    I115 --> I120
+    I115 --> I128
+    I116 --> I118
+    I117 --> I119
+    I117 --> I128
+    I118 --> I121
+    I112 --> I118
+    I112 --> I119
+    I112 --> I127
+    I122 --> I123
+    I122 --> I125
+    I123 --> I117
+    I123 --> I119
+    I123 --> I124
+    I123 --> I125
+    I124 --> I119
+    I124 --> I125
+    I124 --> I127
+    I124 --> I128
+    I126 --> I127
+    I126 --> I128
+    I77 --> I125
+    I82 -.->|không chặn| I112
+    E6 ==> I130
+    E7 ==> I130
+
+    classDef crit fill:#ffe9e6,stroke:#d1242f,stroke-width:2px;
+    class I112,I113,I114,I115,I117,I119,I122,I123 crit;
 ```
-     I9.1 Figma (#112) ──────────────────────────┐
-                                                  ▼
-I6.1 Schema (#113) ──> I6.2 AI Service (#114) ──> I6.3 State Machine (#115)
-      │                                            │
-      │                                            ├──> I6.6 UI Interview (#118) ──> I6.9 Voice (#121)
-      │                                            ├──> I6.5 Summary (#117) ─┐
-      │                                            └──> I6.4 Fallback (#116) │
-      │                                                                       ▼
-      └──> I7.1 Traceback (#122) ──> I7.2 Tích hợp (#123) ──> I6.7 UI Kết quả (#119)  ⭐ ĐÍCH DEMO
-                                            │
-                                            └──> I7.3 Review Queue (#124) ──> I8.2 UI Focus (#127)
-```
+
+**Đường găng (tô đỏ):** #113 → #114 → #115 → #117 → #119, cộng nhánh song song #122 → #123 → #119 và #112 → #119.
+
+**Ma trận phụ thuộc** – bản chữ của sơ đồ trên, dùng khi in báo cáo:
+
+| Issue                     | Bị chặn bởi            | Đang chặn                                | Bắt đầu được ngay?      |
+| ------------------------- | ---------------------- | ---------------------------------------- | ----------------------- |
+| #112 I9.1 Figma           | –                      | #118, #119, #127                         | ✅ ngày 1               |
+| #113 I6.1 Schema          | –                      | #114, #115, #116, #117, #123, #124, #126 | ✅ ngày 1               |
+| #114 I6.2 AI service      | #113                   | #115, #116                               | sau #113                |
+| #115 I6.3 State machine   | #113, #114             | #117, #118, #120, #128                   | sau #114                |
+| #116 I6.4 Fallback        | #113, #114             | #118                                     | sau #114                |
+| #117 I6.5 Summary         | #113, #115, #123       | #119, #128                               | tuần 2                  |
+| #118 I6.6 UI Interview    | #112, #115, #116       | #121                                     | ✅ mock data trước      |
+| #119 I6.7 UI Kết quả ⭐   | #112, #117, #123, #124 | –                                        | ✅ mock data trước      |
+| #120 I6.8 QA flows        | #115                   | –                                        | ✅ viết test case trước |
+| #121 I6.9 Voice           | #118                   | –                                        | cuối sprint             |
+| #122 I7.1 BFS Traceback   | –                      | #123, #125                               | ✅ ngày 1               |
+| #123 I7.2 Mastery         | #113, #122             | #117, #119, #124, #125                   | sau #122                |
+| #124 I7.3 Review Queue    | #113, #123             | #119, #125, #127, #128                   | sau #123                |
+| #125 I7.4 Unit tests      | #77, #122, #123, #124  | –                                        | ✅ phần DAG trước       |
+| #126 I8.1 API Focus       | #113                   | #127, #128                               | sau #113                |
+| #127 I8.2 UI Focus        | #112, #124, #126       | –                                        | tuần 2                  |
+| #128 I9.2 API spec        | #115, #117, #124, #126 | –                                        | ✅ viết dần             |
+| #129 I9.3 Sprint 3 Review | –                      | –                                        | ✅ ngày 1               |
+| #130 I9.4 Beta + Demo     | EPIC #108, #109        | –                                        | cuối sprint             |
+
+> ⚠️ **Một quan hệ đã được sửa khi khai báo:** bản kế hoạch đầu tiên ghi #122 (BFS Traceback) chờ #113 (Prisma schema). Sai – #122 là hàm thuần, tự khai báo interface riêng nên **chạy song song từ ngày 1**. Giữ nguyên như vậy sẽ kéo dài đường găng thêm 1–2 ngày một cách vô nghĩa.
 
 **Hai nút thắt cần canh chừng:**
 

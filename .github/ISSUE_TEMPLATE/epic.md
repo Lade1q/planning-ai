@@ -45,11 +45,35 @@ và đẩy sang đâu - nếu không, sẽ có người tự ý mở rộng ph�
 
 ## Sub-issues
 
-<!-- Dùng tính năng sub-issue của GitHub. Kèm sơ đồ thứ tự nếu có phụ thuộc -->
+<!-- Dùng tính năng sub-issue của GitHub. GitHub tự render danh sách bên dưới. -->
 
+---
+
+## 🔗 Bản đồ phụ thuộc
+
+<!--
+Vẽ bằng mermaid - GitHub render trực tiếp trong issue.
+Mọi mũi tên ở đây PHẢI đã được khai báo bằng GitHub issue dependencies
+(sidebar "Relationships"), sơ đồ chỉ là bản nhìn cho dễ.
+
+Lưu ý cú pháp: ĐỪNG viết ký tự # trong nhãn node (mermaid hiểu là entity code).
+Viết "113 · I6.1" thay vì "#113 · I6.1".
+
+Sau khi vẽ, nêu rõ 2 điều: ĐƯỜNG GĂNG của EPIC, và issue nào KHÔNG CHẶN AI
+(vì đó là issue cắt được khi sprint quá tải).
+-->
+
+```mermaid
+graph LR
+    A["001 · IX.1<br/>Tên task"] --> B["002 · IX.2<br/>Tên task"]
+
+    classDef ext fill:#fff8e1,stroke:#b7791f,stroke-dasharray:4 3;
+    class A ext;
 ```
 
-```
+**Đường găng của EPIC:**
+
+**Không chặn ai (cắt được):**
 
 ---
 
