@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { extractConcepts, uploadFile } from './gemini.service';
 import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
 import { validateAndFixDag } from '../utils/dag';
+import { validateDAG } from './graph.service';
 import { AiExtractResponse } from '../schemas/ai-extract.schema';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
@@ -80,7 +81,11 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
 
   try {
     const extracted = await callAiWithRetry(job.fileKey);
-    const { edges, autoFixed } = validateAndFixDag(extracted.concepts, extracted.edges);
+    // Concepts aren't persisted yet, so the graph is keyed by concept name here.
+    const { edges, autoFixed } = validateAndFixDag(
+      extracted.concepts.map((c) => c.name),
+      extracted.edges
+    );
 
     await prisma.$transaction(async (tx) => {
       // Concept names are assumed unique within one extraction — edges below are wired by name.
@@ -112,7 +117,13 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
   } catch (error) {
     console.error(`[analysis] job ${jobId} failed:`, error);
     await markFailed(jobId);
+    return;
   }
+
+  // The check above ran on concept names; if the AI returned two concepts sharing a
+  // name, the edges actually persisted can differ from the set that was validated.
+  // Re-check what landed in the DB, by concept id, and repair it if needed (I3.3).
+  await validateDAG(planId);
 }
 
 /** Looks up the pending job created alongside a plan and runs it. */

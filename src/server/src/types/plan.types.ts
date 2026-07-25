@@ -32,6 +32,14 @@ export interface EdgeItemResponse {
   toConceptId: string;
 }
 
+export interface PlanGraphResponse {
+  id: string;
+  status: StudyPlanStatus;
+  dagAutoFixed: boolean;
+  concepts: ConceptItemResponse[];
+  edges: EdgeItemResponse[];
+}
+
 export interface PlanDetailResponse {
   id: string;
   userId: string;
