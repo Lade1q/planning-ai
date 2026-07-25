@@ -67,9 +67,28 @@ src/...
 
 ## Phụ thuộc (Dependencies)
 
-- **Cần trước:**
-- **Chặn:**
-- **Phối hợp với:**
+<!--
+BẮT BUỘC khai báo bằng tính năng GitHub issue dependencies (sidebar phải:
+"Relationships" → Blocked by / Blocking), KHÔNG chỉ ghi chữ ở đây.
+Lý do: GitHub sẽ cảnh báo khi ai đó định đóng issue mà phần chặn chưa xong,
+còn chữ trong body thì không ai đọc lại sau ngày đầu sprint.
+
+Bảng dưới là bản chữ để đọc nhanh - phải khớp với sidebar.
+Luôn ghi kèm số issue (#123) chứ đừng ghi mã I7.2, để bấm được.
+
+Phân biệt:
+- Bị chặn bởi  = chưa xong thì task này KHÔNG THỂ COI LÀ DONE
+                 (vẫn có thể bắt đầu bằng mock data - ghi rõ nếu vậy)
+- Đang chặn    = ai đang ngồi chờ mình. Dòng này quyết định thứ tự cắt giảm:
+                 task không chặn ai là task cắt được.
+- Phối hợp     = không chặn nhau nhưng đụng cùng file/API, phải thống nhất trước khi code
+-->
+
+| Quan hệ        | Issue |
+| -------------- | ----- |
+| 🚧 Bị chặn bởi |       |
+| ⛔ Đang chặn   |       |
+| 🤝 Phối hợp    |       |
 
 ## Tài liệu tham khảo (Resources)
 
