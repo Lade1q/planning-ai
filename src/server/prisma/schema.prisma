@@ -37,6 +37,52 @@ enum AnalysisJobStatus {
   failed
 }
 
+// --- Sprint 4: AI Examiner + Focus + Review Queue (I6.1 / #113) ---
+
+enum InterviewSessionStatus {
+  active
+  paused
+  completed
+  abandoned
+}
+
+enum TurnVerdict {
+  deep
+  shallow
+  wrong
+}
+
+enum QuestionType {
+  recall
+  application
+  why
+}
+
+enum TurnSource {
+  ai
+  cache_fallback
+}
+
+enum FocusSessionStatus {
+  running
+  completed
+  cancelled
+}
+
+enum ReviewReason {
+  traceback
+  spaced_repetition
+  deadline_priority
+  manual
+}
+
+enum ReviewItemStatus {
+  pending
+  accepted
+  skipped
+  done
+}
+
 // ============================================
 // Model Definitions
 // ============================================
@@ -51,7 +97,9 @@ model User {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  studyPlans StudyPlan[]
+  studyPlans        StudyPlan[]
+  interviewSessions InterviewSession[]
+  focusSessions     FocusSession[]
 
   @@map("users")
 }
@@ -68,9 +116,12 @@ model StudyPlan {
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  concepts     Concept[]
-  conceptEdges ConceptEdge[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concepts          Concept[]
+  conceptEdges      ConceptEdge[]
+  interviewSessions InterviewSession[]
+  focusSessions     FocusSession[]
+  reviewQueueItems  ReviewQueueItem[]
 
   @@index([userId])
   @@map("study_plans")
@@ -84,15 +135,18 @@ model Concept {
   name         String        @db.VarChar(255)
   difficulty   Int?          @default(1)
   masteryScore Float?        @map("mastery_score")
+  lastTestedAt DateTime?     @map("last_tested_at")
   source       ConceptSource @default(ai_generated)
   status       ConceptStatus @default(active)
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  plan           StudyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
-  edgesFrom      ConceptEdge[]   @relation("EdgeFrom")
-  edgesTo        ConceptEdge[]   @relation("EdgeTo")
-  questionCaches QuestionCache[]
+  plan             StudyPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  edgesFrom        ConceptEdge[]     @relation("EdgeFrom")
+  edgesTo          ConceptEdge[]     @relation("EdgeTo")
+  questionCaches   QuestionCache[]
+  interviewTurns   InterviewTurn[]
+  reviewQueueItems ReviewQueueItem[]
 
   @@index([planId])
   @@map("concepts")
@@ -149,11 +203,101 @@ model QuestionCache {
   @@map("question_cache")
 }
 
+/// Phiên vấn đáp AI Examiner (AE-01, AE-02, AE-03)
+model InterviewSession {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  userId             String                 @map("user_id") @db.Uuid
+  planId             String                 @map("plan_id") @db.Uuid
+  status             InterviewSessionStatus @default(active)
+  conceptQueue       Json                   @map("concept_queue") // string[] conceptId theo thứ tự ưu tiên
+  currentConceptIdx  Int                    @default(0) @map("current_concept_idx")
+  maxTurnsPerConcept Int                    @default(3) @map("max_turns_per_concept") // C6
+  fallbackMode       Boolean                @default(false) @map("fallback_mode")
+  summaryText        String?                @map("summary_text")
+  startedAt          DateTime               @default(now()) @map("started_at")
+  endedAt            DateTime?              @map("ended_at")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan  StudyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  turns InterviewTurn[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@map("interview_sessions")
+}
+
+/// Một lượt hỏi-đáp trong phiên (AE-02)
+model InterviewTurn {
+  id           String        @id @default(uuid()) @db.Uuid
+  sessionId    String        @map("session_id") @db.Uuid
+  conceptId    String        @map("concept_id") @db.Uuid
+  turnIndex    Int           @map("turn_index") // 1..maxTurnsPerConcept
+  questionText String        @map("question_text")
+  questionType QuestionType? @map("question_type")
+  answerText   String?       @map("answer_text")
+  score        Float? // 0.0 - 1.0 (enforce ở Zod)
+  feedback     String?
+  verdict      TurnVerdict?
+  source       TurnSource    @default(ai)
+  askedAt      DateTime      @default(now()) @map("asked_at")
+  answeredAt   DateTime?     @map("answered_at")
+
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  concept Concept          @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  // audit A2: idempotency cho POST /answers (I6.3) — double-submit không tạo 2 turn
+  @@unique([sessionId, conceptId, turnIndex])
+  @@index([sessionId])
+  @@index([conceptId])
+  @@map("interview_turns")
+}
+
+/// Phiên học Pomodoro (FS-01, FS-03)
+model FocusSession {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  planId          String?            @map("plan_id") @db.Uuid
+  conceptIds      Json               @map("concept_ids") // string[]
+  status          FocusSessionStatus @default(running)
+  durationMinutes Int                @default(0) @map("duration_minutes") // thời gian HỌC thực tế, không tính pause
+  startedAt       DateTime           @default(now()) @map("started_at")
+  endedAt         DateTime?          @map("ended_at")
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan StudyPlan? @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("focus_sessions")
+}
+
+/// Hàng đợi ôn tập do Scheduling & Remediation Engine sinh ra (AE-07, DB-04, FS-06)
+model ReviewQueueItem {
+  id              String           @id @default(uuid()) @db.Uuid
+  planId          String           @map("plan_id") @db.Uuid
+  conceptId       String           @map("concept_id") @db.Uuid
+  priority        Float            @default(0)
+  reason          ReviewReason
+  sourceConceptId String?          @map("source_concept_id") @db.Uuid // khái niệm C đã kích hoạt traceback (không FK — chỉ tham chiếu)
+  sourceSessionId String?          @map("source_session_id") @db.Uuid // audit A1: phiên Interview kích hoạt (I7.2 chống trùng, I6.5 lọc theo phiên)
+  depth           Int? // 1 hoặc 2 (max_depth = 2)
+  status          ReviewItemStatus @default(pending)
+  scheduledFor    DateTime?        @map("scheduled_for")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  plan    StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  concept Concept   @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  // audit A1: chống trùng ReviewQueueItem theo phiên (I7.2 upsert theo cặp này)
+  @@unique([sourceSessionId, conceptId])
+  @@index([planId, status])
+  @@map("review_queue_items")
+}
+
 // ============================================
-// Deferred Models (sẽ implement ở Sprint 3-5)
+// Deferred Models (sẽ implement ở Sprint 5)
 // ============================================
-// - FocusSession: FS-01, FS-03 (Sprint 3)
-// - InterviewSession: AE-01, AE-02, AE-03 (Sprint 3)
-// - InterviewTurn: AE-02 lưu từng lượt hỏi-đáp (Sprint 3)
-// - SessionNote: FS-05 ghi chú nhanh (Sprint 4-5)
+// - SessionNote: FS-05 ghi chú nhanh (Sprint 5)
 // - GradingFeedback: AE-10 phản hồi điểm (Sprint 5)
