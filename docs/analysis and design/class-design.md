@@ -6,9 +6,20 @@
 >
 > **Source of truth:** the actual code under [`src/server/src`](../../src/server/src) and
 > [`src/client/src`](../../src/client/src). Attributes and operations were extracted from the
-> real files — nothing is invented. A high-resolution, Word-ready diagram is produced from
-> [`uml/class-diagram.puml`](uml/class-diagram.puml) (VS Code _PlantUML_ extension → Export PNG/SVG,
-> or paste into [plantuml.com](https://www.plantuml.com/plantuml)).
+> real files — nothing is invented.
+>
+> **Submission images (the actual PA3 deliverables):** three focused diagrams in
+> [`pa/pa3/Class Diagrams/`](../../pa/pa3/Class%20Diagrams/) — one per logical component, the
+> same way `pa/pa2/Use-case model/*.png` are per-use-case images rather than one giant chart.
+> Rendered via PlantUML (`java -jar plantuml.jar -tpng -Sdpi=200 <file>.puml`) from the sources
+> below. The Mermaid diagrams in this file are the GitHub-readable working copy for the team, not
+> the submission artifact.
+>
+> | Component                  | PlantUML source                                                | Submission image                                                                                     |
+> | -------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+> | Authentication             | [`uml/class-auth.puml`](uml/class-auth.puml)                   | [`CD-01_Authentication.png`](../../pa/pa3/Class%20Diagrams/CD-01_Authentication.png)                 |
+> | Study-Plan & Concept-Graph | [`uml/class-plan-graph.puml`](uml/class-plan-graph.puml)       | [`CD-02_StudyPlan_ConceptGraph.png`](../../pa/pa3/Class%20Diagrams/CD-02_StudyPlan_ConceptGraph.png) |
+> | Front-end Auth feature     | [`uml/class-frontend-auth.puml`](uml/class-frontend-auth.puml) | [`CD-03_Frontend_Auth.png`](../../pa/pa3/Class%20Diagrams/CD-03_Frontend_Auth.png)                   |
 
 ## 4.x.1 Overview & Modelling Note
 

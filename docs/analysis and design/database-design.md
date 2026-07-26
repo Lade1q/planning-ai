@@ -5,9 +5,16 @@
 > **#86 / I5.3** and feeds the full SAD assembly (**#84 / I5.1**).
 >
 > **Authoritative source:** [`src/server/prisma/schema.prisma`](../../src/server/prisma/schema.prisma),
-> as of `main` after PR **#138** (Sprint 4 schema). The diagram source for a high-resolution,
-> Word-ready export lives at [`db/recall-ai.dbml`](db/recall-ai.dbml) (paste into
-> [dbdiagram.io](https://dbdiagram.io) → Export → PNG 2x / PDF).
+> as of `main` after PR **#138** (Sprint 4 schema).
+>
+> **Submission image (the actual PA3 deliverable):**
+> [`pa/pa3/ER Model/ER-01_DatabaseModel.png`](../../pa/pa3/ER%20Model/ER-01_DatabaseModel.png) —
+> crow's-foot ER diagram, rendered from [`uml/er-model.puml`](uml/er-model.puml) via PlantUML
+> (`java -jar plantuml.jar -tpng -Sdpi=200 er-model.puml`). This is the image to drop into the
+> Word SAD, the same way `pa/pa2/Use-case model/*.png` are used for the use-case diagrams — the
+> Mermaid diagram below is the GitHub-readable working copy for the team, not the submission
+> artifact. An alternative source, [`db/recall-ai.dbml`](db/recall-ai.dbml) (paste into
+> [dbdiagram.io](https://dbdiagram.io)), is kept as a backup/editable format.
 
 ## 1. Overview & Conventions
 
