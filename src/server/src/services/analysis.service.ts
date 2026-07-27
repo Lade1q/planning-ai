@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { extractConcepts, uploadFile } from './gemini.service';
 import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
 import { validateAndFixDag } from '../utils/dag';
+import { buildConceptSourceRows } from '../utils/concept-source';
 import { validateDAG } from './graph.service';
 import { AiExtractResponse } from '../schemas/ai-extract.schema';
 
@@ -103,6 +104,21 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
         const toId = conceptIdByName.get(edge.to);
         if (!fromId || !toId) continue;
         await tx.conceptEdge.create({ data: { planId, fromConceptId: fromId, toConceptId: toId } });
+      }
+
+      // Anchor each concept to the passage it came from (concept_sources). One document per
+      // plan in the SP-01 flow. Page/excerpt are best-effort from the AI — a concept with
+      // neither is simply not anchored. All routing is deterministic; the AI only extracts (C4).
+      const document = await tx.document.findFirst({
+        where: { planId },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (document) {
+        const anchors = buildConceptSourceRows(extracted.concepts, conceptIdByName, document.id);
+        if (anchors.length > 0) {
+          await tx.conceptSourceRef.createMany({ data: anchors });
+        }
       }
 
       await tx.studyPlan.update({
