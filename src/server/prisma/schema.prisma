@@ -83,6 +83,14 @@ enum ReviewItemStatus {
   done
 }
 
+// --- Source-document anchors (FS-04 trích đoạn, AE-02 citation, kiểm chứng C5) ---
+
+enum DocumentKind {
+  pdf
+  image
+  text
+}
+
 // ============================================
 // Model Definitions
 // ============================================
@@ -122,6 +130,7 @@ model StudyPlan {
   interviewSessions InterviewSession[]
   focusSessions     FocusSession[]
   reviewQueueItems  ReviewQueueItem[]
+  documents         Document[]
 
   @@index([userId])
   @@map("study_plans")
@@ -147,6 +156,7 @@ model Concept {
   questionCaches   QuestionCache[]
   interviewTurns   InterviewTurn[]
   reviewQueueItems ReviewQueueItem[]
+  conceptSources   ConceptSourceRef[]
 
   @@index([planId])
   @@map("concepts")
@@ -294,6 +304,50 @@ model ReviewQueueItem {
   @@unique([sourceSessionId, conceptId])
   @@index([planId, status])
   @@map("review_queue_items")
+}
+
+/// Tài liệu gốc do sinh viên tải lên, gắn với một kế hoạch (SP-01)
+/// Là "nhà" bền vững cho file_key — sống sót sau khi analysis_jobs (job tạm thời) kết thúc,
+/// nên plan luôn có đường truy ngược về tệp nguồn. 1 plan : N tài liệu.
+model Document {
+  id        String       @id @default(uuid()) @db.Uuid
+  planId    String       @map("plan_id") @db.Uuid
+  filename  String       @db.VarChar(255)
+  fileKey   String       @map("file_key") // khóa lưu trữ object storage (cùng khái niệm analysis_jobs.file_key)
+  kind      DocumentKind @default(pdf)
+  pageCount Int?         @map("page_count") // null cho tài liệu không phân trang (vd: text thuần)
+  byteSize  Int?         @map("byte_size")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  plan           StudyPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  conceptSources ConceptSourceRef[]
+
+  @@index([planId])
+  @@map("documents")
+}
+
+/// Neo vị trí: gắn một khái niệm với đoạn tài liệu gốc mà nó được trích ra.
+/// Associative entity giải quyết quan hệ N:M giữa concepts và documents.
+/// (Tên model là ConceptSourceRef để tránh trùng với enum ConceptSource — provenance
+/// của concept; bảng vẫn là `concept_sources`.)
+/// Mở khóa: citation của AI Examiner, trích đoạn FS-04, và kiểm chứng ràng buộc C5.
+/// Lưu ý: cột populate bởi extract_concepts (schema AI cần trả thêm anchor mỗi concept) —
+/// vẫn là 4 lệnh gọi cố định (C4), chỉ là output phong phú hơn. Việc populate ở PR/issue sau.
+model ConceptSourceRef {
+  id         String   @id @default(uuid()) @db.Uuid
+  conceptId  String   @map("concept_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  pageFrom   Int?     @map("page_from") // null nếu tài liệu không phân trang
+  pageTo     Int?     @map("page_to")
+  excerpt    String? // đoạn văn bản gốc — cho render FS-04 / kiểm chứng C5 mà không cần parse lại tệp
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([conceptId])
+  @@index([documentId])
+  @@map("concept_sources")
 }
 
 // ============================================

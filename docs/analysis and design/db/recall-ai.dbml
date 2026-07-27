@@ -83,6 +83,12 @@ Enum review_item_status {
   done
 }
 
+Enum document_kind {
+  pdf
+  image
+  text
+}
+
 // ===================== Core entities =====================
 
 Table users {
@@ -261,6 +267,40 @@ Table review_queue_items {
   Note: 'Remediation/review queue produced by the Scheduling & Remediation Engine (AE-07, DB-04, FS-06).'
 }
 
+// ===================== Source-document anchor =====================
+
+Table documents {
+  id         uuid          [pk]
+  plan_id    uuid          [not null]
+  filename   varchar(255)  [not null, note: 'original filename, for display']
+  file_key   text          [not null, note: 'object-storage key']
+  kind       document_kind [not null, default: 'pdf']
+  page_count integer       [note: 'total pages; null for non-paginated (text)']
+  byte_size  integer
+  created_at timestamp     [not null, default: `now()`]
+
+  indexes {
+    plan_id
+  }
+  Note: 'Uploaded source document (SP-01). Durable home for file_key — survives past the transient analysis_jobs record.'
+}
+
+Table concept_sources {
+  id          uuid      [pk]
+  concept_id  uuid      [not null]
+  document_id uuid      [not null]
+  page_from   integer   [note: 'null for non-paginated documents']
+  page_to     integer
+  excerpt     text      [note: 'source passage — renders/verifies without re-parsing the file']
+  created_at  timestamp [not null, default: `now()`]
+
+  indexes {
+    concept_id
+    document_id
+  }
+  Note: 'Associative entity anchoring a concept to the document passage it came from (N:M concepts<->documents). Unlocks FS-04 excerpt view, AE-02 citations, C5 verification. Prisma model ConceptSourceRef (avoids clash with concept_source enum).'
+}
+
 // ===================== Referential integrity (all ON DELETE CASCADE) =====================
 
 Ref: study_plans.user_id > users.id [delete: cascade]
@@ -284,6 +324,10 @@ Ref: focus_sessions.plan_id > study_plans.id [delete: cascade]
 
 Ref: review_queue_items.plan_id > study_plans.id [delete: cascade]
 Ref: review_queue_items.concept_id > concepts.id [delete: cascade]
+
+Ref: documents.plan_id > study_plans.id [delete: cascade]
+Ref: concept_sources.concept_id > concepts.id [delete: cascade]
+Ref: concept_sources.document_id > documents.id [delete: cascade]
 
 // Soft references (documented, NOT enforced by FK — do not add as Ref):
 //   analysis_jobs.plan_draft_id      ~ study_plans.id
