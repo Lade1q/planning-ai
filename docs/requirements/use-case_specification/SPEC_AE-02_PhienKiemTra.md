@@ -26,7 +26,7 @@ Use case này cho phép Sinh viên thực hiện một phiên kiểm tra kiến 
 1. **Sinh viên** bắt đầu phiên kiểm tra từ hàng đợi các khái niệm cần ôn tập.
 2. **Hệ thống** tải khái niệm ưu tiên cao nhất, thiết lập giới hạn lượt hỏi-đáp (ví dụ: 3 lượt) và gửi yêu cầu (`generate_question`) tới **AI Service**.
 3. **AI Service** sinh câu hỏi vấn đáp (`generate_question`) dựa trên rubric và tài liệu gốc mà Sinh viên đã tải lên.
-4. **Hệ thống** hiển thị câu hỏi cho Sinh viên dưới **dạng văn bản**. (Tùy chọn) Nếu bật tầng giọng nói, hệ thống đọc câu hỏi bằng Text-to-Speech và có thể ẩn văn bản cho tới khi Sinh viên nhấn "Hiện câu hỏi" — xem Alternative flow về chế độ giọng nói.
+4. **Hệ thống** hiển thị câu hỏi cho Sinh viên dưới **dạng văn bản**. (Tùy chọn) Nếu bật tầng giọng nói, hệ thống đọc câu hỏi bằng Text-to-Speech xử lý phía trình duyệt/client (không phải một lệnh gọi tới **AI Service** — theo `UC-Overview.md` §5.1, AI Service chỉ có đúng 4 schema cố định, không có schema âm thanh) và có thể ẩn văn bản cho tới khi Sinh viên nhấn "Hiện câu hỏi" — xem Alternative flow 5 nếu quyền micro bị từ chối.
 5. **Sinh viên** gõ câu trả lời cho câu hỏi. (Tùy chọn) Sinh viên có thể trả lời bằng giọng nói qua micro nếu bật tầng voice.
 6. **Hệ thống** tiếp nhận văn bản câu trả lời. Khi dùng giọng nói, câu trả lời được chuyển thành văn bản (Speech-to-Text) để Sinh viên xem và sửa lại trước khi gửi.
 7. **Hệ thống** gửi văn bản câu trả lời tới **AI Service** để đối chiếu, chấm điểm (`grade_answer`).
@@ -37,7 +37,7 @@ Use case này cho phép Sinh viên thực hiện một phiên kiểm tra kiến 
    - Nếu trả lời **sai/hổng kiến thức**, nhận xét chấm điểm (`feedback` từ `grade_answer`) giải thích lỗi sai và khái niệm kết thúc sớm. Việc **có kích hoạt AE-07 (Truy ngược Lỗ hổng) hay không được quyết định sau khi tính `mastery_score` cuối cùng của khái niệm** (per-concept), không phải ngay từng lượt.
 10. **Hệ thống** lưu lại kết quả đánh giá của khái niệm hiện tại sau khi hết số lượt tối đa hoặc kết thúc chu trình xử lý ở bước 9. `mastery_score` được tính bằng trung bình có trọng số (weighted average) điểm các lượt.
 11. **Hệ thống** lặp lại quy trình từ Bước 2 cho khái niệm tiếp theo trong hàng đợi, cho đến khi hoàn tất danh sách.
-12. **Hệ thống** thông báo kết thúc phiên kiểm tra và tự động chuyển Sinh viên tới màn hình Xem Tổng hợp Cuối phiên. (Khi bật tầng giọng nói, thông báo này được phát kèm giọng đọc.)
+12. **Hệ thống** thông báo kết thúc phiên kiểm tra và tự động chuyển Sinh viên tới màn hình Xem Tổng hợp Cuối phiên. (Khi bật tầng giọng nói, thông báo này được phát kèm giọng đọc, cùng cơ chế Text-to-Speech phía client như bước 4 — không qua AI Service.)
 
 ## 6. Alternative Flows
 
@@ -64,6 +64,12 @@ Use case này cho phép Sinh viên thực hiện một phiên kiểm tra kiến 
 1. Từ bước #9 của basic flow, nếu sau khi nghe nhận xét từ AI, Sinh viên không đồng ý và chọn "Khiếu nại".
 2. Hệ thống tạm dừng luồng hội thoại giọng nói, hiển thị form nhập lý do khiếu nại. Kết quả khái niệm được lưu tạm kèm cờ "Đang khiếu nại".
 3. Continue step #10.
+
+**Alternative flow 5: Không cấp được quyền micro (chế độ giọng nói)**
+
+1. Từ bước #4 hoặc #5 của basic flow, nếu Sinh viên đã bật tầng giọng nói nhưng trình duyệt từ chối quyền micro, thiết bị không có micro, hoặc quyền bị thu hồi giữa chừng.
+2. Hệ thống thông báo ngắn gọn ngay tại chỗ và tự động chuyển về chế độ gõ văn bản. Lượt hỏi-đáp hiện tại, số lượt còn lại và lịch sử hội thoại được giữ nguyên — đây **không** phải một lần gián đoạn phiên (khác Alternative flow 2).
+3. Continue step #5 (ở chế độ gõ văn bản).
 
 ## 7. Post-conditions
 

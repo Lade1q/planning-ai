@@ -41,16 +41,20 @@ Use case này mô tả quá trình Sinh viên thực hiện một phiên học t
 
 ## 7. Alternative Flows
 
-**Alternative flow 1: Xem và chọn Gợi ý Concept (Mở rộng - <<extend>> FS-07)**
+**Alternative flow 1: Xem và chọn Gợi ý Concept (<<include>> FS-06)**
+
+_(Sửa số use case: bản trước ghi `<<extend>> FS-07`, nhưng FS-07 là "Xem thống kê học tập" — không liên quan. Theo `UC-Overview.md` §3/§4 (module Focus Session, dòng include FS-06), gợi ý concept đúng là **FS-06** — "Xem gợi ý khái niệm từ Scheduling & Remediation Engine", quan hệ `<<include>>` chứ không phải `<<extend>>`.)_
 
 1. Từ bước #2 của basic flow, nếu Sinh viên chọn tính năng "Xem Gợi ý".
 2. Hệ thống gửi yêu cầu đến SRE. SRE tính toán và cung cấp danh sách các concept cần ưu tiên (dựa trên sự yếu kém của mastery hoặc deadline sắp tới). Hệ thống hiển thị danh sách gợi ý cho Sinh viên và Sinh viên chọn concept từ danh sách gợi ý.
 3. Continue step #3.
 
-**Alternative flow 2: Bật Strict Mode (Mở rộng - <<extend>> FS-06)**
+**Alternative flow 2: Bật Strict Mode**
+
+_(Sửa số use case: bản trước ghi `<<extend>> FS-06`, nhưng FS-06 là "Xem gợi ý khái niệm" — một tính năng khác. Strict Mode **chưa có mã UC riêng** trong bảng module Focus Session của `UC-Overview.md` §3, nên không gán số cho tới khi được lập UC chính thức, thay vì trỏ nhầm sang FS-06.)_
 
 1. Từ bước #4 hoặc #6 của basic flow, nếu Sinh viên chọn bật "Strict Mode".
-2. Hệ thống kích hoạt chế độ khóa/chặn các trang web hoặc tab gây xao nhãng.
+2. Hệ thống bật theo dõi rời tab bằng Page Visibility API: mỗi lần Sinh viên chuyển sang tab hoặc ứng dụng khác, đồng hồ đếm thời gian tập trung tạm dừng và lần rời tab được ghi lại vào phiên. Hệ thống **không** khóa hoặc chặn được trang web/tab khác — một ứng dụng web chạy trong sandbox trình duyệt không có quyền đó, đây là giới hạn kỹ thuật chứ không phải phạm vi tính năng chưa làm.
 3. Continue step #4 (hoặc #6).
 
 **Alternative flow 3: Tạm dừng và tiếp tục (Pause / Resume)**
