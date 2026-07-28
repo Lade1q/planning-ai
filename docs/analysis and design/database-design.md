@@ -57,6 +57,10 @@ erDiagram
     concepts ||--o{ question_cache : "caches"
     concepts ||--o{ interview_turns : "tested by"
     concepts ||--o{ review_queue_items : "reviewed as"
+    concepts ||--o{ concept_sources : "grounded in"
+
+    study_plans ||--o{ documents : "sources"
+    documents ||--o{ concept_sources : "anchors"
 
     interview_sessions ||--o{ interview_turns : "has"
 
@@ -168,11 +172,30 @@ erDiagram
         timestamp scheduled_for "nullable"
         timestamp created_at
     }
+    documents {
+        uuid id PK
+        uuid plan_id FK
+        varchar filename
+        text file_key
+        document_kind kind
+        int page_count "nullable"
+        int byte_size "nullable"
+        timestamp created_at
+    }
+    concept_sources {
+        uuid id PK
+        uuid concept_id FK
+        uuid document_id FK
+        int page_from "nullable"
+        int page_to "nullable"
+        text excerpt "nullable"
+        timestamp created_at
+    }
 ```
 
 ## 3. Entity Catalog
 
-Ten tables. `PK` = primary key, `FK` = foreign key, `U` = participates in a unique constraint,
+Twelve tables. `PK` = primary key, `FK` = foreign key, `U` = participates in a unique constraint,
 `○` = nullable.
 
 ### 3.1 `users` — Student account
@@ -334,6 +357,47 @@ Produced by the Scheduling & Remediation Engine. `source_concept_id` / `source_s
 | _Unique_            |                      | `(source_session_id, concept_id)` | De-dupe per session                                        |
 | _Index_             |                      | `(plan_id, status)`               |                                                            |
 
+### 3.11 `documents` — Uploaded source document (SP-01, FS-04)
+
+The durable home for an uploaded source file, owned by a plan. Unlike `analysis_jobs.file_key`
+(a soft reference on a transient extraction job), a `documents` row survives past ingestion, so a
+plan always keeps a path back to its source file. One plan may own several documents.
+
+| Column       | Type            | Key / Constraint      | Description                                      |
+| ------------ | --------------- | --------------------- | ------------------------------------------------ |
+| `id`         | uuid            | PK                    | Identifier                                       |
+| `plan_id`    | uuid            | FK → `study_plans.id` | Owning plan                                      |
+| `filename`   | varchar(255)    | not null              | Original filename, for display                   |
+| `file_key`   | text            | not null              | Object-storage key (same idea as the job's key)  |
+| `kind`       | `document_kind` | default `pdf`         | pdf / image / text (SP-01 accepts all three)     |
+| `page_count` | integer         | ○                     | Total pages; null for non-paginated (plain text) |
+| `byte_size`  | integer         | ○                     | File size in bytes                               |
+| `created_at` | timestamp       | not null              | Uploaded at                                      |
+| _Index_      |                 | `(plan_id)`           |                                                  |
+
+### 3.12 `concept_sources` — Concept ↔ document location anchor (FS-04, AE-02, C5)
+
+The anchor that ties a concept to the passage it was extracted from — the associative entity
+resolving the **N:M** relation between `concepts` and `documents`. Storing `excerpt` inline lets
+the Focus Session excerpt view render and constraint **C5** ("AI stays grounded in the source")
+be verified **without re-parsing the PDF at read time**. Populated by `extract_concepts` once the
+AI schema returns a per-concept anchor — still 4 fixed calls (C4), just richer output; that
+population work is a follow-up, this migration only lands the columns.
+
+> The Prisma model is named `ConceptSourceRef` to avoid clashing with the `concept_source`
+> enum (a concept's provenance); the table is `concept_sources`.
+
+| Column        | Type      | Key / Constraint                | Description                                          |
+| ------------- | --------- | ------------------------------- | ---------------------------------------------------- |
+| `id`          | uuid      | PK                              | Identifier                                           |
+| `concept_id`  | uuid      | FK → `concepts.id`              | Anchored concept                                     |
+| `document_id` | uuid      | FK → `documents.id`             | Source document                                      |
+| `page_from`   | integer   | ○                               | Start page; null for non-paginated documents         |
+| `page_to`     | integer   | ○                               | End page                                             |
+| `excerpt`     | text      | ○                               | Source passage — renders/verifies without re-parsing |
+| `created_at`  | timestamp | not null                        | Created at                                           |
+| _Indexes_     |           | `(concept_id)`, `(document_id)` |                                                      |
+
 ## 4. Enumerations
 
 | Enum                       | Values                                                  |
@@ -349,6 +413,7 @@ Produced by the Scheduling & Remediation Engine. `source_concept_id` / `source_s
 | `focus_session_status`     | running, completed, cancelled                           |
 | `review_reason`            | traceback, spaced_repetition, deadline_priority, manual |
 | `review_item_status`       | pending, accepted, skipped, done                        |
+| `document_kind`            | pdf, image, text                                        |
 
 ## 5. Relationships & Cardinality
 
@@ -369,10 +434,14 @@ Produced by the Scheduling & Remediation Engine. `source_concept_id` / `source_s
 | `concepts`           | `question_cache`       | 1 : N       | `question_cache.concept_id`         |
 | `concepts`           | `interview_turns`      | 1 : N       | `interview_turns.concept_id`        |
 | `concepts`           | `review_queue_items`   | 1 : N       | `review_queue_items.concept_id`     |
+| `concepts`           | `concept_sources`      | 1 : N       | `concept_sources.concept_id`        |
+| `study_plans`        | `documents`            | 1 : N       | `documents.plan_id`                 |
+| `documents`          | `concept_sources`      | 1 : N       | `concept_sources.document_id`       |
 | `interview_sessions` | `interview_turns`      | 1 : N       | `interview_turns.session_id`        |
 
 **Derived N:M:** `concepts` ↔ `concepts` (prerequisite graph) is a many-to-many self-relation
-resolved through the associative entity `concept_edges`.
+resolved through `concept_edges`; `concepts` ↔ `documents` (which passage grounds which concept)
+is resolved through `concept_sources`.
 
 ### 5.2 Soft references (logical, **no FK constraint**)
 
@@ -402,6 +471,13 @@ resolved through the associative entity `concept_edges`.
 - **Idempotency via unique keys** — `interview_turns (session_id, concept_id, turn_index)` and
   `review_queue_items (source_session_id, concept_id)` make double-submits and repeated traceback
   runs safe (upsert instead of duplicate insert).
+- **Durable source anchor** (§3.11–3.12) — `documents` gives a plan a permanent handle on its
+  uploaded file (the `analysis_jobs` record is transient), and `concept_sources` anchors each
+  concept to the passage it came from. The `excerpt` is stored inline: a deliberate, bounded
+  denormalisation so the excerpt view and the C5 grounding check read straight from the row
+  instead of re-fetching and re-parsing the source file. No idempotency key yet — the population
+  path (a follow-up) should clear a document's `concept_sources` before re-inserting on
+  re-extraction rather than rely on a unique constraint, since excerpts are not naturally unique.
 
 ## 7. Reconciliation with Issue #86
 
@@ -417,6 +493,10 @@ which superseded two of those placeholders:
 
 **New in Sprint 4 (not in #86's list):** `review_queue_items` — the Scheduling & Remediation
 Engine's output queue (AE-07 / DB-04 / FS-06).
+
+**Added after Sprint 4:** `documents` and `concept_sources` (§3.11–3.12) — the source-document
+anchor that grounds concepts in the uploaded file (FS-04 excerpt view, AE-02 citations, C5
+verification). Migration `20260727102941_add_documents_concept_sources`.
 
 > When `SessionNote` (and `GradingFeedback`, AE-10) land in Sprint 5, add them here and to
 > [`db/recall-ai.dbml`](db/recall-ai.dbml), then re-export the diagram.
