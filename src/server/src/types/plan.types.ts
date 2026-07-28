@@ -1,4 +1,19 @@
-import { StudyPlanStatus, ConceptSource, ConceptStatus, AnalysisJobStatus } from '@prisma/client';
+import {
+  StudyPlanStatus,
+  ConceptSource,
+  ConceptStatus,
+  AnalysisJobStatus,
+  DocumentKind,
+} from '@prisma/client';
+
+/** Metadata for the source document persisted alongside a new plan (SP-01, FS-04). */
+export interface DocumentMeta {
+  filename: string;
+  fileKey: string;
+  kind: DocumentKind;
+  pageCount: number | null;
+  byteSize: number | null;
+}
 
 export interface PlanItemResponse {
   id: string;
