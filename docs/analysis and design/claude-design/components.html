@@ -180,6 +180,106 @@
       gap: 28px 40px;
       max-width: 780px;
     }
+
+    /* Nhãn phụ phân nhóm trạng thái trong một section */
+    .sublabel {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin: 20px 0 8px;
+    }
+
+    .sublabel:first-of-type {
+      margin-top: 0;
+    }
+
+    .spin {
+      animation: spin 900ms linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Modal/Dialog — overlay giả (position relative, không fixed) */
+    .dialog-stage {
+      position: relative;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 1.1);
+      padding: 40px 20px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .dialog {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 1.35);
+      box-shadow: var(--shadow-soft);
+      padding: 22px 24px;
+    }
+
+    .dialog h3 {
+      font-size: 16px;
+      margin: 0 0 6px;
+    }
+
+    .dialog p {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--muted-foreground);
+      margin: 0 0 20px;
+    }
+
+    .dialog__actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Spacing scale — thanh đặc theo từng bước Tailwind */
+    .space-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 9px;
+    }
+
+    .space-bar {
+      height: 16px;
+      background: oklch(from var(--primary) l c h / 0.5);
+      border-radius: 3px;
+    }
+
+    .space-row span {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+    }
+
+    .radius-box {
+      width: 84px;
+      height: 56px;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: end center;
+    }
+
+    .radius-box span {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted-foreground);
+      padding-bottom: 5px;
+    }
   </style>
 </head>
 
@@ -189,11 +289,37 @@
 
   <section>
     <h2>Buttons</h2>
-    <p class="section-desc">Solid ink CTA, không có box-shadow. Hover: shift màu nhẹ. Active: scale(0.98).</p>
+    <p class="section-desc">CTA nền brand indigo, không box-shadow. Hover dịch màu nhẹ; active
+      <span class="meta-mono" style="font-size:12px;">scale(0.98)</span>; disabled mờ 50%.
+      Bốn biến thể khớp <span class="meta-mono" style="font-size:12px;">Button</span> trong
+      <span class="meta-mono" style="font-size:12px;">@/components/ui</span>:
+      <span class="meta-mono" style="font-size:12px;">default · secondary · outline · ghost</span>.</p>
+
+    <p class="sublabel">Default</p>
     <div class="row">
-      <button class="btn btn-primary">Tạo kế hoạch ôn tập</button>
+      <button class="btn btn-primary">Tạo kế hoạch</button>
       <button class="btn btn-secondary">Xem chi tiết</button>
+      <button class="btn btn-outline">Nhập tệp</button>
       <button class="btn btn-ghost">Hủy</button>
+    </div>
+
+    <p class="sublabel">Disabled</p>
+    <div class="row">
+      <button class="btn btn-primary" disabled>Tạo kế hoạch</button>
+      <button class="btn btn-secondary" disabled>Xem chi tiết</button>
+      <button class="btn btn-outline" disabled>Nhập tệp</button>
+      <button class="btn btn-ghost" disabled>Hủy</button>
+    </div>
+
+    <p class="sublabel">Loading</p>
+    <div class="row">
+      <button class="btn btn-primary" disabled>
+        <svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" />
+        </svg>
+        Đang tạo…
+      </button>
     </div>
   </section>
 
@@ -320,6 +446,49 @@
             </svg>
             Đủ 8 ký tự.
           </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Modal / Dialog</h2>
+    <p class="section-desc">Chỉ dùng cho xác nhận thật sự cần chặn luồng — thao tác đơn giản ưu tiên
+      inline/slide-over. Overlay mờ, thẻ giữa màn viền 1px; hành động phụ (ghost) bên trái nút chính.</p>
+    <div class="dialog-stage">
+      <div class="dialog" role="dialog" aria-label="Xác nhận rời trang">
+        <h3>Rời khỏi trang?</h3>
+        <p>Bạn có thay đổi chưa lưu ở đồ thị khái niệm. Rời đi bây giờ sẽ mất các chỉnh sửa chưa xác nhận.</p>
+        <div class="dialog__actions">
+          <button class="btn btn-ghost">Ở lại</button>
+          <button class="btn btn-primary">Rời đi</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Spacing &amp; Radius</h2>
+    <p class="section-desc">Cách lề dùng thang Tailwind (bước 4px; phổ biến 8 / 12 / 16 / 24 / 32).
+      Bo góc suy ra từ <span class="meta-mono" style="font-size:12px;">--radius</span> (10px): nút
+      0.8×, ô nhập 0.65×, thẻ 1.35×.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:40px;">
+      <div>
+        <p class="sublabel">Spacing</p>
+        <div class="space-row"><div class="space-bar" style="width:4px;"></div><span>4 · gap-1</span></div>
+        <div class="space-row"><div class="space-bar" style="width:8px;"></div><span>8 · gap-2</span></div>
+        <div class="space-row"><div class="space-bar" style="width:12px;"></div><span>12 · gap-3</span></div>
+        <div class="space-row"><div class="space-bar" style="width:16px;"></div><span>16 · p-4</span></div>
+        <div class="space-row"><div class="space-bar" style="width:24px;"></div><span>24 · p-6</span></div>
+        <div class="space-row"><div class="space-bar" style="width:32px;"></div><span>32 · p-8</span></div>
+      </div>
+      <div>
+        <p class="sublabel">Radius</p>
+        <div class="row" style="align-items:flex-start;">
+          <div class="radius-box" style="border-radius: calc(var(--radius) * 0.65);"><span>0.65×</span></div>
+          <div class="radius-box" style="border-radius: calc(var(--radius) * 0.8);"><span>0.8×</span></div>
+          <div class="radius-box" style="border-radius: var(--radius);"><span>1×</span></div>
+          <div class="radius-box" style="border-radius: calc(var(--radius) * 1.35);"><span>1.35×</span></div>
         </div>
       </div>
     </div>

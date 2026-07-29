@@ -168,6 +168,30 @@ body {
   background: var(--accent);
 }
 
+/* Outline: viền thật, nền = card (khớp Button variant="outline" của shadcn) */
+.btn-outline {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.btn-outline:hover {
+  background: var(--muted);
+}
+
+.btn-primary:hover {
+  background: oklch(from var(--primary) calc(l - 0.04) c h);
+}
+
+.btn-secondary:hover {
+  background: var(--muted);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .card {
   background: var(--card);
   color: var(--card-foreground);
