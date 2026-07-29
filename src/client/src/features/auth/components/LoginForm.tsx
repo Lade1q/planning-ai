@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -17,11 +18,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  // Lỗi cấp biểu mẫu (AM-02 [E1]). Cố ý KHÔNG gắn vào ô nào: server trả cùng một
-  // thông báo cho "email không tồn tại" lẫn "sai mật khẩu" để không lộ email nào
-  // đã đăng ký — treo dưới ô Email sẽ phá bỏ điều đó. Dùng inline thay toast vì
-  // use case yêu cầu giữ nguyên form.
-  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
@@ -35,12 +31,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setFormError(null);
     try {
       await login(data.email, data.password);
+      toast.success('Đăng nhập thành công!');
       navigate('/dashboard');
     } catch (error) {
-      setFormError(getAuthErrorMessage(error).message);
+      toast.error(getAuthErrorMessage(error).message);
       // Giữ email đã nhập, chỉ xoá mật khẩu và đưa con trỏ về đó — thứ duy nhất
       // cần gõ lại.
       resetField('password');
@@ -52,21 +48,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
-          <CardDescription>Enter your email below to login to your account</CardDescription>
+          <div className="font-heading mb-6 text-base tracking-tight">Recall AI</div>
+          <CardTitle className="text-[23px]">Đăng nhập</CardTitle>
+          <CardDescription className="text-[13px]">Dùng email và mật khẩu bạn đã đăng ký.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <FieldGroup>
-              {formError && (
-                <div
-                  role="alert"
-                  className="border-destructive/35 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm"
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
@@ -74,7 +62,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                   type="email"
                   placeholder="m@example.com"
                   autoComplete="email"
-                  autoFocus
                   {...register('email')}
                 />
                 {errors.email?.message && <FieldError>{errors.email.message}</FieldError>}
@@ -82,13 +69,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                   <a
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className="text-muted-foreground ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    href="#am-05"
+                    className="text-muted-foreground ml-auto inline-block text-xs underline-offset-4 hover:underline hover:text-foreground"
                   >
-                    Forgot password?
+                    Quên mật khẩu?
                   </a>
                 </div>
                 <div className="relative">
@@ -99,20 +85,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     className="pr-10"
                     {...register('password')}
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="hover:bg-accent hover:text-foreground focus-visible:ring-ring text-muted-foreground absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      <EyeOff className="text-muted-foreground h-4 w-4" />
+                      <EyeOff className="h-4.25 w-4.25" strokeWidth={1.8} />
                     ) : (
-                      <Eye className="text-muted-foreground h-4 w-4" />
+                      <Eye className="h-4.25 w-4.25" strokeWidth={1.8} />
                     )}
-                    <span className="sr-only">Toggle password visibility</span>
-                  </Button>
+                  </button>
                 </div>
                 {errors.password?.message && <FieldError>{errors.password.message}</FieldError>}
               </Field>
@@ -120,12 +104,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               <Field>
                 <Button type="submit" disabled={isSubmitting} className="w-full">
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Sign In
+                  {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account?{' '}
-                  <Link to="/register" className="text-primary hover:underline">
-                    Register
+                  Chưa có tài khoản?{' '}
+                  <Link to="/register" className="text-foreground underline underline-offset-4 hover:text-foreground">
+                    Đăng ký
                   </Link>
                 </FieldDescription>
               </Field>
