@@ -123,7 +123,11 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
 
       await tx.studyPlan.update({
         where: { id: planId },
-        data: { status: 'active', dagAutoFixed: autoFixed },
+        data: {
+          status: 'active',
+          dagAutoFixed: autoFixed,
+          languageDetected: extracted.language_detected,
+        },
       });
       await tx.analysisJob.update({
         where: { id: jobId },

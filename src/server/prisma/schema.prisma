@@ -121,6 +121,8 @@ model StudyPlan {
   status           StudyPlanStatus @default(active)
   dagAutoFixed     Boolean         @default(false) @map("dag_auto_fixed")
   tracebackEnabled Boolean         @default(true) @map("traceback_enabled")
+  /// Ngôn ngữ tài liệu do extract_concepts phát hiện -- AI Examiner dùng để sinh câu hỏi/feedback đúng ngôn ngữ
+  languageDetected String?         @map("language_detected") @db.VarChar(10)
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
