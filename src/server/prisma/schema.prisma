@@ -152,9 +152,9 @@ model Concept {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  plan             StudyPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
-  edgesFrom        ConceptEdge[]     @relation("EdgeFrom")
-  edgesTo          ConceptEdge[]     @relation("EdgeTo")
+  plan             StudyPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  edgesFrom        ConceptEdge[]      @relation("EdgeFrom")
+  edgesTo          ConceptEdge[]      @relation("EdgeTo")
   questionCaches   QuestionCache[]
   interviewTurns   InterviewTurn[]
   reviewQueueItems ReviewQueueItem[]
