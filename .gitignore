@@ -15,6 +15,9 @@ build/
 .next/
 out/
 
+# Test artifacts (jest --coverage)
+coverage/
+
 # IDE & Editor
 .vscode/
 .idea/
