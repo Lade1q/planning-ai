@@ -177,6 +177,12 @@ export async function retryPlanAnalysis(
     throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
   }
 
+  // Guard: only draft plans can be retried — active plans already have concepts,
+  // and processAnalysisJob only INSERTs (no DELETE), causing duplicates.
+  if (plan.status !== 'draft') {
+    throw new AppError('Retry is only allowed for draft plans', 409, 'RETRY_NOT_ALLOWED');
+  }
+
   // 2. Find latest AnalysisJob — must be `failed` to allow retry
   const latestJob = await prisma.analysisJob.findFirst({
     where: { planDraftId: planId },
@@ -194,6 +200,10 @@ export async function retryPlanAnalysis(
 
   if (latestJob.status !== 'failed') {
     throw new AppError('Plan analysis is not in a failed state', 409, 'RETRY_NOT_ALLOWED');
+  }
+
+  if (!latestJob.fileKey) {
+    throw new AppError('Original file key is missing, cannot retry', 409, 'RETRY_NOT_ALLOWED');
   }
 
   // 3. Create new job — single write, no $transaction needed

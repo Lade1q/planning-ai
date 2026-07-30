@@ -387,4 +387,32 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
   }
   ```
 
+- **Lỗi Plan không ở trạng thái draft (HTTP 409 Conflict):**
+
+  Khi Plan đã ở trạng thái `active` (đã có concepts), retry sẽ bị từ chối để tránh tạo concepts trùng lặp:
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RETRY_NOT_ALLOWED",
+      "message": "Retry is only allowed for draft plans"
+    }
+  }
+  ```
+
+- **Lỗi thiếu file gốc (HTTP 409 Conflict):**
+
+  Khi `fileKey` của AnalysisJob gốc bị null (edge case hiếm gặp):
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RETRY_NOT_ALLOWED",
+      "message": "Original file key is missing, cannot retry"
+    }
+  }
+  ```
+
 - **Lỗi không tìm thấy Plan (HTTP 404 Not Found)** và **truy cập Plan người khác (HTTP 403 Forbidden)**: giống hệt mục 3.

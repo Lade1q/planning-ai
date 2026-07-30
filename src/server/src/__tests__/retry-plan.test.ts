@@ -35,8 +35,9 @@ describe('retryPlanAnalysis', () => {
   it('throws 404 NOT_FOUND when plan does not exist', async () => {
     (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toThrow(AppError);
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toMatchObject({
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
       statusCode: 404,
       code: 'NOT_FOUND',
     });
@@ -46,8 +47,9 @@ describe('retryPlanAnalysis', () => {
   it('throws 403 FORBIDDEN when user does not own the plan', async () => {
     (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
 
-    await expect(retryPlanAnalysis(PLAN_ID, OTHER_ID)).rejects.toThrow(AppError);
-    await expect(retryPlanAnalysis(PLAN_ID, OTHER_ID)).rejects.toMatchObject({
+    const error = await retryPlanAnalysis(PLAN_ID, OTHER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
       statusCode: 403,
       code: 'FORBIDDEN',
     });
@@ -61,8 +63,9 @@ describe('retryPlanAnalysis', () => {
       fileKey: FILE_KEY,
     });
 
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toThrow(AppError);
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toMatchObject({
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
       statusCode: 409,
       code: 'RETRY_NOT_ALLOWED',
       message: 'An analysis is already in progress',
@@ -77,8 +80,9 @@ describe('retryPlanAnalysis', () => {
       fileKey: FILE_KEY,
     });
 
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toThrow(AppError);
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toMatchObject({
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
       statusCode: 409,
       code: 'RETRY_NOT_ALLOWED',
       message: 'An analysis is already in progress',
@@ -115,8 +119,9 @@ describe('retryPlanAnalysis', () => {
     (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
     (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue(null);
 
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toThrow(AppError);
-    await expect(retryPlanAnalysis(PLAN_ID, OWNER_ID)).rejects.toMatchObject({
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
       statusCode: 409,
       code: 'RETRY_NOT_ALLOWED',
     });
@@ -175,6 +180,37 @@ describe('retryPlanAnalysis', () => {
         fileKey: FILE_KEY,
         status: 'pending',
       }),
+    });
+  });
+
+  // --- Test 10: Plan active bị reject ---
+  it('throws 409 RETRY_NOT_ALLOWED when plan status is active', async () => {
+    const activePlan = { ...basePlan, status: 'active' as const };
+    (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(activePlan);
+
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
+      statusCode: 409,
+      code: 'RETRY_NOT_ALLOWED',
+      message: 'Retry is only allowed for draft plans',
+    });
+  });
+
+  // --- Test 11: fileKey null bị reject ---
+  it('throws 409 RETRY_NOT_ALLOWED when fileKey is null', async () => {
+    (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
+    (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
+      status: 'failed',
+      fileKey: null,
+    });
+
+    const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
+      statusCode: 409,
+      code: 'RETRY_NOT_ALLOWED',
+      message: 'Original file key is missing, cannot retry',
     });
   });
 });
