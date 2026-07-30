@@ -62,7 +62,7 @@ export default function PlanDetailPage() {
 
       <div className="mt-6">
         <Button variant="outline" onClick={() => navigate('/plans')}>
-          ← Quay lại danh sách kế hoạch
+          Quay lại danh sách kế hoạch
         </Button>
       </div>
     </div>
