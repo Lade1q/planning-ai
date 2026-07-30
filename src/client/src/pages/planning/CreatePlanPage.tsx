@@ -79,12 +79,12 @@ export default function CreatePlanPage() {
       setIsSubmitting(true);
       const formData = new FormData();
       formData.append('name', values.planName);
-      formData.append('deadline', values.deadline.toISOString());
+      formData.append('deadline', format(values.deadline, 'yyyy-MM-dd'));
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       formData.append('file', fileToUpload!);
 
       const response = await planApi.createPlan(formData);
-      
+
       // Redirect to Concept Graph page in edit mode
       navigate(`/plan/${response.planId}?mode=edit`);
     } catch (error) {
@@ -249,7 +249,7 @@ export default function CreatePlanPage() {
               Dán text
             </button>
           </div>
-          
+
           {activeTab === 'text' ? (
             <textarea
               className={cn(
@@ -264,8 +264,8 @@ export default function CreatePlanPage() {
               }}
             />
           ) : (
-            <FileDropzone 
-              selectedFile={selectedFile} 
+            <FileDropzone
+              selectedFile={selectedFile}
               onFileSelect={(file) => {
                 setSelectedFile(file);
                 if (file) setFileError(false);
