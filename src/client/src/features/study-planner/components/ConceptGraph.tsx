@@ -169,7 +169,7 @@ export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm, o
             const cEdges = potentialEdges.map(e => ({ id: e.id, source: e.source, target: e.target }));
             await onEdgeValidate(concepts, cEdges);
             setEdges((eds) => addEdge(newEdge, eds) as Edge[]);
-          } catch (err) {
+          } catch {
             toast.error('Adding this edge would create a cycle. Cạnh đã bị từ chối.');
           }
         } else {
