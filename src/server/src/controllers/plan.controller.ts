@@ -3,7 +3,12 @@ import { DocumentKind } from '@prisma/client';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { createPlanInDb, getUserPlans, getPlanById } from '../services/plan.service';
+import {
+  createPlanInDb,
+  getUserPlans,
+  getPlanById,
+  retryPlanAnalysis,
+} from '../services/plan.service';
 import { createPlanSchema } from '../schemas/plan.schema';
 import { createStorageService } from '../services/storage.service';
 import { triggerAnalysis } from '../services/analysis.service';
@@ -139,5 +144,32 @@ export async function getPlanByIdController(req: Request, res: Response): Promis
   res.status(200).json({
     success: true,
     data: plan,
+  });
+}
+
+/**
+ * POST /api/v1/plans/:id/retry
+ * Retries analysis for a failed plan without re-uploading the file (Issue #106).
+ */
+export async function retryPlanController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const { id } = req.params;
+  if (!id || typeof id !== 'string') {
+    throw new AppError('Plan ID is required', 400, 'BAD_REQUEST');
+  }
+
+  const plan = await retryPlanAnalysis(id, req.userId);
+
+  // Fire-and-forget — same pattern as createPlanController
+  void triggerAnalysis(id).catch((err) =>
+    console.error(`[analysis] retry trigger failed for plan ${id}:`, err)
+  );
+
+  res.status(202).json({
+    success: true,
+    data: { plan, message: 'Analysis retry initiated' },
   });
 }

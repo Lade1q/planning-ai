@@ -319,3 +319,72 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
   ```
 
 - **Lỗi không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.
+
+---
+
+### 5. Retry Phân tích Study Plan (Retry Analysis)
+
+- **Endpoint:** `POST /api/v1/plans/:id/retry`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Content-Type:** Không cần body (empty POST)
+- **Dùng để:** Khi `AnalysisJob` gần nhất của Plan ở trạng thái `failed` (do LLM trả sai format, timeout, hết quota sau khi đã retry nội bộ hết `callAiWithRetry`), user có thể retry mà **không cần upload lại file**. Server tạo `AnalysisJob` mới với cùng `fileKey` từ job failed và trigger lại luồng phân tích.
+
+- **Response thành công (HTTP 202 Accepted):**
+
+  ```json
+  {
+    "success": true,
+    "data": {
+      "plan": {
+        "id": "c1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
+        "name": "Kế hoạch ôn thi Giải tích",
+        "deadline": "2026-08-30T00:00:00.000Z",
+        "status": "draft",
+        "analysisStatus": "pending"
+      },
+      "message": "Analysis retry initiated"
+    }
+  }
+  ```
+
+  Sau khi nhận 202, client **tiếp tục polling `GET /api/v1/plans/:id`** (giống luồng tạo plan mới ở mục 1.1) cho tới khi `analysisStatus` là `"done"` hoặc `"failed"`.
+
+- **Lỗi trạng thái không cho phép retry (HTTP 409 Conflict):**
+
+  Khi `AnalysisJob` gần nhất không ở trạng thái `failed` (ví dụ đang `processing`, `pending`, hoặc đã `done`):
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RETRY_NOT_ALLOWED",
+      "message": "Plan analysis is not in a failed state"
+    }
+  }
+  ```
+
+  Hoặc khi đang có job chạy (user nhấn retry 2 lần liên tiếp):
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RETRY_NOT_ALLOWED",
+      "message": "An analysis is already in progress"
+    }
+  }
+  ```
+
+- **Lỗi không có AnalysisJob nào (HTTP 409 Conflict):**
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "RETRY_NOT_ALLOWED",
+      "message": "No analysis job found for this plan"
+    }
+  }
+  ```
+
+- **Lỗi không tìm thấy Plan (HTTP 404 Not Found)** và **truy cập Plan người khác (HTTP 403 Forbidden)**: giống hệt mục 3.
