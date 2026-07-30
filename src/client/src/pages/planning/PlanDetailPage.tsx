@@ -68,12 +68,6 @@ export default function PlanDetailPage() {
     }
   };
 
-  const handleEdgeValidate = async (concepts: Concept[], edges: ConceptEdge[]) => {
-    if (!id) return;
-    // Call backend to validate DAG. This throws if there is a cycle.
-    await planApi.updatePlanGraph(id, concepts, edges);
-  };
-
 
   // ----------------- EDIT MODE LAYOUT -----------------
   if (mode === 'edit') {
@@ -135,7 +129,6 @@ export default function PlanDetailPage() {
               initialEdges={plan.graph.edges}
               mode={mode}
               onConfirm={handleConfirmGraph}
-              onEdgeValidate={handleEdgeValidate}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card text-muted-foreground">
@@ -206,7 +199,6 @@ export default function PlanDetailPage() {
             initialEdges={plan.graph.edges}
             mode={mode}
             onConfirm={undefined}
-            onEdgeValidate={undefined}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-muted/20 text-muted-foreground">

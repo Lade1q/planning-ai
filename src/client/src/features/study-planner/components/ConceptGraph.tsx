@@ -75,10 +75,9 @@ interface ConceptGraphProps {
   initialEdges: ConceptEdge[];
   mode: 'view' | 'edit';
   onConfirm?: (concepts: Concept[], edges: ConceptEdge[]) => Promise<void>;
-  onEdgeValidate?: (concepts: Concept[], edges: ConceptEdge[]) => Promise<void>;
 }
 
-export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm, onEdgeValidate }: ConceptGraphProps) {
+export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm }: ConceptGraphProps) {
   const nodeTypes = useMemo(() => ({ conceptNode: ConceptNode }), []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -161,30 +160,13 @@ export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm, o
       
       const potentialEdges = [...edges, newEdge];
 
-      // Validate with API
-      const validateAndAdd = async () => {
-        if (onEdgeValidate) {
-          try {
-            const concepts = nodes.map(n => ({ id: n.id, name: n.data.label as string, description: n.data.description as string, mastery_score: n.data.mastery as number | null }));
-            const cEdges = potentialEdges.map(e => ({ id: e.id, source: e.source, target: e.target }));
-            await onEdgeValidate(concepts, cEdges);
-            setEdges((eds) => addEdge(newEdge, eds) as Edge[]);
-          } catch {
-            toast.error('Adding this edge would create a cycle. Cạnh đã bị từ chối.');
-          }
-        } else {
-          // Fallback local validation
-          if (hasCycle(nodes, potentialEdges)) {
-            toast.error('Adding this edge would create a cycle (Vòng lặp). Cạnh đã bị từ chối.');
-            return;
-          }
-          setEdges((eds) => addEdge(newEdge, eds) as Edge[]);
-        }
-      };
-      
-      validateAndAdd();
+      if (hasCycle(nodes, potentialEdges)) {
+        toast.error('Adding this edge would create a cycle (Vòng lặp). Cạnh đã bị từ chối.');
+        return;
+      }
+      setEdges((eds) => addEdge(newEdge, eds) as Edge[]);
     },
-    [mode, edges, nodes, setEdges, onEdgeValidate]
+    [mode, edges, nodes, setEdges]
   );
 
   // Auto Layout action
