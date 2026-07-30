@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
 // Vietnam has no DST, so a fixed +7h offset is enough to recover the calendar
-// day the user actually picked in the client's local timezone — comparing raw
-// instants here would reject "today" for any UTC+7 client, since the client
-// sends toISOString() of local midnight, which is yesterday evening in UTC.
+// day a deadline represents — both for a plain "yyyy-MM-dd" string (parsed as
+// UTC midnight) and for "now" on the server, whatever timezone it runs in.
+// Comparing raw instants instead would reject "today" for a UTC+7 client that
+// still sends a full toISOString() of local midnight (yesterday evening UTC).
 const VN_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 function toVnDateKey(date: Date): string {
@@ -18,7 +19,7 @@ export const createPlanSchema = z.object({
     .refine((val) => {
       const date = new Date(val);
       return !isNaN(date.getTime()) && toVnDateKey(date) >= toVnDateKey(new Date());
-    }, 'Deadline must be a valid future date'),
+    }, 'Deadline must be today or a future date'),
 });
 
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;

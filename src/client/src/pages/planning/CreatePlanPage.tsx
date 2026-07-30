@@ -19,11 +19,13 @@ import { planApi } from '@/features/study-planner/api/plan.api';
 
 const formSchema = z.object({
   planName: z.string().min(1, 'Vui lòng nhập tên kế hoạch').max(100, 'Tên kế hoạch quá dài'),
-  deadline: z.date({
-    message: 'Vui lòng chọn hạn hoàn thành.',
-  }).refine((date) => startOfDay(date) >= startOfDay(new Date()), {
-    message: 'Hạn hoàn thành không được nằm trong quá khứ.',
-  }),
+  deadline: z
+    .date({
+      message: 'Vui lòng chọn hạn hoàn thành.',
+    })
+    .refine((date) => startOfDay(date) >= startOfDay(new Date()), {
+      message: 'Hạn hoàn thành không được nằm trong quá khứ.',
+    }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -49,7 +51,9 @@ export default function CreatePlanPage() {
   });
 
   const deadlineValue = useWatch({ control, name: 'deadline' });
-  const daysLeft = deadlineValue ? differenceInDays(startOfDay(deadlineValue), startOfDay(new Date())) : null;
+  const daysLeft = deadlineValue
+    ? differenceInDays(startOfDay(deadlineValue), startOfDay(new Date()))
+    : null;
 
   const onSubmit = async (values: FormValues) => {
     let fileToUpload: File | null = selectedFile;
@@ -79,12 +83,12 @@ export default function CreatePlanPage() {
       setIsSubmitting(true);
       const formData = new FormData();
       formData.append('name', values.planName);
-      formData.append('deadline', values.deadline.toISOString());
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      formData.append('deadline', format(values.deadline, 'yyyy-MM-dd'));
+
       formData.append('file', fileToUpload!);
 
       const response = await planApi.createPlan(formData);
-      
+
       // Redirect to Concept Graph page in edit mode
       navigate(`/plan/${response.planId}?mode=edit`);
     } catch (error) {
@@ -97,10 +101,11 @@ export default function CreatePlanPage() {
 
   if (isSubmitting) {
     return (
-      <div className="mx-auto flex w-full max-w-155 flex-col gap-3.5 pt-6">
+      <div className="max-w-155 mx-auto flex w-full flex-col gap-3.5 pt-6">
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-[15px] font-semibold">
-            Đang phân tích “{activeTab === 'text' ? 'Văn bản (Dán)' : (selectedFile?.name || 'Tài liệu')}”
+            Đang phân tích “
+            {activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”
           </span>
           <span className="text-muted-foreground font-mono text-xs">0:00</span>
         </div>
@@ -116,10 +121,12 @@ export default function CreatePlanPage() {
             Trích xuất khái niệm, độ khó và quan hệ tiên quyết
           </div>
         </div>
-        <div className="bg-primary/5 border-primary/30 mt-2 flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed text-muted-foreground">
+        <div className="bg-primary/5 border-primary/30 text-muted-foreground mt-2 flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed">
           <Loader2 className="text-primary mt-0.5 h-4 w-4 shrink-0 animate-spin" />
           <span>
-            <strong className="text-foreground font-semibold">Bạn có thể rời trang.</strong> Kế hoạch đã được lưu ở trạng thái nháp; phân tích chạy nền và sẽ hiện trong danh sách kế hoạch khi xong. Không cần mở trang này.
+            <strong className="text-foreground font-semibold">Bạn có thể rời trang.</strong> Kế
+            hoạch đã được lưu ở trạng thái nháp; phân tích chạy nền và sẽ hiện trong danh sách kế
+            hoạch khi xong. Không cần mở trang này.
           </span>
         </div>
       </div>
@@ -127,42 +134,74 @@ export default function CreatePlanPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl pt-6 pb-12">
-      <div className="mb-4 flex items-center gap-2 text-[13px] text-muted-foreground">
-        <button onClick={() => navigate('/plans')} className="hover:text-foreground hover:border-border border-b border-transparent pb-px transition-colors">
+    <div className="mx-auto w-full max-w-3xl pb-12 pt-6">
+      <div className="text-muted-foreground mb-4 flex items-center gap-2 text-[13px]">
+        <button
+          onClick={() => navigate('/plans')}
+          className="hover:text-foreground hover:border-border border-b border-transparent pb-px transition-colors"
+        >
           Kế hoạch ôn tập
         </button>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="opacity-50"
+        >
           <path d="M9 6l6 6-6 6" />
         </svg>
         <span>Tạo mới</span>
       </div>
 
-      <h1 className="font-heading mb-2 text-[30px] leading-tight tracking-tight">Tạo kế hoạch ôn tập</h1>
-      <p className="text-muted-foreground mb-7 max-w-160 text-sm leading-relaxed">
-        Nhập tên, chọn hạn hoàn thành và tải lên tài liệu. Hệ thống sẽ phân tích nội dung để trích xuất các khái niệm cốt lõi cùng quan hệ tiên quyết.
+      <h1 className="font-heading mb-2 text-[30px] leading-tight tracking-tight">
+        Tạo kế hoạch ôn tập
+      </h1>
+      <p className="text-muted-foreground max-w-160 mb-7 text-sm leading-relaxed">
+        Nhập tên, chọn hạn hoàn thành và tải lên tài liệu. Hệ thống sẽ phân tích nội dung để trích
+        xuất các khái niệm cốt lõi cùng quan hệ tiên quyết.
       </p>
 
       {/* Thanh 3 bước mô phỏng UI */}
       <ol className="bg-card border-border mb-6 flex overflow-hidden rounded-lg border">
-        <li className="bg-accent text-foreground border-border flex flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px] font-semibold" aria-current="step">
-          <span className="bg-primary text-primary-foreground border-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">1</span>
+        <li
+          className="bg-accent text-foreground border-border flex flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px] font-semibold"
+          aria-current="step"
+        >
+          <span className="bg-primary text-primary-foreground border-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">
+            1
+          </span>
           <span>Nhập thông tin & tải tài liệu</span>
         </li>
         <li className="text-muted-foreground border-border flex flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]">
-          <span className="border-border flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">2</span>
+          <span className="border-border flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">
+            2
+          </span>
           <span>AI phân tích</span>
         </li>
         <li className="text-muted-foreground flex flex-1 items-center gap-2.5 px-4 py-3 text-[13px]">
-          <span className="border-border flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">3</span>
+          <span className="border-border flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">
+            3
+          </span>
           <span>Kiểm chứng & xác nhận</span>
         </li>
       </ol>
 
       <form id="create-plan-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <Field>
-          <FieldLabel htmlFor="planName" className="mb-1.5 text-[13px] font-medium">Tên kế hoạch</FieldLabel>
-          <Input id="planName" placeholder="Ví dụ: Mạng máy tính" {...register('planName')} className="text-sm" />
+          <FieldLabel htmlFor="planName" className="mb-1.5 text-[13px] font-medium">
+            Tên kế hoạch
+          </FieldLabel>
+          <Input
+            id="planName"
+            placeholder="Ví dụ: Mạng máy tính"
+            {...register('planName')}
+            className="text-sm"
+          />
           {errors.planName?.message && <FieldError>{errors.planName.message}</FieldError>}
         </Field>
 
@@ -176,14 +215,14 @@ export default function CreatePlanPage() {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant={"outline"}
+                      variant={'outline'}
                       className={cn(
-                        "w-45 justify-start text-left font-normal",
-                        !field.value && "text-muted-foreground"
+                        'w-45 justify-start text-left font-normal',
+                        !field.value && 'text-muted-foreground'
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                      {field.value ? format(field.value, "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                      {field.value ? format(field.value, 'dd/MM/yyyy') : <span>Chọn ngày</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -210,12 +249,23 @@ export default function CreatePlanPage() {
         </Field>
 
         <Field>
-          <FieldLabel id="src-label" className="mb-1.5 text-[13px] font-medium">Tài liệu ôn tập</FieldLabel>
-          <div className="bg-card border-border mb-3 flex w-fit! overflow-hidden rounded-lg border" role="tablist" aria-labelledby="src-label">
+          <FieldLabel id="src-label" className="mb-1.5 text-[13px] font-medium">
+            Tài liệu ôn tập
+          </FieldLabel>
+          <div
+            className="bg-card border-border w-fit! mb-3 flex overflow-hidden rounded-lg border"
+            role="tablist"
+            aria-labelledby="src-label"
+          >
             <button
               type="button"
               role="tab"
-              className={cn("border-border border-r px-4 py-1.5 font-sans text-[13px] font-medium transition-colors", activeTab === 'pdf' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50')}
+              className={cn(
+                'border-border border-r px-4 py-1.5 font-sans text-[13px] font-medium transition-colors',
+                activeTab === 'pdf'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent/50'
+              )}
               onClick={() => {
                 setActiveTab('pdf');
                 setFileError(false);
@@ -227,7 +277,12 @@ export default function CreatePlanPage() {
             <button
               type="button"
               role="tab"
-              className={cn("border-border border-r px-4 py-1.5 font-sans text-[13px] font-medium transition-colors", activeTab === 'img' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50')}
+              className={cn(
+                'border-border border-r px-4 py-1.5 font-sans text-[13px] font-medium transition-colors',
+                activeTab === 'img'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent/50'
+              )}
               onClick={() => {
                 setActiveTab('img');
                 setFileError(false);
@@ -239,7 +294,12 @@ export default function CreatePlanPage() {
             <button
               type="button"
               role="tab"
-              className={cn("px-4 py-1.5 font-sans text-[13px] font-medium transition-colors", activeTab === 'text' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50')}
+              className={cn(
+                'px-4 py-1.5 font-sans text-[13px] font-medium transition-colors',
+                activeTab === 'text'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent/50'
+              )}
               onClick={() => {
                 setActiveTab('text');
                 setFileError(false);
@@ -249,12 +309,12 @@ export default function CreatePlanPage() {
               Dán text
             </button>
           </div>
-          
+
           {activeTab === 'text' ? (
             <textarea
               className={cn(
-                "border-border bg-card min-h-40 w-full rounded-[calc(var(--radius)*1.1)] border p-4 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                fileError && "border-destructive focus-visible:ring-destructive"
+                'border-border bg-card focus-visible:ring-primary min-h-40 w-full resize-none rounded-[calc(var(--radius)*1.1)] border p-4 text-sm focus-visible:outline-none focus-visible:ring-1',
+                fileError && 'border-destructive focus-visible:ring-destructive'
               )}
               placeholder="Dán nội dung văn bản vào đây..."
               value={textContent}
@@ -264,17 +324,23 @@ export default function CreatePlanPage() {
               }}
             />
           ) : (
-            <FileDropzone 
-              selectedFile={selectedFile} 
+            <FileDropzone
+              selectedFile={selectedFile}
               onFileSelect={(file) => {
                 setSelectedFile(file);
                 if (file) setFileError(false);
               }}
               error={fileError ? 'Vui lòng tải lên tài liệu để tiếp tục.' : undefined}
-              allowedTypes={activeTab === 'pdf' ? ['application/pdf'] : ['image/png', 'image/jpeg', 'image/jpg']}
+              allowedTypes={
+                activeTab === 'pdf' ? ['application/pdf'] : ['image/png', 'image/jpeg', 'image/jpg']
+              }
               acceptString={activeTab === 'pdf' ? '.pdf' : '.png,.jpg,.jpeg'}
               hintText={activeTab === 'pdf' ? 'PDF · tối đa 10 MB' : 'PNG, JPG · tối đa 10 MB'}
-              errorText={activeTab === 'pdf' ? 'Định dạng không được hỗ trợ. Chỉ nhận PDF.' : 'Định dạng không được hỗ trợ. Chỉ nhận ảnh PNG, JPG.'}
+              errorText={
+                activeTab === 'pdf'
+                  ? 'Định dạng không được hỗ trợ. Chỉ nhận PDF.'
+                  : 'Định dạng không được hỗ trợ. Chỉ nhận ảnh PNG, JPG.'
+              }
             />
           )}
         </Field>
@@ -283,7 +349,12 @@ export default function CreatePlanPage() {
           <Button type="submit" disabled={isSubmitting}>
             Phân tích tài liệu
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate(-1)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting}
+          >
             Hủy
           </Button>
         </div>
