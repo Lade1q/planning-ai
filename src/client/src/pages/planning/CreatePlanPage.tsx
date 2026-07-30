@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Field, FieldLabel, FieldError, FieldDescription } from '@/components/ui/field';
 import { toast } from 'sonner';
 
-import { FileDropzone } from '@/features/study-planner/components/FileDropzone';
+import { FileDropzone, MAX_FILE_SIZE } from '@/features/study-planner/components/FileDropzone';
 import { planApi } from '@/features/study-planner/api/plan.api';
 
 const formSchema = z.object({
@@ -60,6 +60,11 @@ export default function CreatePlanPage() {
         return;
       }
       const blob = new Blob([textContent], { type: 'text/plain' });
+      if (blob.size > MAX_FILE_SIZE) {
+        const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+        toast.error(`Văn bản dán vào nặng ${sizeMB} MB, vượt giới hạn 10 MB.`);
+        return;
+      }
       fileToUpload = new File([blob], 'pasted-text.txt', { type: 'text/plain' });
     } else {
       if (!selectedFile) {
@@ -133,9 +138,9 @@ export default function CreatePlanPage() {
         <span>Tạo mới</span>
       </div>
 
-      <h1 className="font-heading mb-2 text-[30px] leading-tight tracking-tight">Kiểm chứng đồ thị khái niệm</h1>
+      <h1 className="font-heading mb-2 text-[30px] leading-tight tracking-tight">Tạo kế hoạch ôn tập</h1>
       <p className="text-muted-foreground mb-7 max-w-160 text-sm leading-relaxed">
-        Hệ thống sẽ đọc tài liệu của bạn để trích xuất các khái niệm cốt lõi cùng với các quan hệ tiên quyết, giúp khởi tạo một lộ trình học hiệu quả.
+        Nhập tên, chọn hạn hoàn thành và tải lên tài liệu. Hệ thống sẽ phân tích nội dung để trích xuất các khái niệm cốt lõi cùng quan hệ tiên quyết.
       </p>
 
       {/* Thanh 3 bước mô phỏng UI */}
@@ -206,7 +211,7 @@ export default function CreatePlanPage() {
 
         <Field>
           <FieldLabel id="src-label" className="mb-1.5 text-[13px] font-medium">Tài liệu ôn tập</FieldLabel>
-          <div className="bg-card border-border mb-3 flex w-fit overflow-hidden rounded-lg border" role="tablist" aria-labelledby="src-label">
+          <div className="bg-card border-border mb-3 flex w-fit! overflow-hidden rounded-lg border" role="tablist" aria-labelledby="src-label">
             <button
               type="button"
               role="tab"

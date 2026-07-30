@@ -12,7 +12,7 @@ interface FileDropzoneProps {
   errorText?: string;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const DEFAULT_ALLOWED_TYPES = ['application/pdf', 'text/plain', 'image/png', 'image/jpeg'];
 
 export function FileDropzone({ 
