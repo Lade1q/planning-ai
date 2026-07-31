@@ -195,9 +195,9 @@ export async function retryPlanAnalysis(
     }
 
     // 2. Find latest AnalysisJob — must be `failed` to allow retry
-    // TODO: Jobs stuck in `pending`/`processing` (e.g. server restart, Gemini timeout)
-    // block retry forever. Consider a staleness check (e.g. >10min) or a background
-    // cleanup cron. Needs a dedicated follow-up issue (out of scope for #106).
+    // TODO(#178): Jobs stuck in `pending`/`processing` (e.g. server restart, Gemini
+    // timeout) block retry forever. Staleness check (e.g. >10min) or a background
+    // cleanup cron — tracked in #178 (out of scope for #106).
     const latestJob = await tx.analysisJob.findFirst({
       where: { planDraftId: planId },
       orderBy: { createdAt: 'desc' },
