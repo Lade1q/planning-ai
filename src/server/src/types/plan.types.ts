@@ -5,6 +5,7 @@ import {
   AnalysisJobStatus,
   DocumentKind,
 } from '@prisma/client';
+import { MasteryDistribution } from '../utils/mastery';
 
 /** Metadata for the source document persisted alongside a new plan (SP-01, FS-04). */
 export interface DocumentMeta {
@@ -15,12 +16,25 @@ export interface DocumentMeta {
   byteSize: number | null;
 }
 
+/** The source document a plan card names while its analysis is still running (SP-03). */
+export interface PlanDocumentSummary {
+  filename: string;
+  pageCount: number | null;
+}
+
 export interface PlanItemResponse {
   id: string;
   name: string;
   deadline: Date | null;
   status: StudyPlanStatus;
   conceptCount: number;
+  /** Concepts per mastery band, for the distribution bar. Sums to `conceptCount`. */
+  masteryDistribution: MasteryDistribution;
+  /** Latest AnalysisJob's status, or `null` when the plan has never had one. */
+  analysisStatus: AnalysisJobStatus | null;
+  /** When that job was queued — the client turns it into an elapsed timer. */
+  analysisStartedAt: Date | null;
+  document: PlanDocumentSummary | null;
   createdAt: Date;
 }
 
@@ -70,8 +84,32 @@ export interface PlanDetailResponse {
   edges: EdgeItemResponse[];
 }
 
+/** Response shape for PATCH /plans/:id (SP-04, Issue #171). */
+export interface UpdatePlanStatusResponse {
+  id: string;
+  name: string;
+  deadline: Date | null;
+  status: StudyPlanStatus;
+  updatedAt: Date;
+}
+
 /** Response shape for POST /plans/:id/retry (Issue #106). */
 export interface RetryPlanResponse {
+  id: string;
+  name: string;
+  deadline: Date | null;
+  status: StudyPlanStatus;
+  analysisStatus: AnalysisJobStatus;
+}
+
+/**
+ * Response shape for POST /plans/:id/reanalyze (SP-05, Issue #170).
+ *
+ * Same fields as a retry, but the two are not interchangeable: `status` here stays `active`
+ * because the existing graph remains usable while the new job runs, whereas a retry is by
+ * definition a plan still stuck in `draft`.
+ */
+export interface ReanalyzePlanResponse {
   id: string;
   name: string;
   deadline: Date | null;

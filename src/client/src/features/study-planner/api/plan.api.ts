@@ -135,4 +135,22 @@ export const planApi = {
   retryPlan: async (id: string): Promise<void> => {
     await apiClient.post(ENDPOINTS.PLANS.RETRY(id));
   },
+
+  /** Archive a plan (SP-04), or pull an archived one back to active. */
+  setPlanStatus: async (id: string, status: 'active' | 'archived'): Promise<void> => {
+    await apiClient.patch(ENDPOINTS.PLANS.DETAIL(id), { status });
+  },
+
+  /**
+   * Queue a fresh analysis of an active plan's document (SP-05). Returns as soon as the job
+   * is queued — the caller polls the list, same as the create flow.
+   */
+  reanalyzePlan: async (id: string): Promise<void> => {
+    await apiClient.post(ENDPOINTS.PLANS.REANALYZE(id));
+  },
+
+  /** Permanent, cascading delete (SP-04). No undo. */
+  deletePlan: async (id: string): Promise<void> => {
+    await apiClient.delete(ENDPOINTS.PLANS.DETAIL(id));
+  },
 };

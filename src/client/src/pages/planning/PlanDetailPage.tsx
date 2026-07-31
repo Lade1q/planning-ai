@@ -5,7 +5,12 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
 import { planApi, getRetryErrorMessage } from '@/features/study-planner/api/plan.api';
-import { PlanDetails, Concept, ConceptEdge } from '@/features/study-planner/types/concept';
+import {
+  PlanDetails,
+  PlanStatus,
+  Concept,
+  ConceptEdge,
+} from '@/features/study-planner/types/concept';
 
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -102,7 +107,7 @@ export default function PlanDetailPage() {
         if (!prev) return prev;
         return {
           ...prev,
-          status: (result.data?.status as 'draft' | 'active' | 'completed') || prev.status,
+          status: (result.data?.status as PlanStatus) || prev.status,
           graph: { concepts, edges },
         };
       });
@@ -359,7 +364,7 @@ export default function PlanDetailPage() {
             <div className="bg-muted/50 border-border rounded border px-2 py-1 text-sm">
               Status: <span className="font-mono font-medium">{plan?.status || '...'}</span>
             </div>
-            {plan?.status !== 'completed' && (
+            {plan?.status !== 'archived' && (
               <Button variant="outline" size="sm" onClick={() => setSearchParams({ mode: 'edit' })}>
                 Sửa Đồ Thị (Edit Mode)
               </Button>

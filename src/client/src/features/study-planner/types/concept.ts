@@ -17,22 +17,43 @@ export interface PlanGraph {
   edges: ConceptEdge[];
 }
 
+/**
+ * The three values of the backend's `StudyPlanStatus` enum — no more, no less.
+ * (There is no `completed`: a plan the user is done with is `archived`, SP-04.)
+ */
+export type PlanStatus = 'draft' | 'active' | 'archived';
+
+export type AnalysisStatus = 'pending' | 'processing' | 'done' | 'failed';
+
 export interface PlanDetails {
   id: string;
   name: string;
   deadline?: string;
-  status: 'draft' | 'active' | 'completed';
-  analysisStatus?: 'pending' | 'processing' | 'done' | 'failed' | null;
+  status: PlanStatus;
+  analysisStatus?: AnalysisStatus | null;
   dagAutoFixed?: boolean;
   graph: PlanGraph;
 }
 
+/** Concepts per mastery band. Sums to `conceptCount`; `untested` is never folded into `weak`. */
+export interface MasteryDistribution {
+  strong: number;
+  learning: number;
+  weak: number;
+  untested: number;
+}
+
+/** One row of `GET /plans` — everything a plan card on SP-03 draws, with no follow-up call. */
 export interface PlanSummary {
   id: string;
   name: string;
   deadline: string | null;
-  status: 'draft' | 'active' | 'completed';
+  status: PlanStatus;
   conceptCount: number;
+  masteryDistribution: MasteryDistribution;
+  analysisStatus: AnalysisStatus | null;
+  analysisStartedAt: string | null;
+  document: { filename: string; pageCount: number | null } | null;
   createdAt: string;
 }
 
@@ -55,8 +76,8 @@ export interface BackendPlanDetails {
   userId: string;
   name: string;
   deadline: string;
-  status: 'draft' | 'active' | 'completed';
-  analysisStatus: 'pending' | 'processing' | 'done' | 'failed' | null;
+  status: PlanStatus;
+  analysisStatus: AnalysisStatus | null;
   dagAutoFixed: boolean;
   concepts: BackendConcept[];
   edges: BackendEdge[];

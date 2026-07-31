@@ -97,7 +97,10 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
 - **Endpoint:** `GET /api/v1/plans`
 - **Xác thực:** ✅ Yêu cầu Bearer Token
 
+- **Dùng để:** Dựng màn hình Danh sách kế hoạch (SP-03) — mỗi phần tử đủ dữ liệu để vẽ một thẻ kế hoạch mà không cần gọi thêm `GET /plans/:id`.
+
 - **Response thành công (HTTP 200 OK):**
+
   ```json
   {
     "success": true,
@@ -109,12 +112,22 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
           "deadline": "2026-08-30T00:00:00.000Z",
           "status": "draft",
           "conceptCount": 0,
+          "masteryDistribution": { "strong": 0, "learning": 0, "weak": 0, "untested": 0 },
+          "analysisStatus": "processing",
+          "analysisStartedAt": "2026-07-20T21:00:12.000Z",
+          "document": { "filename": "Chuong-4-Kiem-thu.pdf", "pageCount": 28 },
           "createdAt": "2026-07-20T21:00:00.000Z"
         }
       ]
     }
   }
   ```
+
+- **`masteryDistribution`** đếm concept theo 4 mức, tổng luôn bằng `conceptCount`. Ngưỡng: `strong ≥ 0.8`, `0.6 ≤ learning < 0.8`, `weak < 0.6`, `untested` là `mastery_score = null`. **`untested` không gộp vào `weak`**: "chưa hỏi bao giờ" khác hẳn "hỏi rồi và sai". Concept `deprecated` (do re-analyze loại bỏ, mục 6) không được đếm.
+
+- **`analysisStatus` / `analysisStartedAt`** lấy từ `AnalysisJob` gần nhất của Plan, cùng quy tắc "mới nhất theo `createdAt`" như mục 3; `null` khi Plan chưa có job nào. `analysisStartedAt` để client hiển thị đồng hồ đếm thời gian đã chạy.
+
+- **`document`** là tài liệu nguồn mới nhất của Plan, `null` nếu chưa có. `pageCount` là `null` với tài liệu không phân trang (text/ảnh).
 
 ---
 
@@ -205,6 +218,7 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
 
   - `dagAutoFixed: true` nếu Gemini trả về đồ thị chứa chu trình và hệ thống đã tự loại cạnh gây lỗi.
   - `concepts[].masteryScore` luôn là `null` cho tới khi user hoàn thành phiên Interview đầu tiên trên khái niệm đó (Sprint 4 — AI Examiner).
+  - `concepts` chỉ trả `status = 'active'`. Concept `deprecated` (re-analyze loại bỏ, mục 6) vẫn còn trong DB làm tombstone giữ lịch sử — hồi sinh lại nếu re-analyze sau này gặp lại đúng tên — nhưng không xuất hiện ở đây, vì đây là đồ thị hiện tại của Plan chứ không phải lịch sử chỉnh sửa.
 
 - **Lỗi không tìm thấy Plan (HTTP 404 Not Found):**
 
@@ -419,7 +433,122 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
 
 ---
 
-### 6. Xóa Study Plan (Delete Study Plan)
+### 6. Phân tích lại Study Plan (Re-analyze) — SP-05
+
+- **Endpoint:** `POST /api/v1/plans/:id/reanalyze`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Content-Type:** Không cần body (empty POST)
+- **Dùng để:** Tài liệu được cập nhật, hoặc user muốn dựng lại đồ thị. Server đọc lại `fileKey` của `Document` **mới nhất** (không upload lại) và tạo `AnalysisJob` mới.
+
+**Khác với Retry (mục 5):** retry cứu một Plan `draft` có job `failed`; re-analyze chạy trên Plan **đang `active`** và Plan **giữ nguyên `active`** trong lúc job chạy — đồ thị cũ vẫn dùng được, không có khoảng trống.
+
+**Chính sách hợp nhất đồ thị (bắt buộc đọc):** kết quả mới được **merge** vào đồ thị cũ, không ghi đè. Đối chiếu theo tên concept đã chuẩn hoá (bỏ khoảng trắng thừa + không phân biệt hoa/thường):
+
+| Trường hợp                         | Xử lý                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Tên có ở cả cũ và mới              | **Giữ nguyên row** → `mastery_score`, lịch sử vấn đáp, review queue còn nguyên. Cập nhật `difficulty` + tên theo bản mới |
+| Tên chỉ có ở bản mới               | Tạo concept mới, `mastery_score = null`                                                                                  |
+| Tên chỉ có ở bản cũ                | `status = 'deprecated'` — **không xóa**, để không mất lịch sử học                                                        |
+| Concept `deprecated` xuất hiện lại | Hồi sinh chính row cũ → điểm cũ quay lại                                                                                 |
+
+Cạnh (`ConceptEdge`) thì **dựng lại toàn bộ** theo bản mới — cạnh không mang dữ liệu học tập nào đáng giữ. `dag_auto_fixed` tính lại như luồng SP-01.
+
+- **Response thành công (HTTP 202 Accepted):**
+
+  ```json
+  {
+    "success": true,
+    "data": {
+      "plan": {
+        "id": "c1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
+        "name": "Kế hoạch ôn thi Giải tích",
+        "deadline": "2026-08-30T00:00:00.000Z",
+        "status": "active",
+        "analysisStatus": "pending"
+      },
+      "message": "Re-analysis initiated"
+    }
+  }
+  ```
+
+  Client tiếp tục polling `GET /api/v1/plans/:id` như mục 1.1.
+
+- **Lỗi Plan không ở trạng thái `active` (HTTP 409 Conflict):**
+
+  Plan `draft` thuộc về retry (mục 5); Plan `archived` phải khôi phục (mục 7) trước.
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "REANALYZE_NOT_ALLOWED",
+      "message": "Only an active plan can be re-analysed"
+    }
+  }
+  ```
+
+- **Lỗi đang có job chạy (HTTP 409 Conflict):** `message: "An analysis is already in progress"`, cùng `code`. Hai request đồng thời được tuần tự hoá bằng `SELECT ... FOR UPDATE` nên chỉ một job được tạo.
+
+- **Lỗi Plan không có tài liệu nguồn (HTTP 409 Conflict):** `message: "This plan has no source document to re-analyse"`, cùng `code`.
+
+- **Lỗi không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.
+
+---
+
+### 7. Lưu trữ / Khôi phục Study Plan (Archive) — SP-04
+
+- **Endpoint:** `PATCH /api/v1/plans/:id`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Content-Type:** `application/json`
+
+- **Request body:**
+
+  ```json
+  { "status": "archived" }
+  ```
+
+  Chỉ nhận `"archived"` (lưu trữ) hoặc `"active"` (khôi phục). Giá trị `"draft"` bị từ chối — chỉ pipeline phân tích được đặt trạng thái đó; cho client gửi sẽ đẩy một Plan đã có đồ thị đầy đủ kẹt vĩnh viễn ở tab "Đang phân tích".
+
+- **Response thành công (HTTP 200 OK):**
+
+  ```json
+  {
+    "success": true,
+    "data": {
+      "plan": {
+        "id": "c1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
+        "name": "Kế hoạch ôn thi Giải tích",
+        "deadline": "2026-08-30T00:00:00.000Z",
+        "status": "archived",
+        "updatedAt": "2026-07-31T09:00:00.000Z"
+      }
+    }
+  }
+  ```
+
+  Đặt lại đúng trạng thái Plan đang có là **no-op và vẫn trả 200** — nhấn "Lưu trữ" hai lần không sinh lỗi.
+
+- **Lỗi body sai (HTTP 400 Bad Request):** `code: "VALIDATION_ERROR"`.
+
+- **Lỗi Plan đang ở `draft` (HTTP 409 Conflict):**
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "STATUS_TRANSITION_NOT_ALLOWED",
+      "message": "A plan that is still being analysed cannot be archived"
+    }
+  }
+  ```
+
+  Lưu trữ là cách cất đi tài liệu đã học xong; một `draft` chưa có nội dung nào để cất — thao tác áp dụng cho nó là retry (mục 5) hoặc xóa (mục 8).
+
+- **Lỗi không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.
+
+---
+
+### 8. Xóa Study Plan (Delete Study Plan)
 
 - **Endpoint:** `DELETE /api/v1/plans/:id`
 - **Xác thực:** ✅ Yêu cầu Bearer Token
