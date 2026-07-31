@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
@@ -22,7 +22,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setError,
     setFocus,
     formState: { errors, isSubmitting },
@@ -31,7 +31,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     mode: 'onTouched',
   });
 
-  const passwordValue = watch('password');
+  const passwordValue = useWatch({ control, name: 'password' });
   const isPasswordValid = Boolean(passwordValue && passwordValue.length >= 8 && !errors.password);
 
   const onSubmit = async (data: RegisterFormData) => {

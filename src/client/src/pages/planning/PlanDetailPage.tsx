@@ -27,6 +27,7 @@ export default function PlanDetailPage() {
 
     async function loadPlan() {
       if (!id) return;
+      if (!plan || plan.id !== id) setIsLoading(true);
       try {
         const data = await planApi.getPlan(id);
         if (!isMounted) return;
@@ -55,7 +56,6 @@ export default function PlanDetailPage() {
       }
     }
 
-    setIsLoading(true);
     loadPlan();
 
     return () => {
