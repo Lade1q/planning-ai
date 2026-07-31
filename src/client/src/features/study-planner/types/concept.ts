@@ -27,6 +27,15 @@ export interface PlanDetails {
   graph: PlanGraph;
 }
 
+export interface PlanSummary {
+  id: string;
+  name: string;
+  deadline: string | null;
+  status: 'draft' | 'active' | 'completed';
+  conceptCount: number;
+  createdAt: string;
+}
+
 // Backend Response Types
 export interface BackendConcept {
   id: string;
