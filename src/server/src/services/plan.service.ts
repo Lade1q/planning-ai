@@ -1,12 +1,15 @@
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { CreatePlanInput } from '../schemas/plan.schema';
+import { createStorageService } from './storage.service';
 import {
   CreatePlanResponse,
   PlanItemResponse,
   PlanDetailResponse,
   DocumentMeta,
 } from '../types/plan.types';
+
+const storageService = createStorageService();
 
 /**
  * Creates a new StudyPlan (draft), its source Document, and the pending AnalysisJob
@@ -151,4 +154,66 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     concepts: plan.concepts,
     edges: plan.conceptEdges,
   };
+}
+
+/**
+ * Permanently deletes a study plan and all associated data.
+ *
+ * Cascade (via Prisma onDelete: Cascade) handles:
+ *   Concept, ConceptEdge, InterviewSession → InterviewTurn,
+ *   FocusSession, ReviewQueueItem, Document → ConceptSourceRef, QuestionCache.
+ *
+ * Manual cleanup required:
+ *   - AnalysisJob: no FK constraint to StudyPlan (async draft flow by design).
+ *   - Storage files: physical files referenced by Document.fileKey.
+ */
+export async function deletePlan(planId: string, userId: string): Promise<void> {
+  // 1. Fetch plan with document file keys for later storage cleanup
+  const plan = await prisma.studyPlan.findUnique({
+    where: { id: planId },
+    select: {
+      userId: true,
+      documents: { select: { fileKey: true } },
+    },
+  });
+
+  if (!plan) {
+    throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+  }
+
+  if (plan.userId !== userId) {
+    throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+  }
+
+  // 2. Collect file keys BEFORE deleting DB records (cascade will remove Document rows).
+  //    We key cleanup off Document.fileKey (the durable home for the file); in every
+  //    current flow each stored object also has a Document row, so a job that reuses the
+  //    same fileKey points at the same object. A file referenced ONLY by an AnalysisJob
+  //    (no matching Document) is not cleaned here — no such flow exists today.
+  const fileKeys = plan.documents.map((d) => d.fileKey);
+
+  // 3. Delete AnalysisJob (no FK → not cascade-deleted) + StudyPlan atomically.
+  //    P2025 means the plan row was already removed between the fetch above and here
+  //    (concurrent DELETE) — treat it as "not found" so the endpoint stays idempotent.
+  try {
+    await prisma.$transaction([
+      prisma.analysisJob.deleteMany({ where: { planDraftId: planId } }),
+      prisma.studyPlan.delete({ where: { id: planId } }),
+    ]);
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'P2025') {
+      throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+    }
+    throw err;
+  }
+
+  // 4. Best-effort storage cleanup — DB is source of truth, don't fail the request
+  const results = await Promise.allSettled(fileKeys.map((key) => storageService.delete(key)));
+
+  const failures = results.filter((r) => r.status === 'rejected');
+  if (failures.length > 0) {
+    console.warn(
+      `[deletePlan] Failed to cleanup ${failures.length}/${fileKeys.length} storage files for plan ${planId}`
+    );
+  }
 }
