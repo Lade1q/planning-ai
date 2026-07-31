@@ -91,7 +91,10 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
       deadline: true,
       status: true,
       createdAt: true,
-      concepts: { select: { masteryScore: true } },
+      // Deprecated concepts (SP-05 re-analyze, #170) are tombstones for history, not
+      // material to review — a card counting them would tell a student "4 khái niệm"
+      // for a plan whose document currently only covers 3.
+      concepts: { where: { status: 'active' }, select: { masteryScore: true } },
       documents: {
         select: { filename: true, pageCount: true },
         orderBy: { createdAt: 'desc' },
@@ -148,7 +151,11 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     prisma.studyPlan.findUnique({
       where: { id: planId },
       include: {
+        // Deprecated concepts (SP-05 re-analyze, #170) are kept in the DB as tombstones —
+        // a revived one gets its old mastery back — but they are not part of the plan a
+        // student currently studies, so the graph they land on must not show them.
         concepts: {
+          where: { status: 'active' },
           select: {
             id: true,
             name: true,
@@ -371,17 +378,25 @@ export async function reanalyzePlan(
       throw new AppError('Only an active plan can be re-analysed', 409, 'REANALYZE_NOT_ALLOWED');
     }
 
-    // TODO(#178): a job wedged in `pending`/`processing` (server restart, Gemini timeout)
-    // blocks re-analysis forever, exactly as it blocks retry. The staleness sweep tracked
-    // in #178 covers both.
+    // A job wedged in `pending`/`processing` (server restart, Gemini timeout) would
+    // otherwise block re-analysis forever, same failure shape retryPlanAnalysis has —
+    // release it past the same threshold rather than making the user wait for the
+    // background sweep in cleanupStaleJobs (#178).
     const latestJob = await tx.analysisJob.findFirst({
       where: { planDraftId: planId },
       orderBy: { createdAt: 'desc' },
-      select: { status: true },
+      select: { id: true, status: true, createdAt: true },
     });
 
     if (latestJob?.status === 'pending' || latestJob?.status === 'processing') {
-      throw new AppError('An analysis is already in progress', 409, 'REANALYZE_NOT_ALLOWED');
+      const isStale = Date.now() - latestJob.createdAt.getTime() > STALE_JOB_THRESHOLD_MS;
+      if (!isStale) {
+        throw new AppError('An analysis is already in progress', 409, 'REANALYZE_NOT_ALLOWED');
+      }
+      await tx.analysisJob.update({
+        where: { id: latestJob.id },
+        data: { status: 'failed', completedAt: new Date() },
+      });
     }
 
     const document = await tx.document.findFirst({

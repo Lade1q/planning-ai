@@ -218,6 +218,7 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
 
   - `dagAutoFixed: true` nếu Gemini trả về đồ thị chứa chu trình và hệ thống đã tự loại cạnh gây lỗi.
   - `concepts[].masteryScore` luôn là `null` cho tới khi user hoàn thành phiên Interview đầu tiên trên khái niệm đó (Sprint 4 — AI Examiner).
+  - `concepts` chỉ trả `status = 'active'`. Concept `deprecated` (re-analyze loại bỏ, mục 6) vẫn còn trong DB làm tombstone giữ lịch sử — hồi sinh lại nếu re-analyze sau này gặp lại đúng tên — nhưng không xuất hiện ở đây, vì đây là đồ thị hiện tại của Plan chứ không phải lịch sử chỉnh sửa.
 
 - **Lỗi không tìm thấy Plan (HTTP 404 Not Found):**
 

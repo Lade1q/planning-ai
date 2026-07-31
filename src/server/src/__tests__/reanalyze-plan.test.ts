@@ -7,7 +7,7 @@ import { AppError } from '../middleware/errorHandler';
 jest.mock('../config/prisma', () => {
   const client = {
     studyPlan: { findUnique: jest.fn() },
-    analysisJob: { findFirst: jest.fn(), create: jest.fn() },
+    analysisJob: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     document: { findFirst: jest.fn() },
     $queryRaw: jest.fn().mockResolvedValue([]),
     $transaction: jest.fn(),
@@ -94,15 +94,47 @@ describe('reanalyzePlan', () => {
     expect(mockedPrisma.analysisJob.create).not.toHaveBeenCalled();
   });
 
-  // --- Test 5: đang có job chạy — chống hai job cùng ghi đè một đồ thị ---
-  it.each(['pending', 'processing'])('throws 409 when a job is already %s', async (status) => {
-    arrangeReanalyzable();
-    (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({ status });
+  // --- Test 5: đang có job chạy (mới tạo, chưa stale) — chống hai job cùng ghi đè một đồ thị ---
+  it.each(['pending', 'processing'])(
+    'throws 409 when a fresh job is already %s',
+    async (status) => {
+      arrangeReanalyzable();
+      (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
+        status,
+        createdAt: new Date(),
+      });
 
-    const error = await reanalyzePlan(PLAN_ID, OWNER_ID).catch((e) => e);
-    expect(error).toMatchObject({ statusCode: 409, code: 'REANALYZE_NOT_ALLOWED' });
-    expect(mockedPrisma.analysisJob.create).not.toHaveBeenCalled();
-  });
+      const error = await reanalyzePlan(PLAN_ID, OWNER_ID).catch((e) => e);
+      expect(error).toMatchObject({ statusCode: 409, code: 'REANALYZE_NOT_ALLOWED' });
+      expect(mockedPrisma.analysisJob.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled();
+    }
+  );
+
+  // --- Test 5b: job pending/processing kẹt quá ngưỡng — cùng cơ chế release với retry (#178) ---
+  it.each(['pending', 'processing'])(
+    'releases a %s job stuck past the staleness threshold and proceeds',
+    async (status) => {
+      arrangeReanalyzable();
+      const staleCreatedAt = new Date(Date.now() - 11 * 60 * 1000); // 11 min ago > 10 min threshold
+      (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
+        id: 'stuck-job-uuid',
+        status,
+        createdAt: staleCreatedAt,
+      });
+
+      const result = await reanalyzePlan(PLAN_ID, OWNER_ID);
+
+      expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
+        where: { id: 'stuck-job-uuid' },
+        data: { status: 'failed', completedAt: expect.any(Date) },
+      });
+      expect(mockedPrisma.analysisJob.create).toHaveBeenCalledWith({
+        data: { planDraftId: PLAN_ID, fileKey: FILE_KEY, status: 'pending' },
+      });
+      expect(result.analysisStatus).toBe('pending');
+    }
+  );
 
   // --- Test 6: một job failed trước đó không chặn re-analyze ---
   it('allows re-analysis after a previous job failed', async () => {
