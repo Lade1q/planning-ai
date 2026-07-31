@@ -65,7 +65,7 @@ export const planApi = {
     concepts.forEach(c => nameMap.set(c.id, c.name));
 
     const backendConcepts = concepts.map(c => {
-      const payload: any = { name: c.name };
+      const payload: { name: string; difficulty?: number } = { name: c.name };
       if (c.difficulty != null) {
         payload.difficulty = c.difficulty;
       }
