@@ -13,6 +13,7 @@ import {
   NodeProps,
   Node,
   ReactFlowInstance,
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,8 @@ import { getLayoutedElements, hasCycle, toReactFlowEdges, toReactFlowNodes } fro
 // --- CUSTOM NODE ---
 function ConceptNode({ data, selected }: NodeProps) {
   const score = data.mastery as number | null;
-  const hasSource = !!data.description;
+  // Tạm thời coi như luôn có nguồn (vì API chưa trả về excerpt) để tránh cờ đỏ toàn bộ.
+  // Khi nào API support thì sẽ check dựa trên c.description.
   const difficulty = (data.difficulty as number | undefined) ?? null;
   
   let nodeClass = 'concept-node--untested';
@@ -37,9 +39,9 @@ function ConceptNode({ data, selected }: NodeProps) {
   }
 
   return (
-    <div className={`node ${selected ? 'node--sel' : ''} ${!hasSource ? 'node--nosrc' : ''}`}>
+    <div className={`node ${selected ? 'node--sel' : ''}`}>
       <div className={`concept-node ${nodeClass}`} style={{ width: '136px', position: 'relative' }}>
-        <Handle type="target" position={Position.Left} className="opacity-0 w-2 h-2 -left-1" />
+        <Handle type="target" position={Position.Left} className="w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -left-2" />
         
         <span>{data.label as string}</span>
         {score !== null && (
@@ -48,22 +50,11 @@ function ConceptNode({ data, selected }: NodeProps) {
           </span>
         )}
 
-        <Handle type="source" position={Position.Right} className="opacity-0 w-2 h-2 -right-1" />
+        <Handle type="source" position={Position.Right} className="w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -right-2" />
       </div>
 
-      {!hasSource && (
-        <span className="node__flag" title="Không có trích đoạn nguồn">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round">
-            <path d="M12 6v8" />
-            <path d="M12 18h.01" />
-          </svg>
-        </span>
-      )}
-
       <div className="node__diff">
-        {hasSource
-          ? difficulty !== null ? `độ khó ${difficulty}/5` : 'có nguồn'
-          : 'chưa có nguồn'}
+        {difficulty !== null ? `độ khó ${difficulty}/5` : 'có nguồn'}
       </div>
     </div>
   );
@@ -147,13 +138,17 @@ export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm }:
     (params: Connection | Edge) => {
       if (mode !== 'edit') return;
 
-      const newEdge: Edge = { 
-        ...params, 
-        id: `e_${params.source}_${params.target}_${Date.now()}`, 
-        animated: false,
+      const newEdge = {
+        id: `e_${Date.now()}`,
         type: 'straight',
-        style: { stroke: 'var(--mastery-untested)', strokeWidth: 1.5 },
-        markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: 'var(--mastery-untested)' },
+        animated: false,
+        className: 'concept-edge',
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 12,
+          height: 12,
+          color: 'var(--mastery-untested)'
+        },
         source: params.source,
         target: params.target
       } as Edge;
@@ -235,12 +230,7 @@ export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm }:
     setNewConceptName('');
     setIsAddDialogOpen(false);
     toast.success(`Đã thêm khái niệm "${name}".`);
-
-    // Re-layout after adding
-    setTimeout(() => {
-      onLayout();
-    }, 50);
-  }, [newConceptName, nodes, setNodes, onLayout]);
+  }, [newConceptName, nodes, setNodes]);
 
   // --- DELETE NODE ---
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -368,7 +358,7 @@ export function ConceptGraph({ initialConcepts, initialEdges, mode, onConfirm }:
       </div>
 
       {mode === 'edit' && selectedNode && (
-        <aside className="w-[320px] shrink-0 flex flex-col gap-4 p-[18px_18px_20px] min-w-0 bg-card overflow-y-auto">
+        <aside className="w-70 lg:w-80 shrink-0 absolute right-0 top-0 bottom-0 z-10 shadow-lg border-l border-border lg:static lg:shadow-none lg:border-none flex flex-col gap-4 p-[18px_18px_20px] bg-card overflow-y-auto">
               <div>
                 <p className="font-mono text-[10.5px] tracking-[0.07em] uppercase text-muted-foreground mb-1.5">Khái niệm đang chọn</p>
                 <h2 className="font-heading text-[19px] tracking-[-0.015em] leading-tight mb-2">{selectedNode.data.label as string}</h2>

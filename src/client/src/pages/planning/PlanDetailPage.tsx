@@ -22,11 +22,15 @@ export default function PlanDetailPage() {
   const hasAutoSwitchedToEdit = useRef(false);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let isMounted = true;
+
     async function loadPlan() {
       if (!id) return;
-      setIsLoading(true);
       try {
         const data = await planApi.getPlan(id);
+        if (!isMounted) return;
+        
         setPlan(data);
 
         // Auto-switch draft plan sang edit mode (chỉ 1 lần duy nhất)
@@ -34,15 +38,30 @@ export default function PlanDetailPage() {
           hasAutoSwitchedToEdit.current = true;
           setSearchParams({ mode: 'edit' }, { replace: true });
         }
+
+        if (data.analysisStatus === 'pending' || data.analysisStatus === 'processing') {
+          timeoutId = setTimeout(loadPlan, 2500);
+        } else {
+          if (data.analysisStatus === 'failed') {
+            toast.error('Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.');
+          }
+          setIsLoading(false);
+        }
       } catch (error) {
+        if (!isMounted) return;
         console.error('Failed to load plan', error);
         toast.error('Không thể tải dữ liệu kế hoạch.');
-      } finally {
         setIsLoading(false);
       }
     }
 
+    setIsLoading(true);
     loadPlan();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ re-fetch khi id thay đổi
   }, [id]);
 
@@ -115,26 +134,34 @@ export default function PlanDetailPage() {
           </li>
         </ol>
 
-        <div className="h-150">
-          {isLoading ? (
-            <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card">
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span>Đang tải đồ thị...</span>
-              </div>
-            </div>
-          ) : plan ? (
-            <ConceptGraph
-              initialConcepts={plan.graph.concepts}
-              initialEdges={plan.graph.edges}
-              mode={mode}
-              onConfirm={handleConfirmGraph}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card text-muted-foreground">
-              Không tìm thấy dữ liệu đồ thị.
+        <div className="h-150 flex flex-col gap-4">
+          {plan?.dagAutoFixed && mode === 'edit' && (
+            <div className="flex items-center gap-2 p-3 text-sm text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-md">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              <span>Hệ thống đã tự động loại bỏ một số quan hệ gây vòng lặp để đảm bảo cấu trúc hợp lệ.</span>
             </div>
           )}
+          <div className="flex-1 min-h-0">
+            {isLoading ? (
+              <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card">
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span>Đang tải đồ thị...</span>
+                </div>
+              </div>
+            ) : plan ? (
+              <ConceptGraph
+                initialConcepts={plan.graph.concepts}
+                initialEdges={plan.graph.edges}
+                mode={mode}
+                onConfirm={handleConfirmGraph}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card text-muted-foreground">
+                Không tìm thấy dữ liệu đồ thị.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );

@@ -12,7 +12,7 @@ export function toReactFlowNodes(concepts: Concept[]): Node[] {
     id: c.id,
     type: 'conceptNode',
     // Giữ description trong data để không mất khi convert ngược
-    data: { label: c.name, mastery: c.mastery_score, description: c.description ?? '' },
+    data: { label: c.name, mastery: c.mastery_score, description: c.description ?? '', difficulty: c.difficulty ?? null },
     position: { x: 0, y: 0 }, // Position will be overwritten by dagre layout
   }));
 }
@@ -25,8 +25,8 @@ export function toReactFlowEdges(edges: ConceptEdge[]): Edge[] {
     target: e.target,
     animated: false,
     type: 'straight',
+    className: 'concept-edge', // allow CSS overriding
     style: {
-      stroke: 'var(--mastery-untested)',
       strokeWidth: 1.5,
     },
     markerEnd: {

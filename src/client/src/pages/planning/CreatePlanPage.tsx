@@ -33,7 +33,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function CreatePlanPage() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<'idle' | 'uploading' | 'analyzing'>('idle');
   const [fileError, setFileError] = useState(false);
   const [activeTab, setActiveTab] = useState<'pdf' | 'img' | 'text'>('pdf');
   const [textContent, setTextContent] = useState('');
@@ -80,32 +80,45 @@ export default function CreatePlanPage() {
     setFileError(false);
 
     try {
-      setIsSubmitting(true);
+      setSubmitPhase('uploading');
       const formData = new FormData();
       formData.append('name', values.planName);
       formData.append('deadline', format(values.deadline, 'yyyy-MM-dd'));
-
       formData.append('file', fileToUpload!);
 
       const response = await planApi.createPlan(formData);
+      
+      setSubmitPhase('analyzing');
+      
+      let currentStatus = 'pending';
+      while (currentStatus === 'pending' || currentStatus === 'processing') {
+         await new Promise(resolve => setTimeout(resolve, 2500));
+         const plan = await planApi.getPlan(response.planId);
+         currentStatus = plan.analysisStatus || 'done'; 
+         if (currentStatus === 'failed') {
+            toast.error("Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.");
+            setSubmitPhase('idle');
+            return;
+         }
+      }
 
       // Redirect to Concept Graph page in edit mode
       navigate(`/plan/${response.planId}?mode=edit`);
     } catch (error) {
       console.error('Failed to create plan:', error);
-      toast.error('Có lỗi xảy ra khi tải tài liệu lên. Vui lòng thử lại.');
-    } finally {
-      setIsSubmitting(false);
+      toast.error('Có lỗi xảy ra khi tạo kế hoạch. Vui lòng thử lại.');
+      setSubmitPhase('idle');
     }
   };
 
-  if (isSubmitting) {
+  if (submitPhase !== 'idle') {
     return (
       <div className="max-w-155 mx-auto flex w-full flex-col gap-3.5 pt-6">
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-[15px] font-semibold">
-            Đang phân tích “
-            {activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”
+            {submitPhase === 'uploading'
+              ? `Đang tải lên “${activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”`
+              : `AI đang phân tích “${activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”`}
           </span>
           <span className="text-muted-foreground font-mono text-xs">0:00</span>
         </div>
@@ -118,17 +131,20 @@ export default function CreatePlanPage() {
         <div className="flex flex-col gap-2">
           <div className="text-foreground flex items-center gap-2.5 text-[13px] font-medium">
             <Loader2 className="text-primary h-3.75 w-3.75 animate-spin" />
-            Trích xuất khái niệm, độ khó và quan hệ tiên quyết
+            {submitPhase === 'uploading' 
+               ? 'Đang gửi dữ liệu lên máy chủ...' 
+               : 'Trích xuất khái niệm, độ khó và quan hệ tiên quyết'}
           </div>
         </div>
-        <div className="bg-primary/5 border-primary/30 text-muted-foreground mt-2 flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed">
-          <Loader2 className="text-primary mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-          <span>
-            <strong className="text-foreground font-semibold">Bạn có thể rời trang.</strong> Kế
-            hoạch đã được lưu ở trạng thái nháp; phân tích chạy nền và sẽ hiện trong danh sách kế
-            hoạch khi xong. Không cần mở trang này.
-          </span>
-        </div>
+        {submitPhase === 'analyzing' && (
+          <div className="bg-primary/5 border-primary/30 text-muted-foreground mt-2 flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed">
+            <Loader2 className="text-primary mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+            <span>
+              <strong className="text-foreground font-semibold">Bạn có thể rời trang.</strong> Kế
+              hoạch đã được lưu ở trạng thái nháp; phân tích chạy nền và sẽ tự động chuyển trang khi xong.
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -346,14 +362,14 @@ export default function CreatePlanPage() {
         </Field>
 
         <div className="mt-2 flex gap-2.5">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={submitPhase !== 'idle'}>
             Phân tích tài liệu
           </Button>
           <Button
             type="button"
             variant="ghost"
             onClick={() => navigate(-1)}
-            disabled={isSubmitting}
+            disabled={submitPhase !== 'idle'}
           >
             Hủy
           </Button>

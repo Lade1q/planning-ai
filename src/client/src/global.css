@@ -409,6 +409,20 @@
   stroke-width: 1.5;
 }
 
+.concept-edge .react-flow__edge-path {
+  stroke: var(--mastery-untested);
+}
+
+.concept-edge.selected .react-flow__edge-path {
+  stroke: var(--primary);
+  stroke-width: 2.5;
+}
+
+.concept-edge.selected polygon {
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
 .react-flow__edge--prerequisite-weak .react-flow__edge-path {
   stroke: var(--mastery-weak);
   stroke-dasharray: 4 3;
