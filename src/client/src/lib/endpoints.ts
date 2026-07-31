@@ -12,5 +12,7 @@ export const ENDPOINTS = {
   },
   PLANS: {
     BASE: '/api/v1/plans',
+    DETAIL: (id: string) => `/api/v1/plans/${id}`,
+    REANALYZE: (id: string) => `/api/v1/plans/${id}/reanalyze`,
   },
 } as const;

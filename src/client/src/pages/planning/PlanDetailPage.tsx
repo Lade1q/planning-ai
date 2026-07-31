@@ -4,7 +4,12 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
 import { planApi } from '@/features/study-planner/api/plan.api';
-import { PlanDetails, Concept, ConceptEdge } from '@/features/study-planner/types/concept';
+import {
+  PlanDetails,
+  PlanStatus,
+  Concept,
+  ConceptEdge,
+} from '@/features/study-planner/types/concept';
 
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +36,7 @@ export default function PlanDetailPage() {
       try {
         const data = await planApi.getPlan(id);
         if (!isMounted) return;
-        
+
         setPlan(data);
 
         // Auto-switch draft plan sang edit mode (chỉ 1 lần duy nhất)
@@ -77,7 +82,7 @@ export default function PlanDetailPage() {
         if (!prev) return prev;
         return {
           ...prev,
-          status: (result.data?.status as 'draft' | 'active' | 'completed') || prev.status,
+          status: (result.data?.status as PlanStatus) || prev.status,
           graph: { concepts, edges },
         };
       });
@@ -87,12 +92,11 @@ export default function PlanDetailPage() {
     }
   };
 
-
   // ----------------- EDIT MODE LAYOUT -----------------
   if (mode === 'edit') {
     return (
-      <div className="mx-auto w-full max-w-5xl pb-12 pt-6 px-4">
-        <div className="mb-4 flex items-center gap-2 text-[13px] text-muted-foreground">
+      <div className="mx-auto w-full max-w-5xl px-4 pb-12 pt-6">
+        <div className="text-muted-foreground mb-4 flex items-center gap-2 text-[13px]">
           <button
             onClick={() => navigate('/plans')}
             className="hover:text-foreground hover:border-border border-b border-transparent pb-px transition-colors"
@@ -100,8 +104,15 @@ export default function PlanDetailPage() {
             Kế hoạch ôn tập
           </button>
           <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="opacity-50"
           >
             <path d="M9 6l6 6-6 6" />
           </svg>
@@ -111,41 +122,82 @@ export default function PlanDetailPage() {
         <h1 className="font-heading mb-2 text-[30px] leading-tight tracking-tight">
           Kiểm chứng đồ thị khái niệm
         </h1>
-        <p className="text-muted-foreground max-w-160 mb-7 text-[14px] leading-[1.7] text-pretty">
-          AI đã đề xuất các khái niệm cùng quan hệ tiên quyết. Đối chiếu từng khái niệm với trích đoạn gốc bên phải rồi mới xác nhận — bước này bắt buộc, hệ thống không tự động tin kết quả AI.
+        <p className="text-muted-foreground max-w-160 mb-7 text-pretty text-[14px] leading-[1.7]">
+          AI đã đề xuất các khái niệm cùng quan hệ tiên quyết. Đối chiếu từng khái niệm với trích
+          đoạn gốc bên phải rồi mới xác nhận — bước này bắt buộc, hệ thống không tự động tin kết quả
+          AI.
         </p>
 
         <ol className="bg-card border-border mb-6 flex overflow-hidden rounded-[calc(var(--radius)*0.9)] border">
-          <li className="text-muted-foreground border-border flex flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px] min-w-0">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5.2 5.2L20 7" /></svg>
+          <li className="text-muted-foreground border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]">
+            <span className="border-primary/40 bg-primary/10 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 12.5l5.2 5.2L20 7" />
+              </svg>
             </span>
             <span className="truncate">Nhập thông tin & tải tài liệu</span>
           </li>
-          <li className="text-muted-foreground border-border flex flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px] min-w-0">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5.2 5.2L20 7" /></svg>
+          <li className="text-muted-foreground border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]">
+            <span className="border-primary/40 bg-primary/10 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 12.5l5.2 5.2L20 7" />
+              </svg>
             </span>
             <span className="truncate">AI phân tích</span>
           </li>
-          <li className="bg-accent text-foreground flex flex-1 items-center gap-2.5 px-4 py-3 text-[13px] font-semibold min-w-0">
-            <span className="bg-primary text-primary-foreground border-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">3</span>
+          <li className="bg-accent text-foreground flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-[13px] font-semibold">
+            <span className="bg-primary text-primary-foreground border-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">
+              3
+            </span>
             <span className="truncate">Kiểm chứng & xác nhận</span>
           </li>
         </ol>
 
         <div className="h-150 flex flex-col gap-4">
           {plan?.dagAutoFixed && mode === 'edit' && (
-            <div className="flex items-center gap-2 p-3 text-sm text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-md">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-              <span>Hệ thống đã tự động loại bỏ một số quan hệ gây vòng lặp để đảm bảo cấu trúc hợp lệ.</span>
+            <div className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-600">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>
+                Hệ thống đã tự động loại bỏ một số quan hệ gây vòng lặp để đảm bảo cấu trúc hợp lệ.
+              </span>
             </div>
           )}
-          <div className="flex-1 min-h-0">
+          <div className="min-h-0 flex-1">
             {isLoading ? (
-              <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card">
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="border-border bg-card flex h-full w-full items-center justify-center rounded-xl border">
+                <div className="text-muted-foreground flex flex-col items-center gap-2">
+                  <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
                   <span>Đang tải đồ thị...</span>
                 </div>
               </div>
@@ -157,7 +209,7 @@ export default function PlanDetailPage() {
                 onConfirm={handleConfirmGraph}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-card text-muted-foreground">
+              <div className="border-border bg-card text-muted-foreground flex h-full w-full items-center justify-center rounded-xl border">
                 Không tìm thấy dữ liệu đồ thị.
               </div>
             )}
@@ -169,9 +221,9 @@ export default function PlanDetailPage() {
 
   // ----------------- VIEW MODE LAYOUT -----------------
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] p-6">
-      <div className="flex-none mb-4">
-        <div className="mb-2 flex items-center gap-2 text-[13px] text-muted-foreground">
+    <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
+      <div className="mb-4 flex-none">
+        <div className="text-muted-foreground mb-2 flex items-center gap-2 text-[13px]">
           <button
             onClick={() => navigate('/plans')}
             className="hover:text-foreground hover:border-border border-b border-transparent pb-px transition-colors"
@@ -179,8 +231,15 @@ export default function PlanDetailPage() {
             Kế hoạch ôn tập
           </button>
           <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="opacity-50"
           >
             <path d="M9 6l6 6-6 6" />
           </svg>
@@ -193,17 +252,17 @@ export default function PlanDetailPage() {
               {plan?.name || 'Loading...'}
             </h1>
             {plan?.deadline && (
-              <p className="text-muted-foreground text-sm mt-1">
+              <p className="text-muted-foreground mt-1 text-sm">
                 Deadline: {new Date(plan.deadline).toLocaleDateString('vi-VN')}
               </p>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="text-sm px-2 py-1 rounded bg-muted/50 border border-border">
+            <div className="bg-muted/50 border-border rounded border px-2 py-1 text-sm">
               Status: <span className="font-mono font-medium">{plan?.status || '...'}</span>
             </div>
-            {plan?.status !== 'completed' && (
+            {plan?.status !== 'archived' && (
               <Button variant="outline" size="sm" onClick={() => setSearchParams({ mode: 'edit' })}>
                 Sửa Đồ Thị (Edit Mode)
               </Button>
@@ -212,23 +271,23 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="min-h-0 flex-1">
         {isLoading ? (
-          <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-muted/20">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="border-border bg-muted/20 flex h-full w-full items-center justify-center rounded-xl border">
+            <div className="text-muted-foreground flex flex-col items-center gap-2">
+              <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
               <span>Đang tải đồ thị...</span>
             </div>
           </div>
         ) : plan ? (
-          <ConceptGraph 
+          <ConceptGraph
             initialConcepts={plan.graph.concepts}
             initialEdges={plan.graph.edges}
             mode={mode}
             onConfirm={undefined}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center border border-border rounded-xl bg-muted/20 text-muted-foreground">
+          <div className="border-border bg-muted/20 text-muted-foreground flex h-full w-full items-center justify-center rounded-xl border">
             Không tìm thấy dữ liệu đồ thị.
           </div>
         )}
