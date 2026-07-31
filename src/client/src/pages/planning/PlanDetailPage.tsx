@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
-import { planApi } from '@/features/study-planner/api/plan.api';
+import { planApi, getRetryErrorMessage } from '@/features/study-planner/api/plan.api';
 import {
   PlanDetails,
   PlanStatus,
@@ -22,53 +23,77 @@ export default function PlanDetailPage() {
 
   const [plan, setPlan] = useState<PlanDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Dùng ref để tránh vòng lặp vô hạn khi setSearchParams
   const hasAutoSwitchedToEdit = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let isMounted = true;
+  // Function declaration (không phải useCallback) để tự đệ quy khi polling và để
+  // handleRetry gọi lại được, resume vòng poll sau khi POST /retry trả 202.
+  async function fetchPlan() {
+    if (!id) return;
+    try {
+      const data = await planApi.getPlan(id);
+      if (!isMountedRef.current) return;
 
-    async function loadPlan() {
-      if (!id) return;
-      if (!plan || plan.id !== id) setIsLoading(true);
-      try {
-        const data = await planApi.getPlan(id);
-        if (!isMounted) return;
+      setPlan(data);
 
-        setPlan(data);
+      // Auto-switch draft plan sang edit mode (chỉ 1 lần duy nhất)
+      if (data.status === 'draft' && rawMode !== 'edit' && !hasAutoSwitchedToEdit.current) {
+        hasAutoSwitchedToEdit.current = true;
+        setSearchParams({ mode: 'edit' }, { replace: true });
+      }
 
-        // Auto-switch draft plan sang edit mode (chỉ 1 lần duy nhất)
-        if (data.status === 'draft' && rawMode !== 'edit' && !hasAutoSwitchedToEdit.current) {
-          hasAutoSwitchedToEdit.current = true;
-          setSearchParams({ mode: 'edit' }, { replace: true });
+      if (data.analysisStatus === 'pending' || data.analysisStatus === 'processing') {
+        timeoutRef.current = setTimeout(fetchPlan, 2500);
+      } else {
+        if (data.analysisStatus === 'failed') {
+          toast.error('Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.');
         }
-
-        if (data.analysisStatus === 'pending' || data.analysisStatus === 'processing') {
-          timeoutId = setTimeout(loadPlan, 2500);
-        } else {
-          if (data.analysisStatus === 'failed') {
-            toast.error('Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.');
-          }
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('Failed to load plan', error);
-        toast.error('Không thể tải dữ liệu kế hoạch.');
         setIsLoading(false);
       }
+    } catch (error) {
+      if (!isMountedRef.current) return;
+      console.error('Failed to load plan', error);
+      toast.error('Không thể tải dữ liệu kế hoạch.');
+      setIsLoading(false);
     }
+  }
 
-    loadPlan();
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    async function start() {
+      setIsLoading(true);
+      await fetchPlan();
+    }
+    start();
 
     return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
+      isMountedRef.current = false;
+      clearTimeout(timeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ re-fetch khi id thay đổi
   }, [id]);
+
+  const handleRetry = async () => {
+    if (!id || isRetrying) return;
+    setIsRetrying(true);
+    try {
+      await planApi.retryPlan(id);
+      setIsLoading(true);
+      fetchPlan();
+    } catch (error) {
+      console.error('Failed to retry plan analysis', error);
+      toast.error(getRetryErrorMessage(error));
+      // Đồng bộ lại trạng thái thật — tránh kẹt UI nếu plan đã đổi trạng thái ở nơi khác.
+      fetchPlan();
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   // Thêm try/catch cho handleConfirmGraph
   const handleConfirmGraph = async (concepts: Concept[], edges: ConceptEdge[]) => {
@@ -91,6 +116,11 @@ export default function PlanDetailPage() {
       toast.error('Không thể lưu đồ thị. Vui lòng thử lại.');
     }
   };
+
+  const analysisStatus = plan?.analysisStatus;
+  const analysisRunning = analysisStatus === 'pending' || analysisStatus === 'processing';
+  const analysisFailed = analysisStatus === 'failed';
+  const analysisDone = !analysisRunning && !analysisFailed;
 
   // ----------------- EDIT MODE LAYOUT -----------------
   if (mode === 'edit') {
@@ -146,25 +176,65 @@ export default function PlanDetailPage() {
             </span>
             <span className="truncate">Nhập thông tin & tải tài liệu</span>
           </li>
-          <li className="text-muted-foreground border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]">
-            <span className="border-primary/40 bg-primary/10 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border">
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 12.5l5.2 5.2L20 7" />
-              </svg>
+          <li
+            className={cn(
+              'border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]',
+              analysisDone ? 'text-muted-foreground' : 'text-foreground font-semibold'
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                analysisFailed
+                  ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                  : 'border-primary/40 bg-primary/10 text-primary'
+              )}
+            >
+              {analysisFailed ? (
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : analysisRunning ? (
+                <span className="border-primary/30 border-t-primary h-2.5 w-2.5 animate-spin rounded-full border-2" />
+              ) : (
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 12.5l5.2 5.2L20 7" />
+                </svg>
+              )}
             </span>
             <span className="truncate">AI phân tích</span>
           </li>
-          <li className="bg-accent text-foreground flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-[13px] font-semibold">
-            <span className="bg-primary text-primary-foreground border-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]">
+          <li
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-[13px]',
+              analysisDone ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground'
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]',
+                analysisDone ? 'bg-primary text-primary-foreground border-primary' : 'border-border'
+              )}
+            >
               3
             </span>
             <span className="truncate">Kiểm chứng & xác nhận</span>
@@ -198,7 +268,39 @@ export default function PlanDetailPage() {
               <div className="border-border bg-card flex h-full w-full items-center justify-center rounded-xl border">
                 <div className="text-muted-foreground flex flex-col items-center gap-2">
                   <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-                  <span>Đang tải đồ thị...</span>
+                  <span>
+                    {analysisRunning ? 'Đang phân tích tài liệu...' : 'Đang tải đồ thị...'}
+                  </span>
+                </div>
+              </div>
+            ) : analysisFailed ? (
+              <div className="border-border bg-card h-full w-full overflow-auto rounded-xl border p-6">
+                <div className="max-w-160 mx-auto">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-destructive shrink-0" aria-hidden="true">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7.5v5.5" />
+                        <path d="M12 16.5h.01" />
+                      </svg>
+                    </span>
+                    <span className="text-[15px] font-semibold">Phân tích tài liệu thất bại</span>
+                  </div>
+                  <p className="text-muted-foreground mb-4 text-pretty text-[13px] leading-[1.65]">
+                    AI không trích xuất được khái niệm từ tài liệu đã tải lên. Tài liệu và kế hoạch
+                    nháp vẫn còn nguyên — bạn có thể thử lại.
+                  </p>
+                  <Button variant="secondary" size="sm" onClick={handleRetry} disabled={isRetrying}>
+                    {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
+                  </Button>
                 </div>
               </div>
             ) : plan ? (

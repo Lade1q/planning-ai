@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import apiClient from '@/lib/apiClient';
 import { ENDPOINTS } from '@/lib/endpoints';
 import {
@@ -10,6 +11,26 @@ import {
 
 export interface CreatePlanResponse {
   planId: string;
+}
+
+/**
+ * Chuyển lỗi retry thành thông báo tiếng Việt. Backend luôn trả cùng một code
+ * RETRY_NOT_ALLOWED cho mọi lý do từ chối (job đang chạy, plan không ở trạng
+ * thái failed, đã bị cleanup...) nên gộp chung một thông báo yêu cầu tải lại trang
+ * thay vì đoán message tiếng Anh của từng trường hợp.
+ */
+export function getRetryErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) {
+    return 'Đã xảy ra lỗi, vui lòng thử lại.';
+  }
+  if (!error.response) {
+    return 'Không kết nối được tới máy chủ. Vui lòng thử lại.';
+  }
+  const code: string | undefined = error.response.data?.error?.code;
+  if (code === 'RETRY_NOT_ALLOWED') {
+    return 'Không thể thử lại lúc này — kế hoạch có thể đã đổi trạng thái. Vui lòng tải lại trang.';
+  }
+  return 'Đã xảy ra lỗi, vui lòng thử lại.';
 }
 
 interface BackendCreatePlanResponse {
@@ -109,6 +130,10 @@ export const planApi = {
       }
     );
     return response.data;
+  },
+
+  retryPlan: async (id: string): Promise<void> => {
+    await apiClient.post(ENDPOINTS.PLANS.RETRY(id));
   },
 
   /** Archive a plan (SP-04), or pull an archived one back to active. */
