@@ -2,14 +2,22 @@ import { retryPlanAnalysis } from '../services/plan.service';
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 
-// Mock Prisma client — same pattern used across the test suite
-jest.mock('../config/prisma', () => ({
-  __esModule: true,
-  default: {
+// Mock Prisma client — includes $transaction to support SELECT FOR UPDATE serialization.
+// The factory runs at hoist-time so we cannot reference outer `const` variables.
+jest.mock('../config/prisma', () => {
+  const client = {
     studyPlan: { findUnique: jest.fn() },
     analysisJob: { findFirst: jest.fn(), create: jest.fn() },
-  },
-}));
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $transaction: jest.fn(),
+  };
+  // $transaction executes the callback with the same mock client,
+  // mirroring Prisma's interactive transaction API.
+  client.$transaction.mockImplementation((fn: (tx: typeof client) => Promise<unknown>) =>
+    fn(client)
+  );
+  return { __esModule: true, default: client };
+});
 
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
 
@@ -29,6 +37,10 @@ const basePlan = {
 describe('retryPlanAnalysis', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Re-apply $transaction mock after clearAllMocks
+    (mockedPrisma.$transaction as jest.Mock).mockImplementation(
+      (fn: (tx: typeof mockedPrisma) => Promise<unknown>) => fn(mockedPrisma)
+    );
   });
 
   // --- Test 1: Plan không tồn tại ---
