@@ -14,6 +14,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
+// Kích cỡ input theo `.input` trong screen-auth.html (38px cao, radius 0.65×,
+// padding 9px/12px) — Input dùng chung mặc định (h-8, rounded-lg) còn phục vụ
+// CreatePlanPage nên không đổi ở đó, chỉ áp cục bộ cho 2 form auth.
+const AUTH_INPUT_CLASS = 'h-[38px] rounded-[calc(var(--radius)*0.65)] px-3 py-[9px]';
+
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -46,10 +51,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
-        <CardHeader>
-          <div className="font-heading mb-6 text-base tracking-tight">Recall AI</div>
-          <CardTitle className="font-heading text-[23px] leading-tight tracking-tight">
+      <Card className="[--card-spacing:--spacing(7)]">
+        <CardHeader className="gap-1.5">
+          <div className="font-heading mb-[26px] text-base tracking-tight">Recall AI</div>
+          <CardTitle className="font-heading text-[23px] font-bold leading-[1.2] tracking-tight">
             Đăng nhập
           </CardTitle>
           <CardDescription className="text-[13px] leading-[1.6]">
@@ -66,6 +71,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                   type="email"
                   placeholder="m@example.com"
                   autoComplete="email"
+                  className={AUTH_INPUT_CLASS}
                   {...register('email')}
                 />
                 {errors.email?.message && <FieldError>{errors.email.message}</FieldError>}
@@ -86,7 +92,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    className="pr-10"
+                    className={cn(AUTH_INPUT_CLASS, 'pr-10')}
                     {...register('password')}
                   />
                   <button
@@ -106,7 +112,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               </Field>
 
               <Field>
-                <Button type="submit" disabled={isSubmitting} className="w-full">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-10 w-full rounded-md px-[18px]"
+                >
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </Button>
