@@ -8,6 +8,7 @@ import {
   getUserPlans,
   getPlanById,
   retryPlanAnalysis,
+  deletePlan,
 } from '../services/plan.service';
 import { createPlanSchema } from '../schemas/plan.schema';
 import { createStorageService } from '../services/storage.service';
@@ -172,4 +173,23 @@ export async function retryPlanController(req: Request, res: Response): Promise<
     success: true,
     data: { plan, message: 'Analysis retry initiated' },
   });
+}
+
+/**
+ * DELETE /api/v1/plans/:id
+ * Permanently deletes a study plan and all associated data.
+ */
+export async function deletePlanController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const { id } = req.params;
+  if (!id || typeof id !== 'string') {
+    throw new AppError('Plan ID is required', 400, 'BAD_REQUEST');
+  }
+
+  await deletePlan(id, req.userId);
+
+  res.status(204).send();
 }
