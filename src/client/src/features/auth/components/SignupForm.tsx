@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { getAuthErrorMessage } from '@/features/auth/api/auth.api';
 import { registerSchema, type RegisterFormData } from '@/features/auth/schemas/auth.schema';
@@ -13,7 +14,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
-export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
+// Kích cỡ input theo `.input` trong screen-auth.html (38px cao, radius 0.65×,
+// padding 9px/12px) — Input dùng chung mặc định (h-8, rounded-lg) còn phục vụ
+// CreatePlanPage nên không đổi ở đó, chỉ áp cục bộ cho 2 form auth.
+const AUTH_INPUT_CLASS = 'h-[38px] rounded-[calc(var(--radius)*0.65)] px-3 py-[9px]';
+
+export function SignupForm({ className, ...props }: React.ComponentProps<typeof Card>) {
   const navigate = useNavigate();
   const { register: registerAuth } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -31,8 +37,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     mode: 'onTouched',
   });
 
-  const passwordValue = useWatch({ control, name: 'password' });
-  const isPasswordValid = Boolean(passwordValue && passwordValue.length >= 8 && !errors.password);
+  const passwordValue = watch('password');
+  const passwordLength = passwordValue?.length ?? 0;
+  const isPasswordValid = passwordLength >= 8;
+  const missingPasswordChars = 8 - passwordLength;
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -53,11 +61,15 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   };
 
   return (
-    <Card {...props}>
-      <CardHeader>
-        <div className="font-heading mb-6 text-base tracking-tight">Recall AI</div>
-        <CardTitle className="text-[23px]">Tạo tài khoản</CardTitle>
-        <CardDescription className="text-[13px]">Tài khoản dùng được ngay sau khi tạo, không có bước xác minh email.</CardDescription>
+    <Card className={cn('[--card-spacing:--spacing(7)]', className)} {...props}>
+      <CardHeader className="gap-1.5">
+        <div className="font-heading mb-[26px] text-base tracking-tight">Recall AI</div>
+        <CardTitle className="font-heading text-[23px] font-bold leading-[1.2] tracking-tight">
+          Tạo tài khoản
+        </CardTitle>
+        <CardDescription className="text-[13px] leading-[1.6]">
+          Tài khoản dùng được ngay sau khi tạo, không có bước xác minh email.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -70,6 +82,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 placeholder="Ví dụ: Trần Minh Anh"
                 autoComplete="name"
                 autoFocus
+                className={AUTH_INPUT_CLASS}
                 {...register('name')}
               />
               {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
@@ -82,6 +95,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 type="email"
                 placeholder="m@example.com"
                 autoComplete="email"
+                className={AUTH_INPUT_CLASS}
                 {...register('email')}
               />
               {errors.email?.message && <FieldError>{errors.email.message}</FieldError>}
@@ -94,7 +108,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="pr-10"
+                  className={cn(AUTH_INPUT_CLASS, 'pr-10')}
                   {...register('password')}
                 />
                 <button
@@ -110,15 +124,21 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                   )}
                 </button>
               </div>
-              {isPasswordValid ? (
-                <FieldDescription className="mt-1">
-                  <span className="inline-flex items-center text-emerald-500">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </span>
-                </FieldDescription>
-              ) : errors.password?.message ? (
-                <FieldError className="mt-1">{errors.password.message}</FieldError>
-              ) : null}
+              <FieldDescription
+                className={cn(
+                  'mt-1 flex items-center gap-1.5',
+                  isPasswordValid ? 'text-mastery-strong' : 'text-muted-foreground'
+                )}
+              >
+                {isPasswordValid ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Đủ 8 ký tự.
+                  </>
+                ) : (
+                  `Còn thiếu ${missingPasswordChars} ký tự`
+                )}
+              </FieldDescription>
             </Field>
 
             <Field>
@@ -128,7 +148,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                   id="confirm-password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="pr-10"
+                  className={cn(AUTH_INPUT_CLASS, 'pr-10')}
                   {...register('confirmPassword')}
                 />
                 <button
@@ -151,13 +171,20 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 
             <FieldGroup>
               <Field>
-                <Button type="submit" disabled={isSubmitting} className="w-full">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-10 w-full rounded-md px-[18px]"
+                >
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSubmitting ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
                 </Button>
                 <FieldDescription className="px-6 text-center">
                   Đã có tài khoản?{' '}
-                  <Link to="/login" className="text-foreground underline underline-offset-4 hover:text-foreground">
+                  <Link
+                    to="/login"
+                    className="text-foreground hover:text-foreground underline underline-offset-4"
+                  >
                     Đăng nhập
                   </Link>
                 </FieldDescription>
