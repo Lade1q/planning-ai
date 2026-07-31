@@ -113,10 +113,20 @@ export async function cleanupStaleJobs(): Promise<number> {
  * All routing here is deterministic software logic — the AI only extracts (C4).
  */
 export async function processAnalysisJob(jobId: string): Promise<void> {
-  const job = await prisma.analysisJob.update({
-    where: { id: jobId },
+  // Claim nguyên tử (Issue #164): chỉ tiếp tục xử lý nếu chính lần gọi này là lần
+  // chuyển pending -> processing. Một lần gọi thứ hai đồng thời trên cùng jobId,
+  // hoặc một lần gọi tranh chấp với cleanupStaleJobs/retry đã dời job sang trạng
+  // thái khác, sẽ thấy count = 0 và dừng lại thay vì chạy lại extraction và tạo
+  // trùng concepts.
+  const claimed = await prisma.analysisJob.updateMany({
+    where: { id: jobId, status: 'pending' },
     data: { status: 'processing' },
   });
+  if (claimed.count === 0) {
+    console.warn(`[analysis] job ${jobId} already claimed or not pending, skipping`);
+    return;
+  }
+  const job = await prisma.analysisJob.findUniqueOrThrow({ where: { id: jobId } });
 
   if (!job.fileKey || !job.planDraftId) {
     await markFailed(jobId, new Error('AnalysisJob is missing fileKey or planDraftId'));
@@ -226,10 +236,17 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
           languageDetected: extracted.language_detected,
         },
       });
-      await tx.analysisJob.update({
-        where: { id: jobId },
+      // Guard tương tự claim ban đầu: nếu job đã bị "cướp" mất trạng thái processing
+      // (vd. cleanupStaleJobs đánh dấu failed trong lúc Gemini vẫn còn treo), không
+      // được ghi đè 'done' lên để hồi sinh job đó — abort để cả transaction (kể cả
+      // concepts/edges vừa tạo) rollback hết.
+      const finalized = await tx.analysisJob.updateMany({
+        where: { id: jobId, status: 'processing' },
         data: { status: 'done', completedAt: new Date() },
       });
+      if (finalized.count === 0) {
+        throw new Error(`[analysis] job ${jobId} no longer processing, aborting commit`);
+      }
     });
   } catch (error) {
     console.error(`[analysis] job ${jobId} failed:`, error);
