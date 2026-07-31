@@ -69,3 +69,12 @@ export interface PlanDetailResponse {
   concepts: ConceptItemResponse[];
   edges: EdgeItemResponse[];
 }
+
+/** Response shape for POST /plans/:id/retry (Issue #106). */
+export interface RetryPlanResponse {
+  id: string;
+  name: string;
+  deadline: Date | null;
+  status: StudyPlanStatus;
+  analysisStatus: AnalysisJobStatus;
+}

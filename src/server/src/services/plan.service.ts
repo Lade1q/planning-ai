@@ -6,6 +6,7 @@ import {
   CreatePlanResponse,
   PlanItemResponse,
   PlanDetailResponse,
+  RetryPlanResponse,
   DocumentMeta,
 } from '../types/plan.types';
 
@@ -154,6 +155,88 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     concepts: plan.concepts,
     edges: plan.conceptEdges,
   };
+}
+
+/**
+ * Creates a new AnalysisJob for a failed plan, reusing the original fileKey
+ * so the user does not need to re-upload. Validates ownership and that the
+ * latest job is in `failed` state before proceeding (Issue #106).
+ *
+ * Uses SELECT FOR UPDATE to serialize concurrent retry requests on the same
+ * plan — prevents two pending jobs from being created simultaneously.
+ */
+export async function retryPlanAnalysis(
+  planId: string,
+  userId: string
+): Promise<RetryPlanResponse> {
+  return prisma.$transaction(async (tx) => {
+    // Lock the plan row — a second concurrent request will block here
+    // until this transaction commits or rolls back.
+    await tx.$queryRaw`SELECT id FROM study_plans WHERE id = ${planId}::uuid FOR UPDATE`;
+
+    // 1. Fetch plan — reuse the same query pattern as getPlanById
+    const plan = await tx.studyPlan.findUnique({
+      where: { id: planId },
+      select: { id: true, userId: true, name: true, deadline: true, status: true },
+    });
+
+    if (!plan) {
+      throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+    }
+
+    if (plan.userId !== userId) {
+      throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+    }
+
+    // Guard: only draft plans can be retried — active plans already have concepts,
+    // and processAnalysisJob only INSERTs (no DELETE), causing duplicates.
+    if (plan.status !== 'draft') {
+      throw new AppError('Retry is only allowed for draft plans', 409, 'RETRY_NOT_ALLOWED');
+    }
+
+    // 2. Find latest AnalysisJob — must be `failed` to allow retry
+    // TODO(#178): Jobs stuck in `pending`/`processing` (e.g. server restart, Gemini
+    // timeout) block retry forever. Staleness check (e.g. >10min) or a background
+    // cleanup cron — tracked in #178 (out of scope for #106).
+    const latestJob = await tx.analysisJob.findFirst({
+      where: { planDraftId: planId },
+      orderBy: { createdAt: 'desc' },
+      select: { status: true, fileKey: true },
+    });
+
+    if (!latestJob) {
+      throw new AppError('No analysis job found for this plan', 409, 'RETRY_NOT_ALLOWED');
+    }
+
+    if (latestJob.status === 'pending' || latestJob.status === 'processing') {
+      throw new AppError('An analysis is already in progress', 409, 'RETRY_NOT_ALLOWED');
+    }
+
+    if (latestJob.status !== 'failed') {
+      throw new AppError('Plan analysis is not in a failed state', 409, 'RETRY_NOT_ALLOWED');
+    }
+
+    if (!latestJob.fileKey) {
+      throw new AppError('Original file key is missing, cannot retry', 409, 'RETRY_NOT_ALLOWED');
+    }
+
+    // 3. Create new job within the same transaction — guaranteed no duplicate
+    await tx.analysisJob.create({
+      data: {
+        planDraftId: planId,
+        fileKey: latestJob.fileKey,
+        status: 'pending',
+      },
+    });
+
+    return {
+      id: plan.id,
+      name: plan.name,
+      deadline: plan.deadline,
+      status: plan.status,
+      analysisStatus: 'pending' as const,
+    };
+  });
 }
 
 /**
