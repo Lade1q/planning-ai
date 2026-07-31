@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { getAuthErrorMessage } from '@/features/auth/api/auth.api';
 import { registerSchema, type RegisterFormData } from '@/features/auth/schemas/auth.schema';
@@ -32,7 +33,9 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   });
 
   const passwordValue = watch('password');
-  const isPasswordValid = Boolean(passwordValue && passwordValue.length >= 8 && !errors.password);
+  const passwordLength = passwordValue?.length ?? 0;
+  const isPasswordValid = passwordLength >= 8;
+  const missingPasswordChars = 8 - passwordLength;
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -56,8 +59,12 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     <Card {...props}>
       <CardHeader>
         <div className="font-heading mb-6 text-base tracking-tight">Recall AI</div>
-        <CardTitle className="text-[23px]">Tạo tài khoản</CardTitle>
-        <CardDescription className="text-[13px]">Tài khoản dùng được ngay sau khi tạo, không có bước xác minh email.</CardDescription>
+        <CardTitle className="font-heading text-[23px] leading-tight tracking-tight">
+          Tạo tài khoản
+        </CardTitle>
+        <CardDescription className="text-[13px] leading-[1.6]">
+          Tài khoản dùng được ngay sau khi tạo, không có bước xác minh email.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -110,15 +117,21 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                   )}
                 </button>
               </div>
-              {isPasswordValid ? (
-                <FieldDescription className="mt-1">
-                  <span className="inline-flex items-center text-emerald-500">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </span>
-                </FieldDescription>
-              ) : errors.password?.message ? (
-                <FieldError className="mt-1">{errors.password.message}</FieldError>
-              ) : null}
+              <FieldDescription
+                className={cn(
+                  'mt-1 flex items-center gap-1.5',
+                  isPasswordValid ? 'text-mastery-strong' : 'text-muted-foreground'
+                )}
+              >
+                {isPasswordValid ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Đủ 8 ký tự.
+                  </>
+                ) : (
+                  `Còn thiếu ${missingPasswordChars} ký tự`
+                )}
+              </FieldDescription>
             </Field>
 
             <Field>
@@ -157,7 +170,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 </Button>
                 <FieldDescription className="px-6 text-center">
                   Đã có tài khoản?{' '}
-                  <Link to="/login" className="text-foreground underline underline-offset-4 hover:text-foreground">
+                  <Link
+                    to="/login"
+                    className="text-foreground hover:text-foreground underline underline-offset-4"
+                  >
                     Đăng nhập
                   </Link>
                 </FieldDescription>

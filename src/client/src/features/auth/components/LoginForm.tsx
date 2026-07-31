@@ -49,8 +49,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       <Card>
         <CardHeader>
           <div className="font-heading mb-6 text-base tracking-tight">Recall AI</div>
-          <CardTitle className="text-[23px]">Đăng nhập</CardTitle>
-          <CardDescription className="text-[13px]">Dùng email và mật khẩu bạn đã đăng ký.</CardDescription>
+          <CardTitle className="font-heading text-[23px] leading-tight tracking-tight">
+            Đăng nhập
+          </CardTitle>
+          <CardDescription className="text-[13px] leading-[1.6]">
+            Dùng email và mật khẩu bạn đã đăng ký.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -72,7 +76,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                   <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                   <a
                     href="#am-05"
-                    className="text-muted-foreground ml-auto inline-block text-xs underline-offset-4 hover:underline hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground ml-auto inline-block text-xs underline-offset-4 hover:underline"
                   >
                     Quên mật khẩu?
                   </a>
@@ -108,7 +112,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 </Button>
                 <FieldDescription className="text-center">
                   Chưa có tài khoản?{' '}
-                  <Link to="/register" className="text-foreground underline underline-offset-4 hover:text-foreground">
+                  <Link
+                    to="/register"
+                    className="text-foreground hover:text-foreground underline underline-offset-4"
+                  >
                     Đăng ký
                   </Link>
                 </FieldDescription>
