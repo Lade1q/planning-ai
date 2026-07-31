@@ -2,6 +2,7 @@ import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { CreatePlanInput } from '../schemas/plan.schema';
 import { createStorageService } from './storage.service';
+import { STALE_JOB_THRESHOLD_MS } from './analysis.service';
 import {
   CreatePlanResponse,
   PlanItemResponse,
@@ -160,7 +161,9 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
 /**
  * Creates a new AnalysisJob for a failed plan, reusing the original fileKey
  * so the user does not need to re-upload. Validates ownership and that the
- * latest job is in `failed` state before proceeding (Issue #106).
+ * latest job is in `failed` state before proceeding (Issue #106) — a stuck
+ * `pending`/`processing` job past STALE_JOB_THRESHOLD_MS is treated the same
+ * as `failed` so it doesn't block retry forever (Issue #178).
  *
  * Uses SELECT FOR UPDATE to serialize concurrent retry requests on the same
  * plan — prevents two pending jobs from being created simultaneously.
@@ -194,14 +197,12 @@ export async function retryPlanAnalysis(
       throw new AppError('Retry is only allowed for draft plans', 409, 'RETRY_NOT_ALLOWED');
     }
 
-    // 2. Find latest AnalysisJob — must be `failed` to allow retry
-    // TODO(#178): Jobs stuck in `pending`/`processing` (e.g. server restart, Gemini
-    // timeout) block retry forever. Staleness check (e.g. >10min) or a background
-    // cleanup cron — tracked in #178 (out of scope for #106).
+    // 2. Find latest AnalysisJob — must be `failed` (or stale `pending`/`processing`,
+    // Issue #178) to allow retry.
     const latestJob = await tx.analysisJob.findFirst({
       where: { planDraftId: planId },
       orderBy: { createdAt: 'desc' },
-      select: { status: true, fileKey: true },
+      select: { id: true, status: true, fileKey: true, createdAt: true },
     });
 
     if (!latestJob) {
@@ -209,10 +210,16 @@ export async function retryPlanAnalysis(
     }
 
     if (latestJob.status === 'pending' || latestJob.status === 'processing') {
-      throw new AppError('An analysis is already in progress', 409, 'RETRY_NOT_ALLOWED');
-    }
-
-    if (latestJob.status !== 'failed') {
+      const isStale = Date.now() - latestJob.createdAt.getTime() > STALE_JOB_THRESHOLD_MS;
+      if (!isStale) {
+        throw new AppError('An analysis is already in progress', 409, 'RETRY_NOT_ALLOWED');
+      }
+      // Stuck past the threshold — release it so retry is not blocked forever (#178).
+      await tx.analysisJob.update({
+        where: { id: latestJob.id },
+        data: { status: 'failed', completedAt: new Date() },
+      });
+    } else if (latestJob.status !== 'failed') {
       throw new AppError('Plan analysis is not in a failed state', 409, 'RETRY_NOT_ALLOWED');
     }
 

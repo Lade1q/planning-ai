@@ -12,6 +12,11 @@ const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
 const MAX_ATTEMPTS = 3; // 1 initial call + 2 retries, per I3.2 acceptance criteria
 const BACKOFF_BASE_MS = 2000;
 
+// A `pending`/`processing` AnalysisJob older than this is considered stuck (server
+// restart mid-job, fire-and-forget never picked up, Gemini hang outside
+// callAiWithRetry) — shared with plan.service's retry staleness check (Issue #178).
+export const STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000;
+
 const MIME_BY_EXT: Record<string, string> = {
   '.pdf': 'application/pdf',
   '.png': 'image/png',
@@ -61,6 +66,23 @@ async function markFailed(jobId: string): Promise<void> {
     where: { id: jobId },
     data: { status: 'failed', completedAt: new Date(), retryCount: MAX_ATTEMPTS - 1 },
   });
+}
+
+/**
+ * Background sweep for stuck AnalysisJobs (Issue #178). retryPlanAnalysis's own
+ * staleness check only fires when a user actually retries the plan — this backstops
+ * plans nobody comes back to, so stuck jobs don't accumulate indefinitely.
+ */
+export async function cleanupStaleJobs(): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_JOB_THRESHOLD_MS);
+  const result = await prisma.analysisJob.updateMany({
+    where: {
+      status: { in: ['pending', 'processing'] },
+      createdAt: { lt: cutoff },
+    },
+    data: { status: 'failed', completedAt: new Date() },
+  });
+  return result.count;
 }
 
 /**

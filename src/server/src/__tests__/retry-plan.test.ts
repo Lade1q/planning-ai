@@ -7,7 +7,7 @@ import { AppError } from '../middleware/errorHandler';
 jest.mock('../config/prisma', () => {
   const client = {
     studyPlan: { findUnique: jest.fn() },
-    analysisJob: { findFirst: jest.fn(), create: jest.fn() },
+    analysisJob: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     $queryRaw: jest.fn().mockResolvedValue([]),
     $transaction: jest.fn(),
   };
@@ -67,12 +67,13 @@ describe('retryPlanAnalysis', () => {
     });
   });
 
-  // --- Test 3: Latest job đang processing ---
+  // --- Test 3: Latest job đang processing (mới tạo, chưa stale) ---
   it('throws 409 RETRY_NOT_ALLOWED when latest job is processing', async () => {
     (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
     (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
       status: 'processing',
       fileKey: FILE_KEY,
+      createdAt: new Date(),
     });
 
     const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
@@ -82,14 +83,16 @@ describe('retryPlanAnalysis', () => {
       code: 'RETRY_NOT_ALLOWED',
       message: 'An analysis is already in progress',
     });
+    expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled();
   });
 
-  // --- Test 4: Latest job đang pending ---
+  // --- Test 4: Latest job đang pending (mới tạo, chưa stale) ---
   it('throws 409 RETRY_NOT_ALLOWED when latest job is pending', async () => {
     (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
     (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
       status: 'pending',
       fileKey: FILE_KEY,
+      createdAt: new Date(),
     });
 
     const error = await retryPlanAnalysis(PLAN_ID, OWNER_ID).catch((e) => e);
@@ -99,6 +102,59 @@ describe('retryPlanAnalysis', () => {
       code: 'RETRY_NOT_ALLOWED',
       message: 'An analysis is already in progress',
     });
+    expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled();
+  });
+
+  // --- Test 3b/4b: Latest job pending/processing nhưng đã stale (Issue #178) ---
+  it('allows retry when latest job is stuck processing past the staleness threshold', async () => {
+    (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
+    const staleCreatedAt = new Date(Date.now() - 11 * 60 * 1000); // 11 min ago > 10 min threshold
+    (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
+      id: 'stuck-job-uuid',
+      status: 'processing',
+      fileKey: FILE_KEY,
+      createdAt: staleCreatedAt,
+    });
+    (mockedPrisma.analysisJob.update as jest.Mock).mockResolvedValue({});
+    (mockedPrisma.analysisJob.create as jest.Mock).mockResolvedValue({});
+
+    const result = await retryPlanAnalysis(PLAN_ID, OWNER_ID);
+
+    expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
+      where: { id: 'stuck-job-uuid' },
+      data: { status: 'failed', completedAt: expect.any(Date) },
+    });
+    expect(mockedPrisma.analysisJob.create).toHaveBeenCalledWith({
+      data: { planDraftId: PLAN_ID, fileKey: FILE_KEY, status: 'pending' },
+    });
+    expect(result).toEqual({
+      id: PLAN_ID,
+      name: basePlan.name,
+      deadline: basePlan.deadline,
+      status: 'draft',
+      analysisStatus: 'pending',
+    });
+  });
+
+  it('allows retry when latest job is stuck pending past the staleness threshold', async () => {
+    (mockedPrisma.studyPlan.findUnique as jest.Mock).mockResolvedValue(basePlan);
+    const staleCreatedAt = new Date(Date.now() - 15 * 60 * 1000); // 15 min ago
+    (mockedPrisma.analysisJob.findFirst as jest.Mock).mockResolvedValue({
+      id: 'stuck-job-uuid',
+      status: 'pending',
+      fileKey: FILE_KEY,
+      createdAt: staleCreatedAt,
+    });
+    (mockedPrisma.analysisJob.update as jest.Mock).mockResolvedValue({});
+    (mockedPrisma.analysisJob.create as jest.Mock).mockResolvedValue({});
+
+    const result = await retryPlanAnalysis(PLAN_ID, OWNER_ID);
+
+    expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
+      where: { id: 'stuck-job-uuid' },
+      data: { status: 'failed', completedAt: expect.any(Date) },
+    });
+    expect(result.analysisStatus).toBe('pending');
   });
 
   // --- Test 5: Happy path — latest job failed ---
@@ -155,7 +211,7 @@ describe('retryPlanAnalysis', () => {
     expect(mockedPrisma.analysisJob.findFirst).toHaveBeenCalledWith({
       where: { planDraftId: PLAN_ID },
       orderBy: { createdAt: 'desc' },
-      select: { status: true, fileKey: true },
+      select: { id: true, status: true, fileKey: true, createdAt: true },
     });
   });
 
