@@ -12,5 +12,6 @@ export const ENDPOINTS = {
   },
   PLANS: {
     BASE: '/api/v1/plans',
+    RETRY: (id: string) => `/api/v1/plans/${id}/retry`,
   },
 } as const;
