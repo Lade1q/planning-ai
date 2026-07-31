@@ -37,7 +37,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<typeof 
     mode: 'onTouched',
   });
 
-  const passwordValue = watch('password');
+  const passwordValue = useWatch({ control, name: 'password' });
   const passwordLength = passwordValue?.length ?? 0;
   const isPasswordValid = passwordLength >= 8;
   const missingPasswordChars = 8 - passwordLength;
