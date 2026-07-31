@@ -5,6 +5,7 @@ import { extractConcepts, uploadFile } from './gemini.service';
 import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
 import { validateAndFixDag } from '../utils/dag';
 import { buildConceptSourceRows } from '../utils/concept-source';
+import { planConceptMerge, normalizeConceptKey } from '../utils/concept-merge';
 import { validateDAG } from './graph.service';
 import { AiExtractResponse } from '../schemas/ai-extract.schema';
 
@@ -89,20 +90,60 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
     );
 
     await prisma.$transaction(async (tx) => {
-      // Concept names are assumed unique within one extraction — edges below are wired by name.
+      // Merge rather than insert, so a re-analysis (SP-05) keeps the ids the student's
+      // mastery scores and interview history hang off. On a first analysis the plan holds
+      // no concepts, so the merge degenerates to inserting everything — one path for both.
+      const existing = await tx.concept.findMany({
+        where: { planId },
+        select: { id: true, name: true, status: true },
+      });
+      const mergePlan = planConceptMerge(existing, extracted.concepts);
+
+      // Keyed by normalized name so edge endpoints, which the AI gives by name, resolve
+      // through the same identity the merge used.
+      const conceptIdByKey = new Map<string, string>();
+
+      for (const kept of mergePlan.toKeep) {
+        await tx.concept.update({
+          where: { id: kept.id },
+          data: { name: kept.name, difficulty: kept.difficulty, status: 'active' },
+        });
+        conceptIdByKey.set(normalizeConceptKey(kept.name), kept.id);
+      }
+
       const created = await Promise.all(
-        extracted.concepts.map((c) =>
+        mergePlan.toCreate.map((c) =>
           tx.concept.create({
             data: { planId, name: c.name, difficulty: c.difficulty, source: 'ai_generated' },
           })
         )
       );
-      const conceptIdByName = new Map(created.map((c) => [c.name, c.id]));
+      for (const c of created) {
+        conceptIdByKey.set(normalizeConceptKey(c.name), c.id);
+      }
 
+      if (mergePlan.toDeprecate.length > 0) {
+        await tx.concept.updateMany({
+          where: { id: { in: mergePlan.toDeprecate } },
+          data: { status: 'deprecated' },
+        });
+      }
+
+      // Edges are rebuilt wholesale: the new extraction is the whole truth about structure,
+      // and an edge carries no student data worth preserving. No-op on a first analysis.
+      await tx.conceptEdge.deleteMany({ where: { planId } });
+
+      // `edges` was de-duplicated by exact name upstream; two spellings of one concept can
+      // still collapse onto the same id pair here, which the [planId, from, to] unique index
+      // would reject — and a rejected insert fails the whole job.
+      const seenEdges = new Set<string>();
       for (const edge of edges) {
-        const fromId = conceptIdByName.get(edge.from);
-        const toId = conceptIdByName.get(edge.to);
-        if (!fromId || !toId) continue;
+        const fromId = conceptIdByKey.get(normalizeConceptKey(edge.from));
+        const toId = conceptIdByKey.get(normalizeConceptKey(edge.to));
+        if (!fromId || !toId || fromId === toId) continue;
+        const edgeKey = `${fromId}->${toId}`;
+        if (seenEdges.has(edgeKey)) continue;
+        seenEdges.add(edgeKey);
         await tx.conceptEdge.create({ data: { planId, fromConceptId: fromId, toConceptId: toId } });
       }
 
@@ -115,6 +156,14 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
         select: { id: true },
       });
       if (document) {
+        // Anchors cite pages of the previous extraction, so they are replaced, not appended.
+        await tx.conceptSourceRef.deleteMany({ where: { documentId: document.id } });
+        const conceptIdByName = new Map(
+          extracted.concepts.flatMap((c) => {
+            const id = conceptIdByKey.get(normalizeConceptKey(c.name));
+            return id ? [[c.name, id] as [string, string]] : [];
+          })
+        );
         const anchors = buildConceptSourceRows(extracted.concepts, conceptIdByName, document.id);
         if (anchors.length > 0) {
           await tx.conceptSourceRef.createMany({ data: anchors });

@@ -8,9 +8,11 @@ import {
   getUserPlans,
   getPlanById,
   retryPlanAnalysis,
+  reanalyzePlan,
+  updatePlanStatus,
   deletePlan,
 } from '../services/plan.service';
-import { createPlanSchema } from '../schemas/plan.schema';
+import { createPlanSchema, updatePlanStatusSchema } from '../schemas/plan.schema';
 import { createStorageService } from '../services/storage.service';
 import { triggerAnalysis } from '../services/analysis.service';
 import { getPdfPageCount } from '../utils/pdf';
@@ -172,6 +174,58 @@ export async function retryPlanController(req: Request, res: Response): Promise<
   res.status(202).json({
     success: true,
     data: { plan, message: 'Analysis retry initiated' },
+  });
+}
+
+/**
+ * POST /api/v1/plans/:id/reanalyze
+ * Re-runs analysis over an active plan's document, merging the result into the existing
+ * graph so mastery scores survive (SP-05, Issue #170).
+ */
+export async function reanalyzePlanController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const { id } = req.params;
+  if (!id || typeof id !== 'string') {
+    throw new AppError('Plan ID is required', 400, 'BAD_REQUEST');
+  }
+
+  const plan = await reanalyzePlan(id, req.userId);
+
+  // Fire-and-forget — same pattern as createPlanController
+  void triggerAnalysis(id).catch((err) =>
+    console.error(`[analysis] reanalyze trigger failed for plan ${id}:`, err)
+  );
+
+  res.status(202).json({
+    success: true,
+    data: { plan, message: 'Re-analysis initiated' },
+  });
+}
+
+/**
+ * PATCH /api/v1/plans/:id
+ * Archives a plan or restores it to active (SP-04, Issue #171).
+ */
+export async function updatePlanStatusController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const { id } = req.params;
+  if (!id || typeof id !== 'string') {
+    throw new AppError('Plan ID is required', 400, 'BAD_REQUEST');
+  }
+
+  const { status } = updatePlanStatusSchema.parse(req.body);
+
+  const plan = await updatePlanStatus(id, req.userId, status);
+
+  res.status(200).json({
+    success: true,
+    data: { plan },
   });
 }
 

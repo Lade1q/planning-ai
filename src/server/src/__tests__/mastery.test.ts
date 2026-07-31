@@ -1,12 +1,15 @@
 import {
+  MASTERY_STRONG_THRESHOLD,
   MAX_REVIEW_INTERVAL_DAYS,
   MIN_REVIEW_INTERVAL_DAYS,
   TURN_WEIGHTS,
   addDays,
   calculateMasteryScore,
+  classifyMastery,
   daysUntil,
   reviewIntervalDays,
   reviewPriority,
+  summariseMasteryDistribution,
 } from '../utils/mastery';
 import { MASTERY_THRESHOLD } from '../services/traceback.service';
 
@@ -186,6 +189,44 @@ describe('reviewPriority', () => {
   it('keeps the weakest prerequisite at the top of the queue', () => {
     expect(reviewPriority({ masteryScore: null, depth: 1 })).toBe(3);
     expect(MASTERY_THRESHOLD).toBe(0.6);
+  });
+});
+
+describe('classifyMastery', () => {
+  it('splits the score range at 0.6 and 0.8', () => {
+    expect(classifyMastery(1)).toBe('strong');
+    expect(classifyMastery(MASTERY_STRONG_THRESHOLD)).toBe('strong');
+    expect(classifyMastery(0.79)).toBe('learning');
+    expect(classifyMastery(MASTERY_THRESHOLD)).toBe('learning');
+    expect(classifyMastery(0.59)).toBe('weak');
+    expect(classifyMastery(0)).toBe('weak');
+  });
+
+  it('keeps never-tested apart from scored-zero', () => {
+    // Collapsing these would tell a user they are failing material nobody asked them about.
+    expect(classifyMastery(null)).toBe('untested');
+    expect(classifyMastery(0)).toBe('weak');
+  });
+});
+
+describe('summariseMasteryDistribution', () => {
+  it('counts every concept into exactly one band', () => {
+    const scores = [0.95, 0.8, 0.7, 0.6, 0.3, null, null];
+    const distribution = summariseMasteryDistribution(scores);
+
+    expect(distribution).toEqual({ strong: 2, learning: 2, weak: 1, untested: 2 });
+    const total = Object.values(distribution).reduce((sum, n) => sum + n, 0);
+    expect(total).toBe(scores.length);
+  });
+
+  it('returns all four bands at zero for a plan with no concepts', () => {
+    // The legend renders from these keys, so a missing band would drop a row from the card.
+    expect(summariseMasteryDistribution([])).toEqual({
+      strong: 0,
+      learning: 0,
+      weak: 0,
+      untested: 0,
+    });
   });
 });
 

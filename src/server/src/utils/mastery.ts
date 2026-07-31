@@ -1,8 +1,9 @@
-import { MAX_TRACEBACK_DEPTH } from '../services/traceback.service';
+import { MASTERY_THRESHOLD, MAX_TRACEBACK_DEPTH } from '../services/traceback.service';
 
 /**
  * Everything a finished concept's score decides (I7.2 / #123): the score itself, when the
- * concept comes back for review, and where its review-queue row sits in the ordering.
+ * concept comes back for review, where its review-queue row sits in the ordering, and which
+ * colour band it reads as on screen.
  *
  * Pure functions — no Prisma, no Gemini, no clock. `now` is always passed in. The scheduling
  * decision is deterministic software logic (C4) and must stay provable from mock data with
@@ -67,6 +68,62 @@ export function calculateMasteryScore(turnScores: number[]): number | null {
   );
 
   return round2(clamp(weightedSum / totalWeight, 0, 1));
+}
+
+/** At or above this, a concept reads as fully mastered rather than still being learned. */
+export const MASTERY_STRONG_THRESHOLD = 0.8;
+
+/**
+ * The four states a concept can be in on the plan list and the concept graph (SP-03, DB-05).
+ * Named after the `--mastery-*` design tokens so a band maps onto a colour without a lookup
+ * table in the client.
+ */
+export type MasteryBand = 'strong' | 'learning' | 'weak' | 'untested';
+
+/** How many concepts of a plan sit in each band. Sums to the plan's concept count. */
+export interface MasteryDistribution {
+  strong: number;
+  learning: number;
+  weak: number;
+  untested: number;
+}
+
+/**
+ * Which band a concept's score falls in.
+ *
+ * `null` is `untested`, never `weak`: "never assessed" and "assessed and got it wrong" look
+ * the same on a progress bar only if you are willing to tell a user they are failing material
+ * they have not been asked about yet. The two boundaries are the ones already in force
+ * elsewhere — `MASTERY_THRESHOLD` (0.6) is what traceback treats as mastered-enough to stop
+ * walking, and 0.8 is where the UI's green starts.
+ */
+export function classifyMastery(masteryScore: number | null): MasteryBand {
+  if (masteryScore === null) {
+    return 'untested';
+  }
+  if (masteryScore >= MASTERY_STRONG_THRESHOLD) {
+    return 'strong';
+  }
+  if (masteryScore >= MASTERY_THRESHOLD) {
+    return 'learning';
+  }
+  return 'weak';
+}
+
+/**
+ * Counts a plan's concepts into the four bands, for the distribution bar on the plan card.
+ *
+ * Returns all four keys even when a band is empty, so the client renders a stable legend
+ * ("0 yếu" stays in place) instead of a row whose items shuffle as scores change.
+ */
+export function summariseMasteryDistribution(
+  masteryScores: readonly (number | null)[]
+): MasteryDistribution {
+  const distribution: MasteryDistribution = { strong: 0, learning: 0, weak: 0, untested: 0 };
+  for (const score of masteryScores) {
+    distribution[classifyMastery(score)] += 1;
+  }
+  return distribution;
 }
 
 /**

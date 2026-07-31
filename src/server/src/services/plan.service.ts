@@ -1,12 +1,15 @@
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { CreatePlanInput } from '../schemas/plan.schema';
+import { CreatePlanInput, UpdatePlanStatusInput } from '../schemas/plan.schema';
 import { createStorageService } from './storage.service';
+import { summariseMasteryDistribution } from '../utils/mastery';
 import {
   CreatePlanResponse,
   PlanItemResponse,
   PlanDetailResponse,
   RetryPlanResponse,
+  ReanalyzePlanResponse,
+  UpdatePlanStatusResponse,
   DocumentMeta,
 } from '../types/plan.types';
 
@@ -68,7 +71,14 @@ export async function createPlanInDb(
 }
 
 /**
- * Fetches all study plans for a given user.
+ * Fetches all study plans for a given user, with everything a plan card on SP-03 renders:
+ * the mastery distribution bar, and — for a plan still being analysed — the status of its
+ * job and the document it is chewing through.
+ *
+ * Two queries, not one per plan. Mastery scores are pulled inline (a plan holds tens of
+ * concepts, and banding them needs the pure classifier rather than SQL), while AnalysisJob,
+ * which has no FK to StudyPlan by design, is fetched for every plan id at once and reduced
+ * to the latest job per plan here.
  */
 export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> {
   const plans = await prisma.studyPlan.findMany({
@@ -80,20 +90,51 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
       deadline: true,
       status: true,
       createdAt: true,
-      _count: {
-        select: { concepts: true },
+      concepts: { select: { masteryScore: true } },
+      documents: {
+        select: { filename: true, pageCount: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
       },
     },
   });
 
-  return plans.map((p) => ({
-    id: p.id,
-    name: p.name,
-    deadline: p.deadline,
-    status: p.status,
-    conceptCount: p._count.concepts,
-    createdAt: p.createdAt,
-  }));
+  if (plans.length === 0) {
+    return [];
+  }
+
+  // Ordered newest-first, so the first row seen for a plan id is its latest job (same
+  // "latest by createdAt" rule as getPlanById — SP-05 re-analyze can add more).
+  const jobs = await prisma.analysisJob.findMany({
+    where: { planDraftId: { in: plans.map((p) => p.id) } },
+    orderBy: { createdAt: 'desc' },
+    select: { planDraftId: true, status: true, createdAt: true },
+  });
+
+  const latestJobByPlan = new Map<string, (typeof jobs)[number]>();
+  for (const job of jobs) {
+    if (job.planDraftId !== null && !latestJobByPlan.has(job.planDraftId)) {
+      latestJobByPlan.set(job.planDraftId, job);
+    }
+  }
+
+  return plans.map((p) => {
+    const latestJob = latestJobByPlan.get(p.id);
+    const document = p.documents[0];
+
+    return {
+      id: p.id,
+      name: p.name,
+      deadline: p.deadline,
+      status: p.status,
+      conceptCount: p.concepts.length,
+      masteryDistribution: summariseMasteryDistribution(p.concepts.map((c) => c.masteryScore)),
+      analysisStatus: latestJob?.status ?? null,
+      analysisStartedAt: latestJob?.createdAt ?? null,
+      document: document ? { filename: document.filename, pageCount: document.pageCount } : null,
+      createdAt: p.createdAt,
+    };
+  });
 }
 
 /**
@@ -155,6 +196,49 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     concepts: plan.concepts,
     edges: plan.conceptEdges,
   };
+}
+
+/**
+ * Archives a plan or pulls it back into circulation (SP-04, Issue #171).
+ *
+ * A `draft` plan is refused: archiving is how a user retires material they have finished
+ * with, and a draft has no analysed material yet — the actions that apply to it are retry
+ * (#106) and delete (#107). Setting the status a plan already has is a no-op that still
+ * returns 200, so a double-click on "Lưu trữ" does not surface an error.
+ */
+export async function updatePlanStatus(
+  planId: string,
+  userId: string,
+  status: UpdatePlanStatusInput['status']
+): Promise<UpdatePlanStatusResponse> {
+  const plan = await prisma.studyPlan.findUnique({
+    where: { id: planId },
+    select: { id: true, userId: true, status: true },
+  });
+
+  if (!plan) {
+    throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+  }
+
+  if (plan.userId !== userId) {
+    throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+  }
+
+  if (plan.status === 'draft') {
+    throw new AppError(
+      'A plan that is still being analysed cannot be archived',
+      409,
+      'STATUS_TRANSITION_NOT_ALLOWED'
+    );
+  }
+
+  const updated = await prisma.studyPlan.update({
+    where: { id: planId },
+    data: { status },
+    select: { id: true, name: true, deadline: true, status: true, updatedAt: true },
+  });
+
+  return updated;
 }
 
 /**
@@ -227,6 +311,88 @@ export async function retryPlanAnalysis(
         fileKey: latestJob.fileKey,
         status: 'pending',
       },
+    });
+
+    return {
+      id: plan.id,
+      name: plan.name,
+      deadline: plan.deadline,
+      status: plan.status,
+      analysisStatus: 'pending' as const,
+    };
+  });
+}
+
+/**
+ * Queues a fresh analysis of an already-analysed plan (SP-05, Issue #170).
+ *
+ * Distinct from `retryPlanAnalysis` (#106), which rescues a `draft` whose only job failed.
+ * Here the plan is `active` and stays that way: the current graph keeps working while the
+ * new job runs, and `processAnalysisJob` merges the result over it rather than replacing it,
+ * so mastery scores survive (see `planConceptMerge`).
+ *
+ * The file is taken from the plan's newest Document — the durable home for the upload —
+ * rather than from the previous job, so nothing needs re-uploading.
+ *
+ * Uses SELECT FOR UPDATE for the same reason retry does: two clicks must not produce two
+ * pending jobs racing to rewrite the same graph.
+ */
+export async function reanalyzePlan(
+  planId: string,
+  userId: string
+): Promise<ReanalyzePlanResponse> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM study_plans WHERE id = ${planId}::uuid FOR UPDATE`;
+
+    const plan = await tx.studyPlan.findUnique({
+      where: { id: planId },
+      select: { id: true, userId: true, name: true, deadline: true, status: true },
+    });
+
+    if (!plan) {
+      throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+    }
+
+    if (plan.userId !== userId) {
+      throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+    }
+
+    // A draft has nothing to re-analyse — its first analysis either never finished (retry,
+    // #106) or never ran. An archived plan is restored first; re-analysing one the user has
+    // retired would burn an AI call on material they said they were done with.
+    if (plan.status !== 'active') {
+      throw new AppError('Only an active plan can be re-analysed', 409, 'REANALYZE_NOT_ALLOWED');
+    }
+
+    // TODO(#178): a job wedged in `pending`/`processing` (server restart, Gemini timeout)
+    // blocks re-analysis forever, exactly as it blocks retry. The staleness sweep tracked
+    // in #178 covers both.
+    const latestJob = await tx.analysisJob.findFirst({
+      where: { planDraftId: planId },
+      orderBy: { createdAt: 'desc' },
+      select: { status: true },
+    });
+
+    if (latestJob?.status === 'pending' || latestJob?.status === 'processing') {
+      throw new AppError('An analysis is already in progress', 409, 'REANALYZE_NOT_ALLOWED');
+    }
+
+    const document = await tx.document.findFirst({
+      where: { planId },
+      orderBy: { createdAt: 'desc' },
+      select: { fileKey: true },
+    });
+
+    if (!document) {
+      throw new AppError(
+        'This plan has no source document to re-analyse',
+        409,
+        'REANALYZE_NOT_ALLOWED'
+      );
+    }
+
+    await tx.analysisJob.create({
+      data: { planDraftId: planId, fileKey: document.fileKey, status: 'pending' },
     });
 
     return {
