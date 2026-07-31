@@ -13,7 +13,8 @@ import {
   NodeProps,
   Node,
   ReactFlowInstance,
-  MarkerType
+  MarkerType,
+  useStore
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import { getLayoutedElements, hasCycle, toReactFlowEdges, toReactFlowNodes } fro
 
 // --- CUSTOM NODE ---
 function ConceptNode({ data, selected }: NodeProps) {
+  const isConnectable = useStore((s) => s.nodesConnectable);
   const score = data.mastery as number | null;
   // Tạm thời coi như luôn có nguồn (vì API chưa trả về excerpt) để tránh cờ đỏ toàn bộ.
   // Khi nào API support thì sẽ check dựa trên c.description.
@@ -41,7 +43,7 @@ function ConceptNode({ data, selected }: NodeProps) {
   return (
     <div className={`node ${selected ? 'node--sel' : ''}`}>
       <div className={`concept-node ${nodeClass}`} style={{ width: '136px', position: 'relative' }}>
-        <Handle type="target" position={Position.Left} className="w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -left-2" />
+        <Handle type="target" position={Position.Left} isConnectable={isConnectable} className={`w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -left-2 ${!isConnectable ? 'hidden' : ''}`} />
         
         <span>{data.label as string}</span>
         {score !== null && (
@@ -50,7 +52,7 @@ function ConceptNode({ data, selected }: NodeProps) {
           </span>
         )}
 
-        <Handle type="source" position={Position.Right} className="w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -right-2" />
+        <Handle type="source" position={Position.Right} isConnectable={isConnectable} className={`w-3.5! h-3.5! opacity-20 hover:opacity-100 transition-opacity -right-2 ${!isConnectable ? 'hidden' : ''}`} />
       </div>
 
       <div className="node__diff">

@@ -69,7 +69,7 @@ export default function PlanDetailPage() {
   const handleConfirmGraph = async (concepts: Concept[], edges: ConceptEdge[]) => {
     if (!id) return;
     try {
-      await planApi.updatePlanGraph(id, concepts, edges);
+      const result = await planApi.updatePlanGraph(id, concepts, edges);
       // After confirming, switch to view mode
       setSearchParams({ mode: 'view' });
       // Update local state to reflect changes
@@ -77,7 +77,7 @@ export default function PlanDetailPage() {
         if (!prev) return prev;
         return {
           ...prev,
-          status: 'active',
+          status: (result.data?.status as 'draft' | 'active' | 'completed') || prev.status,
           graph: { concepts, edges },
         };
       });

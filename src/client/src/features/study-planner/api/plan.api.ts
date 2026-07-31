@@ -59,24 +59,28 @@ export const planApi = {
     };
   },
 
-  updatePlanGraph: async (id: string, concepts: Concept[], edges: ConceptEdge[]): Promise<{ success: boolean }> => {
+  updatePlanGraph: async (id: string, concepts: Concept[], edges: ConceptEdge[]): Promise<{ success: boolean; data?: { status: string } }> => {
     // Backend PUT expects concepts: [{name, difficulty}], edges: [{from, to}] referencing by NAME.
     const nameMap = new Map<string, string>();
     concepts.forEach(c => nameMap.set(c.id, c.name));
 
-    const backendConcepts = concepts.map(c => ({
-      name: c.name,
-      difficulty: c.difficulty
-    }));
+    const backendConcepts = concepts.map(c => {
+      const payload: any = { name: c.name };
+      if (c.difficulty != null) {
+        payload.difficulty = c.difficulty;
+      }
+      return payload;
+    });
 
     const backendEdges = edges.map(e => ({
       from: nameMap.get(e.source) || e.source,
       to: nameMap.get(e.target) || e.target,
     }));
 
-    const response = await apiClient.put<{ success: boolean }>(`${ENDPOINTS.PLANS.BASE}/${id}/graph`, {
+    const response = await apiClient.put<{ success: boolean; data?: { status: string } }>(`${ENDPOINTS.PLANS.BASE}/${id}/graph`, {
       concepts: backendConcepts,
       edges: backendEdges,
+      confirm: true,
     });
     return response.data;
   },
