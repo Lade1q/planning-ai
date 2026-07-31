@@ -1,12 +1,15 @@
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { CreatePlanInput } from '../schemas/plan.schema';
+import { createStorageService } from './storage.service';
 import {
   CreatePlanResponse,
   PlanItemResponse,
   PlanDetailResponse,
   DocumentMeta,
 } from '../types/plan.types';
+
+const storageService = createStorageService();
 
 /**
  * Creates a new StudyPlan (draft), its source Document, and the pending AnalysisJob
@@ -151,4 +154,53 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     concepts: plan.concepts,
     edges: plan.conceptEdges,
   };
+}
+
+/**
+ * Permanently deletes a study plan and all associated data.
+ *
+ * Cascade (via Prisma onDelete: Cascade) handles:
+ *   Concept, ConceptEdge, InterviewSession → InterviewTurn,
+ *   FocusSession, ReviewQueueItem, Document → ConceptSourceRef, QuestionCache.
+ *
+ * Manual cleanup required:
+ *   - AnalysisJob: no FK constraint to StudyPlan (async draft flow by design).
+ *   - Storage files: physical files referenced by Document.fileKey.
+ */
+export async function deletePlan(planId: string, userId: string): Promise<void> {
+  // 1. Fetch plan with document file keys for later storage cleanup
+  const plan = await prisma.studyPlan.findUnique({
+    where: { id: planId },
+    select: {
+      userId: true,
+      documents: { select: { fileKey: true } },
+    },
+  });
+
+  if (!plan) {
+    throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+  }
+
+  if (plan.userId !== userId) {
+    throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+  }
+
+  // 2. Collect file keys BEFORE deleting DB records (cascade will remove Document rows)
+  const fileKeys = plan.documents.map((d) => d.fileKey);
+
+  // 3. Delete AnalysisJob (no FK → not cascade-deleted) + StudyPlan atomically
+  await prisma.$transaction([
+    prisma.analysisJob.deleteMany({ where: { planDraftId: planId } }),
+    prisma.studyPlan.delete({ where: { id: planId } }),
+  ]);
+
+  // 4. Best-effort storage cleanup — DB is source of truth, don't fail the request
+  const results = await Promise.allSettled(fileKeys.map((key) => storageService.delete(key)));
+
+  const failures = results.filter((r) => r.status === 'rejected');
+  if (failures.length > 0) {
+    console.warn(
+      `[deletePlan] Failed to cleanup ${failures.length}/${fileKeys.length} storage files for plan ${planId}`
+    );
+  }
 }

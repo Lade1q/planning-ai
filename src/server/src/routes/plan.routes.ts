@@ -5,6 +5,7 @@ import {
   createPlanController,
   listPlansController,
   getPlanByIdController,
+  deletePlanController,
 } from '../controllers/plan.controller';
 import { graphRouter } from './graph.routes';
 
@@ -14,6 +15,7 @@ const planRouter = Router();
 planRouter.post('/', upload.single('file'), asyncHandler(createPlanController));
 planRouter.get('/', asyncHandler(listPlansController));
 planRouter.get('/:id', asyncHandler(getPlanByIdController));
+planRouter.delete('/:id', asyncHandler(deletePlanController));
 planRouter.use('/:id/graph', graphRouter);
 
 export { planRouter };

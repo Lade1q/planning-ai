@@ -319,3 +319,49 @@ Response 201 ở trên trả về **ngay lập tức** với `status: "draft"` v
   ```
 
 - **Lỗi không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.
+
+---
+
+### 5. Xóa Study Plan (Delete Study Plan)
+
+- **Endpoint:** `DELETE /api/v1/plans/:id`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+
+Xóa vĩnh viễn study plan và tất cả dữ liệu liên quan. Không thể hoàn tác.
+
+- **Response thành công (HTTP 204 No Content):**
+  Không có response body.
+
+- **Cascade Delete:** Khi xóa StudyPlan, các dữ liệu sau bị xóa theo:
+  - Tất cả Concepts + ConceptEdges (đồ thị kiến thức)
+  - Tất cả AnalysisJobs (lịch sử phân tích — xóa thủ công, không có FK)
+  - Tất cả InterviewSessions + InterviewTurns (lịch sử vấn đáp)
+  - Tất cả FocusSessions (lịch sử Pomodoro)
+  - Tất cả ReviewQueueItems (hàng đợi ôn tập)
+  - Tất cả Documents + ConceptSourceRefs (tài liệu nguồn)
+  - Tất cả QuestionCaches (cache câu hỏi — cascade gián tiếp qua Concept)
+  - File tài liệu gốc trên storage (best-effort cleanup)
+
+- **Lỗi không tìm thấy Plan (HTTP 404 Not Found):**
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "Study plan not found"
+    }
+  }
+  ```
+
+- **Lỗi truy cập Plan người khác (HTTP 403 Forbidden):**
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "FORBIDDEN",
+      "message": "Access denied to this study plan"
+    }
+  }
+  ```
