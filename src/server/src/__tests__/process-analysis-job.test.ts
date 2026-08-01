@@ -4,6 +4,9 @@ import { extractConcepts } from '../services/gemini.service';
 
 // Mock Prisma client — $transaction chạy callback với cùng mock client, mô phỏng
 // đúng interactive transaction API của Prisma (giống pattern trong retry-plan.test.ts).
+// Đầy đủ các model method mà processAnalysisJob hiện dùng, bao gồm concept-merge
+// (SP-05 reanalyze, #170): concept.findMany/update/create/updateMany,
+// conceptEdge.deleteMany/create, conceptSourceRef.deleteMany/createMany.
 jest.mock('../config/prisma', () => {
   const client = {
     analysisJob: {
@@ -11,10 +14,15 @@ jest.mock('../config/prisma', () => {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
     },
-    concept: { create: jest.fn() },
-    conceptEdge: { create: jest.fn() },
-    document: { findFirst: jest.fn().mockResolvedValue(null) },
-    conceptSourceRef: { createMany: jest.fn() },
+    concept: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    conceptEdge: { deleteMany: jest.fn(), create: jest.fn() },
+    document: { findFirst: jest.fn() },
+    conceptSourceRef: { deleteMany: jest.fn(), createMany: jest.fn() },
     studyPlan: { update: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -41,6 +49,14 @@ const JOB_ID = 'job-uuid';
 const PLAN_ID = 'plan-uuid';
 const pendingJob = { id: JOB_ID, fileKey: 'notes.txt', planDraftId: PLAN_ID };
 
+/** `data.status === 'failed'` chỉ có thể đến từ markFailed — phân biệt với các lời gọi
+ * `analysisJob.update` khác (setPhase ghi field `phase` trong lúc xử lý bình thường). */
+function expectMarkFailedNotCalled() {
+  expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) })
+  );
+}
+
 describe('processAnalysisJob', () => {
   const originalUseMockAi = process.env.USE_MOCK_AI;
 
@@ -50,14 +66,23 @@ describe('processAnalysisJob', () => {
     (mockedPrisma.$transaction as jest.Mock).mockImplementation(
       (fn: (tx: typeof mockedPrisma) => Promise<unknown>) => fn(mockedPrisma)
     );
-    (mockedPrisma.document.findFirst as jest.Mock).mockResolvedValue(null);
-    (mockedPrisma.conceptSourceRef.createMany as jest.Mock).mockResolvedValue({ count: 0 });
+    // Happy-path mặc định cho toàn bộ pipeline merge — plan chưa có concept nào
+    // (lần phân tích đầu), nên planConceptMerge (hàm thật, không mock) tự nhiên đi
+    // theo nhánh toCreate toàn bộ, giống hành vi insert-thẳng trước đây.
+    (mockedPrisma.concept.findMany as jest.Mock).mockResolvedValue([]);
+    (mockedPrisma.concept.update as jest.Mock).mockResolvedValue({});
+    (mockedPrisma.concept.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
     (mockedPrisma.concept.create as jest.Mock).mockImplementation(
       ({ data }: { data: { name: string } }) =>
         Promise.resolve({ id: `concept-${data.name}`, ...data })
     );
+    (mockedPrisma.conceptEdge.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
     (mockedPrisma.conceptEdge.create as jest.Mock).mockResolvedValue({});
+    (mockedPrisma.document.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockedPrisma.conceptSourceRef.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+    (mockedPrisma.conceptSourceRef.createMany as jest.Mock).mockResolvedValue({ count: 0 });
     (mockedPrisma.studyPlan.update as jest.Mock).mockResolvedValue({});
+    (mockedPrisma.analysisJob.update as jest.Mock).mockResolvedValue({}); // setPhase / markFailed
   });
 
   afterAll(() => {
@@ -77,7 +102,7 @@ describe('processAnalysisJob', () => {
     expect(mockedPrisma.analysisJob.findUniqueOrThrow).not.toHaveBeenCalled();
     expect(mockedExtractConcepts).not.toHaveBeenCalled();
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
-    expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled(); // markFailed cũng không bị gọi
+    expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled(); // setPhase/markFailed đều không chạy
   });
 
   // --- AC 2: gọi 2 lần trên cùng jobId chỉ xử lý 1 lần ---
@@ -92,15 +117,24 @@ describe('processAnalysisJob', () => {
 
     expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
     expect(mockedExtractConcepts).not.toHaveBeenCalled(); // USE_MOCK_AI đã bypass, nhưng dù sao cũng không được gọi 2 lần
+    // Bên thắng phải thực sự hoàn tất pipeline, không chỉ "được gọi" — tránh false-green.
+    expect(mockedPrisma.studyPlan.update).toHaveBeenCalledTimes(1);
+    expectMarkFailedNotCalled();
   });
 
-  // --- Regression: claim thành công vẫn xử lý bình thường như trước ---
+  // --- Regression: claim thành công vẫn xử lý bình thường (kể cả concept-merge #170) ---
   it('claims a pending job and processes it end-to-end', async () => {
     (mockedPrisma.analysisJob.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (mockedPrisma.analysisJob.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingJob);
 
     await processAnalysisJob(JOB_ID);
 
+    expect(mockedPrisma.concept.findMany).toHaveBeenCalledWith({
+      where: { planId: PLAN_ID },
+      select: { id: true, name: true, status: true },
+    });
+    expect(mockedPrisma.concept.create).toHaveBeenCalled();
+    expect(mockedPrisma.conceptEdge.create).toHaveBeenCalled();
     expect(mockedPrisma.studyPlan.update).toHaveBeenCalledWith({
       where: { id: PLAN_ID },
       data: expect.objectContaining({ status: 'active' }),
@@ -110,7 +144,7 @@ describe('processAnalysisJob', () => {
       where: { id: JOB_ID, status: 'processing' },
       data: { status: 'done', completedAt: expect.any(Date) },
     });
-    expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalled(); // markFailed không bị gọi
+    expectMarkFailedNotCalled();
   });
 
   // --- Guard cuối transaction: job bị lấy mất trạng thái 'processing' giữa chừng ---
@@ -122,9 +156,18 @@ describe('processAnalysisJob', () => {
 
     await processAnalysisJob(JOB_ID);
 
+    // Pipeline phải chạy hết qua concept/edge/plan trước khi fail ở finalize — chứng
+    // minh guard đúng chỗ chứ không phải crash sớm do thiếu mock (false-green).
+    expect(mockedPrisma.concept.create).toHaveBeenCalled();
+    expect(mockedPrisma.studyPlan.update).toHaveBeenCalled();
     expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
       where: { id: JOB_ID },
-      data: { status: 'failed', completedAt: expect.any(Date), retryCount: 2 },
+      data: {
+        status: 'failed',
+        completedAt: expect.any(Date),
+        retryCount: 2,
+        errorMessage: expect.stringContaining('no longer processing'),
+      },
     });
   });
 });
