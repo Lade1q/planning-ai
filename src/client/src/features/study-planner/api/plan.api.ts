@@ -33,6 +33,26 @@ export function getRetryErrorMessage(error: unknown): string {
   return 'Đã xảy ra lỗi, vui lòng thử lại.';
 }
 
+/** Same shape as getRetryErrorMessage, for POST /plans/:id/document's DOCUMENT_CHANGE_NOT_ALLOWED
+ *  and the upload-validation codes it shares with plan creation (FILE_REQUIRED, FILE_TOO_LARGE,
+ *  INVALID_FILE_TYPE) — those already have clear messages from the server, so pass them through. */
+export function getChangeDocumentErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) {
+    return 'Đã xảy ra lỗi, vui lòng thử lại.';
+  }
+  if (!error.response) {
+    return 'Không kết nối được tới máy chủ. Vui lòng thử lại.';
+  }
+  const code: string | undefined = error.response.data?.error?.code;
+  if (code === 'DOCUMENT_CHANGE_NOT_ALLOWED') {
+    return 'Không thể đổi tài liệu lúc này — kế hoạch có thể đã đổi trạng thái. Vui lòng tải lại trang.';
+  }
+  if (code === 'FILE_TOO_LARGE' || code === 'INVALID_FILE_TYPE' || code === 'FILE_REQUIRED') {
+    return error.response.data?.error?.message ?? 'Tài liệu không hợp lệ.';
+  }
+  return 'Đã xảy ra lỗi, vui lòng thử lại.';
+}
+
 interface BackendCreatePlanResponse {
   success: boolean;
   data: {
@@ -138,6 +158,18 @@ export const planApi = {
 
   retryPlan: async (id: string): Promise<void> => {
     await apiClient.post(ENDPOINTS.PLANS.RETRY(id));
+  },
+
+  /**
+   * "Đổi tài liệu khác" (#187) — for a failed draft where the original file itself was the
+   * problem (retryPlan alone reuses that same file and would fail the same way).
+   */
+  changeDocument: async (id: string, file: File): Promise<void> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    await apiClient.post(ENDPOINTS.PLANS.DOCUMENT(id), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 
   /** Archive a plan (SP-04), or pull an archived one back to active. */

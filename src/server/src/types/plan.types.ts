@@ -132,3 +132,17 @@ export interface ReanalyzePlanResponse {
   status: StudyPlanStatus;
   analysisStatus: AnalysisJobStatus;
 }
+
+/**
+ * Response shape for POST /plans/:id/document (Issue #187).
+ *
+ * Distinct from retry (#106): retry reuses the failed job's fileKey, this replaces it —
+ * for the "Đổi tài liệu khác" alt flow, where the original file itself was the problem.
+ */
+export interface ChangeDocumentResponse {
+  id: string;
+  name: string;
+  deadline: Date | null;
+  status: StudyPlanStatus;
+  analysisStatus: AnalysisJobStatus;
+}

@@ -6,6 +6,7 @@ import {
   listPlansController,
   getPlanByIdController,
   retryPlanController,
+  changePlanDocumentController,
   reanalyzePlanController,
   updatePlanStatusController,
   deletePlanController,
@@ -19,6 +20,7 @@ planRouter.post('/', upload.single('file'), asyncHandler(createPlanController));
 planRouter.get('/', asyncHandler(listPlansController));
 planRouter.get('/:id', asyncHandler(getPlanByIdController));
 planRouter.post('/:id/retry', asyncHandler(retryPlanController));
+planRouter.post('/:id/document', upload.single('file'), asyncHandler(changePlanDocumentController));
 planRouter.post('/:id/reanalyze', asyncHandler(reanalyzePlanController));
 planRouter.patch('/:id', asyncHandler(updatePlanStatusController));
 planRouter.delete('/:id', asyncHandler(deletePlanController));

@@ -6,7 +6,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
 import { AnalysisProgressPanel } from '@/features/study-planner/components/AnalysisProgressPanel';
-import { planApi, getRetryErrorMessage } from '@/features/study-planner/api/plan.api';
+import {
+  planApi,
+  getRetryErrorMessage,
+  getChangeDocumentErrorMessage,
+} from '@/features/study-planner/api/plan.api';
 import {
   PlanDetails,
   PlanStatus,
@@ -26,6 +30,8 @@ export default function PlanDetailPage() {
   const [plan, setPlan] = useState<PlanDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isChangingDocument, setIsChangingDocument] = useState(false);
+  const changeDocumentInputRef = useRef<HTMLInputElement>(null);
   // Held true for a beat after the job finishes, so the progress panel's last phase gets to
   // show its checkmark instead of the graph replacing it in the same instant (analysisStatus
   // flipping to 'done' already makes analysisRunning false on the very next render).
@@ -122,6 +128,33 @@ export default function PlanDetailPage() {
       fetchPlan(pollGenerationRef.current);
     } finally {
       setIsRetrying(false);
+    }
+  };
+
+  // "Đổi tài liệu khác" (#187) — for when retry alone can't help because the original file
+  // itself was the problem. Opens the native file picker; the actual request fires from
+  // handleChangeDocumentFile once a file is chosen.
+  const handleChangeDocumentClick = () => {
+    if (isChangingDocument) return;
+    changeDocumentInputRef.current?.click();
+  };
+
+  const handleChangeDocumentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // Same file picked twice in a row must still fire onChange.
+    if (!id || !file) return;
+
+    setIsChangingDocument(true);
+    try {
+      await planApi.changeDocument(id, file);
+      setIsLoading(true);
+      fetchPlan(pollGenerationRef.current);
+    } catch (error) {
+      console.error('Failed to change plan document', error);
+      toast.error(getChangeDocumentErrorMessage(error));
+      fetchPlan(pollGenerationRef.current);
+    } finally {
+      setIsChangingDocument(false);
     }
   };
 
@@ -355,9 +388,31 @@ export default function PlanDetailPage() {
                       AI không trích xuất được khái niệm từ tài liệu đã tải lên.
                     </p>
                   )}
-                  <Button variant="secondary" size="sm" onClick={handleRetry} disabled={isRetrying}>
-                    {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
-                  </Button>
+                  <div className="flex gap-2.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleRetry}
+                      disabled={isRetrying || isChangingDocument}
+                    >
+                      {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleChangeDocumentClick}
+                      disabled={isRetrying || isChangingDocument}
+                    >
+                      {isChangingDocument ? 'Đang tải lên...' : 'Đổi tài liệu khác'}
+                    </Button>
+                    <input
+                      ref={changeDocumentInputRef}
+                      type="file"
+                      accept=".pdf,.txt,.png,.jpg,.jpeg"
+                      className="hidden"
+                      onChange={handleChangeDocumentFile}
+                    />
+                  </div>
                 </div>
               </div>
             ) : plan ? (
