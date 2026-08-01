@@ -7,6 +7,7 @@ import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
 import { validateAndFixDag } from '../utils/dag';
 import { buildConceptSourceRows } from '../utils/concept-source';
 import { planConceptMerge, normalizeConceptKey } from '../utils/concept-merge';
+import { toSafeErrorMessage } from '../utils/error-message';
 import { validateDAG } from './graph.service';
 import { AiExtractResponse } from '../schemas/ai-extract.schema';
 
@@ -71,10 +72,21 @@ async function callAiWithRetry(fileKey: string, onPhase: OnPhase): Promise<AiExt
   throw lastError;
 }
 
-async function markFailed(jobId: string): Promise<void> {
+/**
+ * Marks a job `failed`. `error` is the real cause when one exists (AI call failure, DAG
+ * validation exception, ...) and is stored so the UI can show the actual reason instead of a
+ * generic message (Issue #183). Omitted for paths with no real error to report — the stale-job
+ * sweep and the retry/reanalyze force-fail paths don't call this at all, by design.
+ */
+async function markFailed(jobId: string, error?: unknown): Promise<void> {
   await prisma.analysisJob.update({
     where: { id: jobId },
-    data: { status: 'failed', completedAt: new Date(), retryCount: MAX_ATTEMPTS - 1 },
+    data: {
+      status: 'failed',
+      completedAt: new Date(),
+      retryCount: MAX_ATTEMPTS - 1,
+      errorMessage: error !== undefined ? toSafeErrorMessage(error) : null,
+    },
   });
 }
 
@@ -107,7 +119,7 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
   });
 
   if (!job.fileKey || !job.planDraftId) {
-    await markFailed(jobId);
+    await markFailed(jobId, new Error('AnalysisJob is missing fileKey or planDraftId'));
     return;
   }
   const planId = job.planDraftId;
@@ -221,7 +233,7 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
     });
   } catch (error) {
     console.error(`[analysis] job ${jobId} failed:`, error);
-    await markFailed(jobId);
+    await markFailed(jobId, error);
     return;
   }
 

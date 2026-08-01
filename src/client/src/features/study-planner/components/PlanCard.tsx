@@ -187,10 +187,11 @@ export function PlanCard({
           <div className="text-muted-foreground font-mono text-[11.5px]">{meta.join(' · ')}</div>
         )}
 
-        <p className="text-muted-foreground mt-3.5 text-pretty text-[12.5px] leading-[1.65]">
+        <p className="text-muted-foreground mt-3.5 line-clamp-2 text-pretty text-[12.5px] leading-[1.65]">
           {isAnalysing
             ? 'AI đang trích xuất khái niệm. Đồ thị sẽ mở được ngay khi xong — bạn không cần chờ ở đây.'
-            : 'Không trích xuất được khái niệm từ tài liệu này. Mở kế hoạch để xem chi tiết và thử lại.'}
+            : (plan.analysisErrorMessage ??
+              'Không trích xuất được khái niệm từ tài liệu này. Mở kế hoạch để xem chi tiết và thử lại.')}
         </p>
 
         <div className="border-border mt-3.5 border-t pt-3.5 text-[12.5px]">
