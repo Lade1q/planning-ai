@@ -14,6 +14,7 @@ import {
 import {
   PlanDetails,
   PlanStatus,
+  PlanSummary,
   Concept,
   ConceptEdge,
 } from '@/features/study-planner/types/concept';
@@ -29,6 +30,11 @@ export default function PlanDetailPage() {
 
   const [plan, setPlan] = useState<PlanDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // DB-02 Alt flow 2 — lỗi tải đồ thị (khác với "phân tích thất bại", vốn là plan.analysisStatus
+  // === 'failed' và vẫn có dữ liệu draft để sửa). Đây là request GET /plans/:id tự nó lỗi.
+  const [hasLoadError, setHasLoadError] = useState(false);
+  // Bộ chọn kế hoạch trên toolbar (DB-05) — đổi phạm vi tại chỗ, không quay về dashboard.
+  const [planList, setPlanList] = useState<PlanSummary[] | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isChangingDocument, setIsChangingDocument] = useState(false);
   const changeDocumentInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +65,7 @@ export default function PlanDetailPage() {
       const data = await planApi.getPlan(id);
       if (!isMountedRef.current || generation !== pollGenerationRef.current) return;
 
+      setHasLoadError(false);
       const wasRunning =
         prevAnalysisStatusRef.current === 'pending' ||
         prevAnalysisStatusRef.current === 'processing';
@@ -93,6 +100,7 @@ export default function PlanDetailPage() {
       if (!isMountedRef.current || generation !== pollGenerationRef.current) return;
       console.error('Failed to load plan', error);
       toast.error('Không thể tải dữ liệu kế hoạch.');
+      setHasLoadError(true);
       setIsLoading(false);
     }
   }
@@ -113,6 +121,32 @@ export default function PlanDetailPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ re-fetch khi id thay đổi
   }, [id]);
+
+  // Danh sách kế hoạch cho bộ chọn trên toolbar (DB-05) — lỗi ở đây không chặn màn hình
+  // chính, chỉ khiến bộ chọn không có gì để hiện.
+  useEffect(() => {
+    let isMounted = true;
+    planApi
+      .listPlans()
+      .then((data) => {
+        if (isMounted) setPlanList(data);
+      })
+      .catch(() => {
+        /* bộ chọn kế hoạch sẽ không hiện — không phải lỗi chặn màn hình chính */
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // DB-02 Alt flow 2's "Thử lại" — re-fetches the plan itself, distinct from `handleRetry`
+  // below (which re-runs a failed AnalysisJob, a different failure the plan data already
+  // describes).
+  const handleReloadPlan = () => {
+    if (!id) return;
+    setIsLoading(true);
+    fetchPlan(pollGenerationRef.current);
+  };
 
   const handleRetry = async () => {
     if (!id || isRetrying) return;
@@ -417,6 +451,7 @@ export default function PlanDetailPage() {
               </div>
             ) : plan ? (
               <ConceptGraph
+                planId={plan.id}
                 initialConcepts={plan.graph.concepts}
                 initialEdges={plan.graph.edges}
                 mode={mode}
@@ -472,7 +507,39 @@ export default function PlanDetailPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* DB-05: bộ chọn kế hoạch ngay trên toolbar — đổi phạm vi tại chỗ, không quay
+                về dashboard (DB-02 áp cho nhiều kế hoạch). */}
+            {planList && planList.length > 1 && (
+              <div className="flex flex-col gap-0.5">
+                <label
+                  htmlFor="plan-switch"
+                  className="text-muted-foreground text-[10.5px] font-medium uppercase tracking-[0.06em]"
+                >
+                  Kế hoạch
+                </label>
+                <select
+                  id="plan-switch"
+                  value={id ?? ''}
+                  onChange={(e) => navigate(`/plan/${e.target.value}`)}
+                  className="border-border bg-card text-foreground rounded-md border px-2.5 py-1.5 text-[13px] font-medium"
+                >
+                  {/* Kế hoạch hiện tại không (còn) nằm trong danh sách — vd. lỗi tải, hoặc id
+                      từ một liên kết cũ. Không để <select> âm thầm rơi về option đầu tiên,
+                      trông như đang xem đúng kế hoạch đó. */}
+                  {!planList.some((p) => p.id === id) && (
+                    <option value={id ?? ''} disabled>
+                      Kế hoạch này
+                    </option>
+                  )}
+                  {planList.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.conceptCount} khái niệm
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="bg-muted/50 border-border rounded border px-2 py-1 text-sm">
               Status: <span className="font-mono font-medium">{plan?.status || '...'}</span>
             </div>
@@ -493,17 +560,47 @@ export default function PlanDetailPage() {
               <span>Đang tải đồ thị...</span>
             </div>
           </div>
-        ) : plan ? (
+        ) : hasLoadError || !plan ? (
+          // DB-02 Alt flow 2 — request tải đồ thị tự nó lỗi (mạng/server), khác với "phân
+          // tích thất bại" (plan.analysisStatus === 'failed'), vốn có sẵn dữ liệu draft để sửa.
+          <div className="border-border bg-card flex h-full w-full flex-col overflow-hidden rounded-xl border">
+            <div
+              aria-hidden="true"
+              className="border-border flex items-center gap-2 border-b px-4 py-2.5 opacity-45"
+            >
+              {['Tất cả', 'Vững', 'Yếu'].map((label) => (
+                <span
+                  key={label}
+                  className="border-border rounded-md border px-2.5 py-1.5 text-[12px] font-medium"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+              <p className="text-[14px] font-semibold">Không thể tải đồ thị khái niệm</p>
+              <p className="text-muted-foreground max-w-100 text-pretty text-[13px] leading-[1.65]">
+                Yêu cầu tới máy chủ không thành công. Dữ liệu học tập của bạn không bị ảnh hưởng —
+                chỉ phần hiển thị này chưa lấy được.
+              </p>
+              <div className="flex gap-2.5">
+                <Button size="sm" onClick={handleReloadPlan}>
+                  Thử lại
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/plans')}>
+                  Chọn kế hoạch khác
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
           <ConceptGraph
+            planId={plan.id}
             initialConcepts={plan.graph.concepts}
             initialEdges={plan.graph.edges}
             mode={mode}
             onConfirm={undefined}
           />
-        ) : (
-          <div className="border-border bg-muted/20 text-muted-foreground flex h-full w-full items-center justify-center rounded-xl border">
-            Không tìm thấy dữ liệu đồ thị.
-          </div>
         )}
       </div>
     </div>

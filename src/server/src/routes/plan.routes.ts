@@ -12,6 +12,7 @@ import {
   deletePlanController,
 } from '../controllers/plan.controller';
 import { graphRouter } from './graph.routes';
+import { conceptRouter } from './concept.routes';
 
 const planRouter = Router();
 
@@ -25,5 +26,6 @@ planRouter.post('/:id/reanalyze', asyncHandler(reanalyzePlanController));
 planRouter.patch('/:id', asyncHandler(updatePlanStatusController));
 planRouter.delete('/:id', asyncHandler(deletePlanController));
 planRouter.use('/:id/graph', graphRouter);
+planRouter.use('/:id/concepts', conceptRouter);
 
 export { planRouter };

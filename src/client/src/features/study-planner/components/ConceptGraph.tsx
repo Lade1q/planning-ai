@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
   Controls,
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 import { Concept, ConceptEdge } from '../types/concept';
 import {
@@ -37,23 +39,47 @@ import {
   toReactFlowEdges,
   toReactFlowNodes,
 } from '../utils/graphTransform';
+import { formatRelativeDays } from '../utils/planDates';
+import { ConceptDetailPanel, type RelatedConcept } from './ConceptDetailPanel';
+
+/** Trên 50 node, UC-17 [E1] yêu cầu mặc định chỉ vẽ vùng quanh node chưa vững. */
+const LARGE_GRAPH_THRESHOLD = 50;
+
+type MasteryFilter = 'all' | 'strong' | 'learning' | 'weak' | 'untested';
 
 // --- CUSTOM NODE --- (đặt tên GraphNode để không đụng `ConceptNode` của ui/)
 function GraphNode({ data, selected }: NodeProps) {
   const isConnectable = useStore((s) => s.nodesConnectable);
+  const [isHovered, setIsHovered] = useState(false);
   const score = data.mastery as number | null;
   // Tạm thời coi như luôn có nguồn (vì API chưa trả về excerpt) để tránh cờ đỏ toàn bộ.
   // Khi nào API support thì sẽ check dựa trên c.description.
   const difficulty = (data.difficulty as number | undefined) ?? null;
+  const lastTestedAt = (data.lastTestedAt as string | null | undefined) ?? null;
+  const isRemediating = Boolean(data.isRemediating);
+  const dependentCount = (data.dependentCount as number | undefined) ?? 0;
 
   return (
-    <div className={`node ${selected ? 'node--sel' : ''}`}>
-      <ConceptNodeChip band={masteryBand(score)} style={{ width: '136px', position: 'relative' }}>
+    <div
+      className={`node ${selected ? 'node--sel' : ''}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <ConceptNodeChip
+        band={masteryBand(score)}
+        className={isRemediating ? 'is-remediating' : undefined}
+        style={{ width: '136px', position: 'relative' }}
+      >
         <Handle
           type="target"
           position={Position.Left}
           isConnectable={isConnectable}
-          className={`w-3.5! h-3.5! -left-2 opacity-20 transition-opacity hover:opacity-100 ${!isConnectable ? 'hidden' : ''}`}
+          // `invisible` (visibility:hidden), không phải `hidden` (display:none): react-flow đo
+          // vị trí cạnh qua getBoundingClientRect() của chính Handle này — display:none làm nó
+          // rời khỏi layout hoàn toàn, khiến MỌI cạnh ở view mode (isConnectable=false) sụp về
+          // một điểm ngoài khung nhìn dù dữ liệu concept/edge vẫn đúng. invisible giữ handle
+          // trong layout (đo được) mà vẫn không vẽ ra.
+          className={`w-3.5! h-3.5! -left-2 opacity-20 transition-opacity hover:opacity-100 ${!isConnectable ? 'invisible' : ''}`}
         />
 
         <span>{data.label as string}</span>
@@ -67,19 +93,72 @@ function GraphNode({ data, selected }: NodeProps) {
           type="source"
           position={Position.Right}
           isConnectable={isConnectable}
-          className={`w-3.5! h-3.5! -right-2 opacity-20 transition-opacity hover:opacity-100 ${!isConnectable ? 'hidden' : ''}`}
+          className={`w-3.5! h-3.5! -right-2 opacity-20 transition-opacity hover:opacity-100 ${!isConnectable ? 'invisible' : ''}`}
         />
       </ConceptNodeChip>
 
       <div className="node__diff">
         {difficulty !== null ? `độ khó ${difficulty}/5` : 'có nguồn'}
       </div>
+
+      {/* DB-02 bước 3: hover tóm tắt nhanh — click mới mở panel đầy đủ (DB-06) */}
+      {isHovered && (
+        <div className="bg-card border-border pointer-events-none absolute -top-1.5 left-1/2 z-30 w-max max-w-60 -translate-x-1/2 -translate-y-full rounded-md border px-2.5 py-2 text-[12px] shadow-lg">
+          <span className="font-medium">{data.label as string}</span>
+          <span className="text-muted-foreground ml-2 font-mono text-[11px]">
+            {score !== null ? score.toFixed(2) : '—'}
+          </span>
+          <div className="text-muted-foreground mt-0.5 whitespace-nowrap font-mono text-[10.5px]">
+            {lastTestedAt
+              ? `kiểm tra lần cuối ${formatRelativeDays(lastTestedAt)}`
+              : 'chưa kiểm tra'}
+            {` · ${dependentCount} khái niệm phụ thuộc`}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 // -------------------
 
+/** Chip lọc DB-05 — dùng chung cho 4 mức mastery + "Đang ôn lại". */
+function FilterChip({
+  active,
+  disabled,
+  color,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  color?: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'border-border inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors',
+        active
+          ? 'bg-primary border-primary text-primary-foreground'
+          : 'text-muted-foreground hover:bg-accent',
+        disabled && 'cursor-not-allowed opacity-45'
+      )}
+    >
+      {color && (
+        <i className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: color }} />
+      )}
+      {children}
+    </button>
+  );
+}
+
 interface ConceptGraphProps {
+  /** Cần cho ConceptDetailPanel (DB-06) và điều hướng sang FS-01/AE-01. */
+  planId: string;
   initialConcepts: Concept[];
   initialEdges: ConceptEdge[];
   mode: 'view' | 'edit';
@@ -87,11 +166,13 @@ interface ConceptGraphProps {
 }
 
 export function ConceptGraph({
+  planId,
   initialConcepts,
   initialEdges,
   mode,
   onConfirm,
 }: ConceptGraphProps) {
+  const navigate = useNavigate();
   const nodeTypes = useMemo(() => ({ conceptNode: GraphNode }), []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -105,10 +186,33 @@ export function ConceptGraph({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newConceptName, setNewConceptName] = useState('');
 
+  // --- DB-05: lọc & tìm kiếm (chỉ có ý nghĩa ở mode='view') ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterBand, setFilterBand] = useState<MasteryFilter>('all');
+  const [filterRemediating, setFilterRemediating] = useState(false);
+  const [showAllNodes, setShowAllNodes] = useState(false);
+
+  // Kế hoạch mới (hoặc phân tích lại) → bỏ bộ lọc cũ, không mang lọc của kế hoạch trước sang.
+  // Điều chỉnh state ngay trong lúc render (React's "adjusting state when a prop changes"
+  // pattern, dùng useState để nhớ giá trị trước chứ không phải useRef — đọc/ghi `ref.current`
+  // lúc render bị react-hooks/refs cấm) thay vì một effect riêng, để tránh cascading render
+  // mà react-hooks/set-state-in-effect cảnh báo.
+  const [prevGraph, setPrevGraph] = useState({ concepts: initialConcepts, edges: initialEdges });
+  if (prevGraph.concepts !== initialConcepts || prevGraph.edges !== initialEdges) {
+    setPrevGraph({ concepts: initialConcepts, edges: initialEdges });
+    setSearchQuery('');
+    setFilterBand('all');
+    setFilterRemediating(false);
+    setShowAllNodes(false);
+    setSelectedNodeId(null);
+  }
+
   const selectedNode = useMemo(
     () => nodes.find((n) => n.id === selectedNodeId) || null,
     [nodes, selectedNodeId]
   );
+
+  const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
   const prerequisites = useMemo(() => {
     if (!selectedNodeId) return [];
@@ -119,6 +223,44 @@ export function ConceptGraph({
         return { edgeId: e.id, sourceName: (sourceNode?.data?.label as string) || e.source };
       });
   }, [edges, nodes, selectedNodeId]);
+
+  // DB-06: tiên quyết/hậu kế cho panel chi tiết — tính từ đồ thị client đã có sẵn (xem lý do
+  // trong ConceptDetailResponse phía server), giữ tên/điểm số khớp với canvas.
+  const prerequisitesForDetail = useMemo<RelatedConcept[]>(() => {
+    if (!selectedNodeId) return [];
+    return edges
+      .filter((e) => e.target === selectedNodeId)
+      .flatMap((e) => {
+        const n = nodeById.get(e.source);
+        if (!n) return [];
+        return [
+          {
+            id: n.id,
+            name: n.data.label as string,
+            masteryScore: (n.data.mastery as number | null) ?? null,
+            isRemediating: Boolean(n.data.isRemediating),
+          },
+        ];
+      });
+  }, [edges, selectedNodeId, nodeById]);
+
+  const dependentsForDetail = useMemo<RelatedConcept[]>(() => {
+    if (!selectedNodeId) return [];
+    return edges
+      .filter((e) => e.source === selectedNodeId)
+      .flatMap((e) => {
+        const n = nodeById.get(e.target);
+        if (!n) return [];
+        return [
+          {
+            id: n.id,
+            name: n.data.label as string,
+            masteryScore: (n.data.mastery as number | null) ?? null,
+            isRemediating: Boolean(n.data.isRemediating),
+          },
+        ];
+      });
+  }, [edges, selectedNodeId, nodeById]);
 
   // Resolve selected edge info for delete bar
   const selectedEdgeInfo = useMemo(() => {
@@ -133,6 +275,135 @@ export function ConceptGraph({
       targetName: (targetNode?.data?.label as string) || edge.target,
     };
   }, [selectedEdgeId, edges, nodes]);
+
+  // --- DB-05 derived state ---
+  const weakCount = useMemo(
+    () => initialConcepts.filter((c) => masteryBand(c.mastery_score) === 'weak').length,
+    [initialConcepts]
+  );
+  const untestedCount = useMemo(
+    () => initialConcepts.filter((c) => c.mastery_score === null).length,
+    [initialConcepts]
+  );
+  // UC-17 [E2]: chưa có phiên kiểm tra nào — lọc theo một cột toàn null là thao tác rỗng.
+  const allUntested = initialConcepts.length > 0 && untestedCount === initialConcepts.length;
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const hasActiveFilter =
+    mode === 'view' &&
+    !allUntested &&
+    (trimmedQuery !== '' || filterBand !== 'all' || filterRemediating);
+
+  const matchedNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    nodes.forEach((n) => {
+      const label = String(n.data.label ?? '').toLowerCase();
+      const band = masteryBand((n.data.mastery as number | null) ?? null);
+      const remediating = Boolean(n.data.isRemediating);
+      if (trimmedQuery && !label.includes(trimmedQuery)) return;
+      if (filterBand !== 'all' && band !== filterBand) return;
+      if (filterRemediating && !remediating) return;
+      ids.add(n.id);
+    });
+    return ids;
+  }, [nodes, trimmedQuery, filterBand, filterRemediating]);
+
+  const noMatches = hasActiveFilter && nodes.length > 0 && matchedNodeIds.size === 0;
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterBand('all');
+    setFilterRemediating(false);
+  }, []);
+
+  // UC-17 [E1]: > 50 node — mặc định chỉ vẽ node yếu + tiên quyết trực tiếp của chúng.
+  const isLargeGraph = mode === 'view' && initialConcepts.length > LARGE_GRAPH_THRESHOLD;
+
+  const largeGraphSubset = useMemo(() => {
+    if (!isLargeGraph) return null;
+    const weakIds = new Set(
+      nodes
+        .filter((n) => masteryBand((n.data.mastery as number | null) ?? null) === 'weak')
+        .map((n) => n.id)
+    );
+    const result = new Set(weakIds);
+    edges.forEach((e) => {
+      if (weakIds.has(e.target)) result.add(e.source);
+    });
+    return result;
+  }, [isLargeGraph, nodes, edges]);
+
+  const dependentCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    edges.forEach((e) => map.set(e.source, (map.get(e.source) ?? 0) + 1));
+    return map;
+  }, [edges]);
+
+  // Khái niệm gốc (không có tiên quyết) — điểm bắt đầu tự nhiên khi chưa đo được gì (UC-17 [E2]).
+  const rootConceptIds = useMemo(() => {
+    if (!allUntested) return [];
+    const withPrereq = new Set(edges.map((e) => e.target));
+    return nodes.filter((n) => !withPrereq.has(n.id)).map((n) => n.id);
+  }, [allUntested, nodes, edges]);
+
+  const showLargeGraphSubset = isLargeGraph && !showAllNodes && largeGraphSubset !== null;
+
+  const displayNodes = useMemo(() => {
+    const base = showLargeGraphSubset ? nodes.filter((n) => largeGraphSubset!.has(n.id)) : nodes;
+    return base.map((n) => {
+      const dimmed = hasActiveFilter && !matchedNodeIds.has(n.id);
+      return {
+        ...n,
+        data: { ...n.data, dependentCount: dependentCounts.get(n.id) ?? 0 },
+        className: dimmed ? 'is-dimmed' : undefined,
+      };
+    });
+  }, [
+    showLargeGraphSubset,
+    nodes,
+    largeGraphSubset,
+    hasActiveFilter,
+    matchedNodeIds,
+    dependentCounts,
+  ]);
+
+  const displayEdges = useMemo(() => {
+    const base = showLargeGraphSubset
+      ? edges.filter((e) => largeGraphSubset!.has(e.source) && largeGraphSubset!.has(e.target))
+      : edges;
+    return base.map((e) => {
+      const dimmed =
+        hasActiveFilter && (!matchedNodeIds.has(e.source) || !matchedNodeIds.has(e.target));
+      let relClass = '';
+      if (
+        mode === 'view' &&
+        selectedNodeId &&
+        (e.source === selectedNodeId || e.target === selectedNodeId)
+      ) {
+        const isPrereqEdge = e.target === selectedNodeId;
+        const sourceBand = masteryBand(
+          (nodeById.get(e.source)?.data.mastery as number | null) ?? null
+        );
+        relClass =
+          isPrereqEdge && sourceBand === 'weak'
+            ? 'react-flow__edge--prerequisite-weak'
+            : 'react-flow__edge--related';
+      }
+      return {
+        ...e,
+        className: [e.className, dimmed ? 'is-dimmed' : '', relClass].filter(Boolean).join(' '),
+      };
+    });
+  }, [
+    showLargeGraphSubset,
+    edges,
+    largeGraphSubset,
+    hasActiveFilter,
+    matchedNodeIds,
+    mode,
+    selectedNodeId,
+    nodeById,
+  ]);
 
   // Initialize and Layout
   useEffect(() => {
@@ -150,7 +421,7 @@ export function ConceptGraph({
     setEdges(layoutedEdges);
   }, [initialConcepts, initialEdges, setNodes, setEdges]);
 
-  // Fit view to show entire graph when side panel toggles
+  // Fit view to show entire graph when side panel toggles hoặc khi bật/tắt "Hiện toàn bộ"
   useEffect(() => {
     if (rfInstance && nodes.length > 0) {
       // Wait briefly for the side panel to render and CSS flex layout to resize
@@ -158,7 +429,7 @@ export function ConceptGraph({
         rfInstance.fitView({ duration: 600, padding: 0.2 });
       }, 50);
     }
-  }, [selectedNodeId, rfInstance, nodes.length]);
+  }, [selectedNodeId, rfInstance, nodes.length, showAllNodes]);
 
   // Handle new connections (Edit Mode)
   const onConnect = useCallback(
@@ -340,6 +611,110 @@ export function ConceptGraph({
           </div>
         )}
 
+        {/* DB-05: thanh công cụ lọc & tìm kiếm */}
+        {mode === 'view' && (
+          <div className="border-border bg-card/80 z-10 flex flex-wrap items-center gap-2.5 border-b px-4 py-2.5 backdrop-blur-sm">
+            <div className="relative w-56 shrink-0">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.6-3.6" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm khái niệm theo tên..."
+                aria-label="Tìm khái niệm"
+                className="border-border bg-background text-foreground focus-visible:ring-ring py-1.75 w-full rounded-md border pl-8 pr-3 text-[13px] outline-none focus-visible:ring-2"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <FilterChip
+                active={filterBand === 'all'}
+                disabled={allUntested}
+                onClick={() => setFilterBand('all')}
+              >
+                Tất cả
+              </FilterChip>
+              <FilterChip
+                active={filterBand === 'strong'}
+                disabled={allUntested}
+                color="var(--mastery-strong)"
+                onClick={() => setFilterBand('strong')}
+              >
+                Vững
+              </FilterChip>
+              <FilterChip
+                active={filterBand === 'learning'}
+                disabled={allUntested}
+                color="var(--mastery-learning)"
+                onClick={() => setFilterBand('learning')}
+              >
+                Đang học
+              </FilterChip>
+              <FilterChip
+                active={filterBand === 'weak'}
+                disabled={allUntested}
+                color="var(--mastery-weak)"
+                onClick={() => setFilterBand('weak')}
+              >
+                Yếu
+              </FilterChip>
+              <FilterChip
+                active={filterBand === 'untested'}
+                disabled={allUntested}
+                color="var(--mastery-untested)"
+                onClick={() => setFilterBand('untested')}
+              >
+                Chưa kiểm tra
+              </FilterChip>
+              {/* "Đang ôn lại" đứng sau vạch ngăn — không cùng trục với 4 mức mastery ở trên:
+                  bốn cái đó loại trừ nhau, cái này chồng lên bất kỳ cái nào. */}
+              <span className="bg-border mx-0.5 h-5 w-px shrink-0" />
+              <FilterChip
+                active={filterRemediating}
+                color="var(--remediate)"
+                onClick={() => setFilterRemediating((v) => !v)}
+              >
+                Đang ôn lại
+              </FilterChip>
+            </div>
+            <span className="text-muted-foreground ml-auto shrink-0 font-mono text-[12px] tabular-nums">
+              {hasActiveFilter
+                ? `${matchedNodeIds.size} / ${initialConcepts.length} khái niệm`
+                : `${initialConcepts.length} khái niệm · ${weakCount} yếu · ${untestedCount} chưa kiểm tra`}
+            </span>
+          </div>
+        )}
+
+        {/* UC-17 [E1]: cảnh báo + lối giải quyết cho đồ thị lớn */}
+        {showLargeGraphSubset && (
+          <div className="bg-mastery-learning/7 border-border flex flex-wrap items-center gap-3 border-b px-4 py-2.5 text-[12.5px]">
+            <span>
+              <strong>{initialConcepts.length} khái niệm</strong> — đang hiển thị{' '}
+              {largeGraphSubset?.size ?? 0} khái niệm chưa vững và tiên quyết trực tiếp của chúng.
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="ml-auto h-7 shrink-0 text-xs"
+              onClick={() => setShowAllNodes(true)}
+            >
+              Hiện toàn bộ {initialConcepts.length} node
+            </Button>
+          </div>
+        )}
+
         <div
           className="bg-muted/30 relative flex-1"
           style={{
@@ -349,11 +724,16 @@ export function ConceptGraph({
           }}
         >
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={displayNodes}
+            edges={displayEdges}
             nodeTypes={nodeTypes}
-            onNodesChange={mode === 'edit' ? onNodesChange : undefined}
-            onEdgesChange={mode === 'edit' ? onEdgesChange : undefined}
+            // Luôn nối onNodesChange/onEdgesChange — react-flow báo kích thước node đo được
+            // (dimension change) qua chính handler này; không nối ở view mode khiến node
+            // không bao giờ có `measured.width/height`, và cạnh (tính theo tâm handle) sụp
+            // về một điểm ngoài khung nhìn. Kéo/nối/xoá vẫn chỉ bật ở edit mode, qua
+            // nodesDraggable/nodesConnectable/deleteKeyCode bên dưới, không qua đây.
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
             onSelectionChange={(params) => {
               if (params.nodes.length > 0) {
                 setSelectedNodeId(params.nodes[0].id);
@@ -379,7 +759,7 @@ export function ConceptGraph({
             onInit={setRfInstance}
             nodesDraggable={mode === 'edit'}
             nodesConnectable={mode === 'edit'}
-            elementsSelectable={mode === 'edit'}
+            elementsSelectable
             deleteKeyCode={mode === 'edit' ? ['Backspace', 'Delete'] : null}
             fitView
           >
@@ -430,6 +810,66 @@ export function ConceptGraph({
                   ? 'Đồ thị trống — nhấn "+ Thêm khái niệm" để bắt đầu.'
                   : 'Chưa có khái niệm nào trong đồ thị.'}
               </p>
+            </div>
+          )}
+
+          {/* DB-02 Alt flow 1: lọc/tìm kiếm không khớp gì — làm mờ toàn bộ + lối ra */}
+          {noMatches && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 px-6 text-center">
+              <p className="text-[14px] font-semibold">Không có khái niệm phù hợp</p>
+              <p className="text-muted-foreground max-w-100 text-pretty text-[12.5px] leading-[1.65]">
+                Không có khái niệm nào khớp với bộ lọc hiện tại. Xóa bộ lọc để xem lại toàn bộ đồ
+                thị.
+              </p>
+              <Button variant="secondary" size="sm" onClick={clearFilters}>
+                Xóa bộ lọc
+              </Button>
+            </div>
+          )}
+
+          {/* UC-17 [E2]: chưa có phiên kiểm tra nào — gợi ý điểm bắt đầu tự nhiên */}
+          {mode === 'view' && allUntested && rootConceptIds.length > 0 && (
+            <div className="border-border bg-card/95 w-70 absolute left-4 top-4 z-10 rounded-lg border p-4 shadow-md backdrop-blur-sm">
+              <p className="mb-1.5 text-[13px] font-semibold">Chưa đo được gì</p>
+              <p className="text-muted-foreground mb-3 text-pretty text-[12px] leading-[1.65]">
+                Đồ thị đã dựng xong nhưng chưa biết bạn vững ở đâu. {rootConceptIds.length} khái
+                niệm không có tiên quyết nào là điểm bắt đầu tự nhiên.
+              </p>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() =>
+                  navigate(`/interview?planId=${planId}&conceptIds=${rootConceptIds.join(',')}`)
+                }
+              >
+                Kiểm tra {rootConceptIds.length} khái niệm gốc
+              </Button>
+            </div>
+          )}
+
+          {/* Chú giải cạnh — đồ thị có ba kiểu cạnh, chỉ hiện ở view mode khi có node được chọn */}
+          {mode === 'view' && selectedNodeId && (
+            <div className="border-border bg-card absolute bottom-4 left-4 z-10 flex flex-wrap gap-4 rounded-lg border px-3.5 py-2 text-[11px]">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <svg width="22" height="8" aria-hidden="true">
+                  <line x1="0" y1="4" x2="22" y2="4" stroke="var(--foreground)" strokeWidth="2" />
+                </svg>
+                Liên quan tới khái niệm đang chọn
+              </span>
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <svg width="22" height="8" aria-hidden="true">
+                  <line
+                    x1="0"
+                    y1="4"
+                    x2="22"
+                    y2="4"
+                    stroke="var(--mastery-weak)"
+                    strokeWidth="2"
+                    strokeDasharray="4 3"
+                  />
+                </svg>
+                Tiên quyết còn yếu
+              </span>
             </div>
           )}
         </div>
@@ -531,6 +971,21 @@ export function ConceptGraph({
             </div>
           </div>
         </aside>
+      )}
+
+      {/* DB-06: panel chi tiết — chỉ ở view mode, thay cho aside rút gọn của edit mode */}
+      {mode === 'view' && selectedNode && (
+        <ConceptDetailPanel
+          // Remount per concept — its internal fetch state (`isLoading`/`hasError`/`detail`)
+          // then starts fresh by construction, no reset-on-prop-change effect needed.
+          key={selectedNode.id}
+          planId={planId}
+          conceptId={selectedNode.id}
+          conceptName={selectedNode.data.label as string}
+          prerequisites={prerequisitesForDetail}
+          dependents={dependentsForDetail}
+          onClose={() => setSelectedNodeId(null)}
+        />
       )}
     </div>
   );

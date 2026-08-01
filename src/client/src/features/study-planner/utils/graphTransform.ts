@@ -12,7 +12,16 @@ export function toReactFlowNodes(concepts: Concept[]): Node[] {
     id: c.id,
     type: 'conceptNode',
     // Giữ description trong data để không mất khi convert ngược
-    data: { label: c.name, mastery: c.mastery_score, description: c.description ?? '', difficulty: c.difficulty ?? null },
+    data: {
+      label: c.name,
+      mastery: c.mastery_score,
+      description: c.description ?? '',
+      difficulty: c.difficulty ?? null,
+      // DB-05/DB-06 (Issue #168): dải "đang ôn lại" độc lập với mastery band, và last_tested_at
+      // cho hover tooltip + panel chi tiết.
+      lastTestedAt: c.lastTestedAt ?? null,
+      isRemediating: c.isRemediating ?? false,
+    },
     position: { x: 0, y: 0 }, // Position will be overwritten by dagre layout
   }));
 }

@@ -432,6 +432,39 @@
   stroke-dasharray: 4 3;
 }
 
+/* Cạnh nối tới khái niệm đang chọn trên DB-06 (không phải cạnh tiên quyết yếu ở trên) —
+   "liên quan tới khái niệm đang chọn" trong chú giải cạnh của DB-02. */
+.react-flow__edge--related .react-flow__edge-path {
+  stroke: var(--foreground);
+  stroke-width: 2;
+}
+
+/*
+  DB-05 (Issue #168): lọc = LÀM MỜ, không ẩn — node không khớp mất độ nổi bật nhưng vẫn ở
+  đúng vị trí trong chuỗi kiến thức. Cạnh dịu hơn node (0.35 so với 0.22) vì cạnh chỉ là bối
+  cảnh phụ trợ một khi node hai đầu đã mờ.
+*/
+.react-flow__node.is-dimmed {
+  opacity: 0.22;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.react-flow__edge.is-dimmed {
+  opacity: 0.35;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+/*
+  "Đang ôn lại" — vòng ngoài chồng lên màu mastery sẵn có, KHÔNG thay thế nó (xem
+  concept-node.tsx: masteryBand() không bao giờ trả "remediating"). Một node vừa yếu
+  (nền đỏ) vừa đang ôn lại vẫn phải đọc được cả hai cùng lúc.
+*/
+.is-remediating {
+  outline: 2px solid var(--remediate);
+  outline-offset: 2px;
+  animation: pulse-remediate 2s var(--ease-standard) infinite;
+}
+
 /*
   AI EXAMINER — Chat Bubble Styling
   Flat, bordered, no fill glow. AI uses the ai-accent token
@@ -474,6 +507,7 @@ kbd,
 @media (prefers-reduced-motion: reduce) {
 
   .concept-node--remediating,
+  .is-remediating,
   .reveal-on-scroll,
   .concept-node,
   .react-flow__node {
