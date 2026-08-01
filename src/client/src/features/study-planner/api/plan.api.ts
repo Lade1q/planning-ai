@@ -91,6 +91,9 @@ export const planApi = {
       deadline: backendData.deadline,
       status: backendData.status,
       analysisStatus: backendData.analysisStatus,
+      analysisPhase: backendData.analysisPhase,
+      analysisStartedAt: backendData.analysisStartedAt,
+      document: backendData.document,
       dagAutoFixed: backendData.dagAutoFixed,
       graph: {
         concepts: mappedConcepts,

@@ -88,6 +88,7 @@ describe('getPlanById', () => {
       updatedAt: new Date('2026-07-31'),
       concepts: [],
       conceptEdges: [],
+      documents: [],
     });
 
     await getPlanById(PLAN_ID, USER_ID);

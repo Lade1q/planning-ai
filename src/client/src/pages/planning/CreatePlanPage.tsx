@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,9 @@ import { Field, FieldLabel, FieldError, FieldDescription } from '@/components/ui
 import { toast } from 'sonner';
 
 import { FileDropzone, MAX_FILE_SIZE } from '@/features/study-planner/components/FileDropzone';
+import { AnalysisProgressPanel } from '@/features/study-planner/components/AnalysisProgressPanel';
 import { planApi } from '@/features/study-planner/api/plan.api';
+import { PlanDetails } from '@/features/study-planner/types/concept';
 
 const formSchema = z.object({
   planName: z.string().min(1, 'Vui lòng nhập tên kế hoạch').max(100, 'Tên kế hoạch quá dài'),
@@ -37,6 +39,16 @@ export default function CreatePlanPage() {
   const [fileError, setFileError] = useState(false);
   const [activeTab, setActiveTab] = useState<'pdf' | 'img' | 'text'>('pdf');
   const [textContent, setTextContent] = useState('');
+  // Polled plan snapshot for the real 4-phase progress panel (Issue #186) — each poll in
+  // the loop below refreshes it, so the panel reflects the AnalysisJob's actual phase.
+  const [analysisPlan, setAnalysisPlan] = useState<PlanDetails | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (submitPhase !== 'analyzing') return;
+    const clockId = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(clockId);
+  }, [submitPhase]);
 
   const {
     control,
@@ -87,20 +99,26 @@ export default function CreatePlanPage() {
       formData.append('file', fileToUpload!);
 
       const response = await planApi.createPlan(formData);
-      
+
       setSubmitPhase('analyzing');
-      
+
       let currentStatus = 'pending';
       while (currentStatus === 'pending' || currentStatus === 'processing') {
-         await new Promise(resolve => setTimeout(resolve, 2500));
-         const plan = await planApi.getPlan(response.planId);
-         currentStatus = plan.analysisStatus || 'done'; 
-         if (currentStatus === 'failed') {
-            toast.error("Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.");
-            setSubmitPhase('idle');
-            return;
-         }
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const plan = await planApi.getPlan(response.planId);
+        setAnalysisPlan(plan);
+        currentStatus = plan.analysisStatus || 'done';
+        if (currentStatus === 'failed') {
+          toast.error('Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.');
+          setSubmitPhase('idle');
+          return;
+        }
       }
+
+      // Hold the panel a beat so the last phase's checkmark is actually visible — without
+      // this, "Kiểm tra chu trình (DAG)" finishing and step 3 replacing the panel happened
+      // in the same instant, so the user never saw it complete.
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       // Redirect to Concept Graph page in edit mode
       navigate(`/plan/${response.planId}?mode=edit`);
@@ -112,39 +130,45 @@ export default function CreatePlanPage() {
   };
 
   if (submitPhase !== 'idle') {
+    const documentLabel = activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu';
+
     return (
       <div className="max-w-155 mx-auto flex w-full flex-col gap-3.5 pt-6">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[15px] font-semibold">
-            {submitPhase === 'uploading'
-              ? `Đang tải lên “${activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”`
-              : `AI đang phân tích “${activeTab === 'text' ? 'Văn bản (Dán)' : selectedFile?.name || 'Tài liệu'}”`}
-          </span>
-          <span className="text-muted-foreground font-mono text-xs">0:00</span>
+        {/* Keyed by submitPhase so "uploading" → "analyzing" re-triggers the entrance
+            animation instead of snapping straight to the new content. */}
+        <div
+          key={submitPhase}
+          className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-3.5 duration-300"
+        >
+          {submitPhase === 'uploading' ? (
+            <>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[15px] font-semibold">
+                  Đang tải lên &ldquo;{documentLabel}&rdquo;
+                </span>
+                <span className="text-muted-foreground font-mono text-xs">0:00</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="text-foreground flex items-center gap-2.5 text-[13px] font-medium">
+                  <Loader2 className="text-primary h-3.75 w-3.75 animate-spin" />
+                  Đang gửi dữ liệu lên máy chủ...
+                </div>
+              </div>
+            </>
+          ) : (
+            // Real 4-phase progress (Issue #186) — replaces #163's static placeholder track
+            // with the AnalysisJob's actual phase, polled by the loop in onSubmit above.
+            <AnalysisProgressPanel
+              filename={analysisPlan?.document?.filename ?? documentLabel}
+              pageCount={analysisPlan?.document?.pageCount}
+              documentKind={analysisPlan?.document?.kind}
+              startedAt={analysisPlan?.analysisStartedAt}
+              now={now}
+              phase={analysisPlan?.analysisPhase ?? null}
+              complete={analysisPlan?.analysisStatus === 'done'}
+            />
+          )}
         </div>
-        <div className="flex gap-1" aria-hidden="true">
-          <i className="bg-primary h-1 flex-1 rounded-sm"></i>
-          <i className="bg-primary h-1 flex-1 rounded-sm"></i>
-          <i className="bg-primary h-1 flex-1 rounded-sm"></i>
-          <i className="bg-border h-1 flex-1 rounded-sm"></i>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="text-foreground flex items-center gap-2.5 text-[13px] font-medium">
-            <Loader2 className="text-primary h-3.75 w-3.75 animate-spin" />
-            {submitPhase === 'uploading' 
-               ? 'Đang gửi dữ liệu lên máy chủ...' 
-               : 'Trích xuất khái niệm, độ khó và quan hệ tiên quyết'}
-          </div>
-        </div>
-        {submitPhase === 'analyzing' && (
-          <div className="bg-primary/5 border-primary/30 text-muted-foreground mt-2 flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed">
-            <Loader2 className="text-primary mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-            <span>
-              <strong className="text-foreground font-semibold">Bạn có thể rời trang.</strong> Kế
-              hoạch đã được lưu ở trạng thái nháp; phân tích chạy nền và sẽ tự động chuyển trang khi xong.
-            </span>
-          </div>
-        )}
       </div>
     );
   }

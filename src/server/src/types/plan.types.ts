@@ -3,6 +3,7 @@ import {
   ConceptSource,
   ConceptStatus,
   AnalysisJobStatus,
+  AnalysisJobPhase,
   DocumentKind,
 } from '@prisma/client';
 import { MasteryDistribution } from '../utils/mastery';
@@ -16,10 +17,16 @@ export interface DocumentMeta {
   byteSize: number | null;
 }
 
-/** The source document a plan card names while its analysis is still running (SP-03). */
+/**
+ * The source document a plan card names while its analysis is still running (SP-03).
+ * `kind` lets the SP-06 progress panel (Issue #186) know a `text` document never goes
+ * through the "gửi tài liệu tới AI Service" upload step — it is inlined into the extract
+ * call instead — so that phase should not be shown as done for one.
+ */
 export interface PlanDocumentSummary {
   filename: string;
   pageCount: number | null;
+  kind: DocumentKind;
 }
 
 export interface PlanItemResponse {
@@ -76,6 +83,11 @@ export interface PlanDetailResponse {
   deadline: Date | null;
   status: StudyPlanStatus;
   analysisStatus: AnalysisJobStatus | null;
+  /** Sub-step of a `processing` job — null outside that state (Issue #186). */
+  analysisPhase: AnalysisJobPhase | null;
+  /** When the latest job was queued — the client turns it into an elapsed timer (Issue #186). */
+  analysisStartedAt: Date | null;
+  document: PlanDocumentSummary | null;
   dagAutoFixed: boolean;
   tracebackEnabled: boolean;
   createdAt: Date;

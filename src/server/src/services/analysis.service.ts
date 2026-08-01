@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { AnalysisJobPhase } from '@prisma/client';
 import prisma from '../config/prisma';
 import { extractConcepts, uploadFile } from './gemini.service';
 import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
@@ -25,15 +26,21 @@ const MIME_BY_EXT: Record<string, string> = {
   '.jpeg': 'image/jpeg',
 };
 
-async function callAi(fileKey: string): Promise<AiExtractResponse> {
+/** Reports which real sub-step of `callAi` is running, for the UI's 4-phase progress (#186). */
+type OnPhase = (phase: AnalysisJobPhase) => Promise<void>;
+
+async function callAi(fileKey: string, onPhase: OnPhase): Promise<AiExtractResponse> {
   if (process.env.USE_MOCK_AI === 'true') {
+    await onPhase('extracting');
     return MOCK_EXTRACT_RESULT;
   }
 
   const absolutePath = path.join(UPLOAD_DIR, fileKey);
   const ext = path.extname(fileKey).toLowerCase();
 
+  // .txt goes inline (no File API upload), so there is no "sending to AI service" step to report.
   if (ext === '.txt') {
+    await onPhase('extracting');
     const text = await fs.promises.readFile(absolutePath, 'utf-8');
     return extractConcepts({ kind: 'text', text });
   }
@@ -42,19 +49,21 @@ async function callAi(fileKey: string): Promise<AiExtractResponse> {
   if (!mimeType) {
     throw new Error(`Unsupported file extension for AI extraction: ${ext}`);
   }
+  await onPhase('sending_to_ai');
   const uploaded = await uploadFile(absolutePath, mimeType);
+  await onPhase('extracting');
   const kind = mimeType === 'application/pdf' ? 'document' : 'image';
   return extractConcepts({ kind, uri: uploaded.uri, mimeType: uploaded.mimeType });
 }
 
-async function callAiWithRetry(fileKey: string): Promise<AiExtractResponse> {
+async function callAiWithRetry(fileKey: string, onPhase: OnPhase): Promise<AiExtractResponse> {
   let lastError: unknown;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await new Promise((resolve) => setTimeout(resolve, BACKOFF_BASE_MS * 2 ** (attempt - 1)));
     }
     try {
-      return await callAi(fileKey);
+      return await callAi(fileKey, onPhase);
     } catch (error) {
       lastError = error;
     }
@@ -103,8 +112,13 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
   }
   const planId = job.planDraftId;
 
+  const setPhase: OnPhase = async (phase) => {
+    await prisma.analysisJob.update({ where: { id: jobId }, data: { phase } });
+  };
+
   try {
-    const extracted = await callAiWithRetry(job.fileKey);
+    const extracted = await callAiWithRetry(job.fileKey, setPhase);
+    await setPhase('validating');
     // Concepts aren't persisted yet, so the graph is keyed by concept name here.
     const { edges, autoFixed } = validateAndFixDag(
       extracted.concepts.map((c) => c.name),

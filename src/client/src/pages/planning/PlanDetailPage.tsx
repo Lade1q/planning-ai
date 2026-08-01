@@ -5,6 +5,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
+import { AnalysisProgressPanel } from '@/features/study-planner/components/AnalysisProgressPanel';
 import { planApi, getRetryErrorMessage } from '@/features/study-planner/api/plan.api';
 import {
   PlanDetails,
@@ -25,19 +26,37 @@ export default function PlanDetailPage() {
   const [plan, setPlan] = useState<PlanDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
+  // Held true for a beat after the job finishes, so the progress panel's last phase gets to
+  // show its checkmark instead of the graph replacing it in the same instant (analysisStatus
+  // flipping to 'done' already makes analysisRunning false on the very next render).
+  const [isCompletionPause, setIsCompletionPause] = useState(false);
 
   // Dùng ref để tránh vòng lặp vô hạn khi setSearchParams
   const hasAutoSwitchedToEdit = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isMountedRef = useRef(true);
+  // Tracks the previous poll's status without the staleness a closed-over `plan` would have
+  // across recursive fetchPlan calls — needed to tell "just finished" apart from "was already done".
+  const prevAnalysisStatusRef = useRef<PlanDetails['analysisStatus']>(undefined);
+  // StrictMode double-invokes the effect below in dev, which — because isMountedRef flips back
+  // to true before the first pass's in-flight request resolves — used to leave TWO independent
+  // polling chains racing on prevAnalysisStatusRef (whichever wrote 'done' last made the other
+  // see wasRunning=false, skipping the completion pause entirely). Each effect run stamps a new
+  // generation; a chain whose generation has gone stale stops silently instead of continuing.
+  const pollGenerationRef = useRef(0);
 
   // Function declaration (không phải useCallback) để tự đệ quy khi polling và để
   // handleRetry gọi lại được, resume vòng poll sau khi POST /retry trả 202.
-  async function fetchPlan() {
+  async function fetchPlan(generation: number) {
     if (!id) return;
     try {
       const data = await planApi.getPlan(id);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || generation !== pollGenerationRef.current) return;
+
+      const wasRunning =
+        prevAnalysisStatusRef.current === 'pending' ||
+        prevAnalysisStatusRef.current === 'processing';
+      prevAnalysisStatusRef.current = data.analysisStatus;
 
       setPlan(data);
 
@@ -48,15 +67,24 @@ export default function PlanDetailPage() {
       }
 
       if (data.analysisStatus === 'pending' || data.analysisStatus === 'processing') {
-        timeoutRef.current = setTimeout(fetchPlan, 2500);
+        timeoutRef.current = setTimeout(() => fetchPlan(generation), 2500);
       } else {
         if (data.analysisStatus === 'failed') {
           toast.error('Phân tích tài liệu thất bại (lỗi AI). Vui lòng thử lại.');
         }
-        setIsLoading(false);
+        if (data.analysisStatus === 'done' && wasRunning) {
+          setIsCompletionPause(true);
+          setTimeout(() => {
+            if (!isMountedRef.current || generation !== pollGenerationRef.current) return;
+            setIsCompletionPause(false);
+            setIsLoading(false);
+          }, 800);
+        } else {
+          setIsLoading(false);
+        }
       }
     } catch (error) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || generation !== pollGenerationRef.current) return;
       console.error('Failed to load plan', error);
       toast.error('Không thể tải dữ liệu kế hoạch.');
       setIsLoading(false);
@@ -65,10 +93,11 @@ export default function PlanDetailPage() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    const generation = ++pollGenerationRef.current;
 
     async function start() {
       setIsLoading(true);
-      await fetchPlan();
+      await fetchPlan(generation);
     }
     start();
 
@@ -85,12 +114,12 @@ export default function PlanDetailPage() {
     try {
       await planApi.retryPlan(id);
       setIsLoading(true);
-      fetchPlan();
+      fetchPlan(pollGenerationRef.current);
     } catch (error) {
       console.error('Failed to retry plan analysis', error);
       toast.error(getRetryErrorMessage(error));
       // Đồng bộ lại trạng thái thật — tránh kẹt UI nếu plan đã đổi trạng thái ở nơi khác.
-      fetchPlan();
+      fetchPlan(pollGenerationRef.current);
     } finally {
       setIsRetrying(false);
     }
@@ -122,6 +151,15 @@ export default function PlanDetailPage() {
   const analysisRunning = analysisStatus === 'pending' || analysisStatus === 'processing';
   const analysisFailed = analysisStatus === 'failed';
   const analysisDone = !analysisRunning && !analysisFailed;
+
+  // A separate, faster tick so the elapsed clock on the progress panel counts smoothly
+  // between the 2.5s polls (same pattern as PlansPage's card clock).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!analysisRunning) return;
+    const clockId = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(clockId);
+  }, [analysisRunning]);
 
   // ----------------- EDIT MODE LAYOUT -----------------
   if (mode === 'edit') {
@@ -265,13 +303,23 @@ export default function PlanDetailPage() {
             </div>
           )}
           <div className="min-h-0 flex-1">
-            {isLoading ? (
+            {isLoading && (analysisRunning || isCompletionPause) ? (
+              <div className="border-border bg-card flex h-full w-full items-center justify-center overflow-auto rounded-xl border p-6">
+                <AnalysisProgressPanel
+                  filename={plan?.document?.filename}
+                  pageCount={plan?.document?.pageCount}
+                  documentKind={plan?.document?.kind}
+                  startedAt={plan?.analysisStartedAt}
+                  now={now}
+                  phase={plan?.analysisPhase ?? null}
+                  complete={isCompletionPause}
+                />
+              </div>
+            ) : isLoading ? (
               <div className="border-border bg-card flex h-full w-full items-center justify-center rounded-xl border">
                 <div className="text-muted-foreground flex flex-col items-center gap-2">
                   <Spinner className="size-8" />
-                  <span>
-                    {analysisRunning ? 'Đang phân tích tài liệu...' : 'Đang tải đồ thị...'}
-                  </span>
+                  <span>Đang tải đồ thị...</span>
                 </div>
               </div>
             ) : analysisFailed ? (
