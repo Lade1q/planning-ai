@@ -55,26 +55,72 @@ const BAND_BG_CLASS: Record<Exclude<MasteryBand, 'remediating'>, string> = {
   untested: 'bg-mastery-untested',
 };
 
-function RelatedConceptRow({ concept }: { concept: RelatedConcept }) {
+function RelatedConceptRow({
+  concept,
+  isBlocked,
+}: {
+  concept: RelatedConcept;
+  isBlocked?: boolean;
+}) {
   const band = masteryBand(concept.masteryScore);
   return (
-    <div className="border-border/60 py-2.25 flex items-center justify-between gap-2.5 border-b text-[13px] last:border-b-0">
+    <div className="border-border py-2.25 flex items-center justify-between gap-2.5 border-b text-[13px] last:border-b-0">
       <div className="min-w-0">
         {/* `block`, không chỉ `truncate` — span không phải flex item trực tiếp nên trình
             duyệt không tự "blockify" nó; thiếu `block` thì overflow:hidden của truncate
             không có hộp để cắt, tên dài (vd. "Software Development Lifecycle (SDLC)") sẽ
             tràn đè lên Badge điểm số bên phải. */}
         <span className="block truncate">{concept.name}</span>
-        {concept.isRemediating && (
+        {/* Dòng "vì sao" — thứ biến một cái tên thành một lý do. Với hậu kế, nó nói ra CHI PHÍ
+            của việc trì hoãn: không phải "bạn yếu một khái niệm" mà "một khái niệm yếu đang
+            chặn hai khái niệm khác". */}
+        {concept.isRemediating ? (
           <span className="text-remediate mt-0.5 block text-[11px]">
             Đang trong hàng đợi ôn lại hôm nay
           </span>
+        ) : (
+          isBlocked &&
+          concept.masteryScore === null && (
+            <span className="text-muted-foreground mt-0.5 block text-[11px]">
+              Chưa kiểm tra · đang bị chặn
+            </span>
+          )
         )}
       </div>
       <Badge tone={BAND_BADGE_TONE[band]}>
         {concept.masteryScore !== null ? concept.masteryScore.toFixed(2) : '—'}
       </Badge>
     </div>
+  );
+}
+
+/**
+ * Tô đậm tên khái niệm ngay trong trích đoạn gốc — đây là chỗ ràng buộc C5 ("AI không bịa")
+ * trở thành thứ nhìn thấy được: không chỉ nói "khái niệm này đến từ trang 118", mà chỉ đúng
+ * chữ trên trang đó.
+ */
+function HighlightedExcerpt({ text, term }: { text: string; term: string }) {
+  const needle = term.trim();
+  if (!needle) return <>{text}</>;
+
+  // Tên khái niệm là dữ liệu người dùng/AI sinh ra ("Mảng & Con trỏ", "Cây AVL (tự cân bằng)"),
+  // không phải hằng số — phải escape trước khi nhét vào RegExp.
+  const pattern = new RegExp(`(${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  // Nhóm bắt trong `split` đẩy mọi đoạn KHỚP vào chỉ số lẻ, đoạn còn lại vào chỉ số chẵn.
+  const parts = text.split(pattern);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <mark key={i} className="bg-remediate/16 rounded-[2px] px-0.5 text-inherit">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
   );
 }
 
@@ -132,7 +178,7 @@ export function ConceptDetailPanel({
       : null;
 
   return (
-    <aside className="w-70 border-border bg-card absolute bottom-0 right-0 top-0 z-10 flex shrink-0 flex-col gap-5 overflow-y-auto border-l p-[18px_18px_20px] shadow-lg lg:static lg:w-80 lg:border-none lg:shadow-none">
+    <aside className="w-70 border-border bg-card shadow-soft absolute bottom-0 right-0 top-0 z-10 flex shrink-0 flex-col gap-5 overflow-y-auto border-l p-[22px_22px_26px] lg:static lg:w-80 lg:border-none lg:shadow-none">
       <div>
         <div className="mb-1.5 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -216,9 +262,12 @@ export function ConceptDetailPanel({
             {detail && detail.sources.length > 0 ? (
               <div className="flex flex-col gap-2.5">
                 {detail.sources.map((source, idx) => (
-                  <div key={idx} className="border-border rounded-lg border px-3.5 py-3">
+                  <div
+                    key={idx}
+                    className="border-border rounded-[calc(var(--radius)*0.8)] border px-3.5 py-3"
+                  >
                     <div className="mb-2 flex items-baseline justify-between gap-2.5 text-[12px]">
-                      <span className="truncate">{source.filename}</span>
+                      <span className="min-w-0 truncate">{source.filename}</span>
                       {source.pageFrom !== null && (
                         <span className="text-muted-foreground shrink-0 font-mono">
                           {source.pageFrom === source.pageTo
@@ -229,7 +278,7 @@ export function ConceptDetailPanel({
                     </div>
                     {source.excerpt ? (
                       <blockquote className="text-muted-foreground border-border m-0 text-pretty border-l-2 pl-2.5 text-[12.5px] leading-[1.65]">
-                        {source.excerpt}
+                        <HighlightedExcerpt text={source.excerpt} term={conceptName} />
                       </blockquote>
                     ) : (
                       <p className="text-muted-foreground text-[12px] italic">
@@ -270,7 +319,7 @@ export function ConceptDetailPanel({
               </span>
             </div>
             {dependents.length > 0 ? (
-              dependents.map((c) => <RelatedConceptRow key={c.id} concept={c} />)
+              dependents.map((c) => <RelatedConceptRow key={c.id} concept={c} isBlocked />)
             ) : (
               <p className="text-muted-foreground text-[13px] italic">
                 Không có khái niệm phụ thuộc

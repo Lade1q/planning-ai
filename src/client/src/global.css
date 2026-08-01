@@ -529,11 +529,82 @@ kbd,
   align-items: center;
 }
 
+/*
+  Chọn ở EDIT mode (screen-create-plan.html) — vòng khuếch tán 3px, vì ở đó node
+  đang chọn là thứ thanh tra bên phải đang nói về, không phải tiêu điểm của canvas.
+  View mode (screen-concept-graph.html) dùng `.concept-node.is-selected` bên dưới:
+  viền đặc 2px, đậm hơn hẳn, vì canvas mới là nơi mắt đang ở.
+*/
 .node--sel .concept-node {
   border-color: var(--foreground);
   border-style: solid;
   color: var(--foreground);
   box-shadow: 0 0 0 3px oklch(from var(--foreground) l c h / 0.08);
+}
+
+/*
+  DB-02 view mode: node mang TÊN + mastery_score cạnh nhau. Con số là kênh đọc
+  thứ hai bên cạnh màu (ràng buộc C6): bốn token mastery đều ở lightness ≈ 0.5 và
+  chỉ khác nhau ở sắc, nên với người mù màu đỏ–lục "vững" và "yếu" là hai ô giống
+  hệt nhau — mà đó lại là tín hiệu chính của cả màn hình.
+*/
+.concept-node--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.concept-node__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concept-node__score {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.concept-node.is-selected {
+  box-shadow: 0 0 0 2px var(--foreground);
+}
+
+/*
+  Lưới nền canvas — cho biết đây là mặt phẳng kéo/thả được, không phải một danh sách.
+  Vẽ bằng ::before chứ không phải background-image trực tiếp, để `opacity` áp lên riêng
+  lớp lưới: `--border` ở dark mode là oklch(1 0 0 / 8%), nên hạ độ đậm bằng relative color
+  `oklch(from var(--border) ... / 0.5)` sẽ THAY alpha 8% bằng 50% và làm lưới sáng rực lên.
+
+  Hai kiểu lưới có chủ đích: nét kẻ 32px ở view mode (screen-concept-graph.html) và chấm
+  22px ở edit mode (screen-create-plan.html).
+*/
+.graph-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.graph-canvas--view::before {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.5;
+}
+
+.graph-canvas--edit::before {
+  background-image: radial-gradient(circle at 1px 1px,
+      oklch(from var(--foreground) l c h / 0.06) 1px,
+      transparent 0);
+  background-size: 22px 22px;
 }
 
 .node--nosrc .concept-node {
