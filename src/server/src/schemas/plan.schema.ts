@@ -43,5 +43,5 @@ export type UpdatePlanStatusInput = z.infer<typeof updatePlanStatusSchema>;
  * rớt xuống 500 INTERNAL_ERROR nếu không chặn ở đây trước khi gọi service.
  */
 export const planIdParamSchema = z.object({
-  id: z.string().uuid('Plan ID phải là UUID hợp lệ'),
+  id: z.string().uuid('Plan ID must be a valid UUID'),
 });
