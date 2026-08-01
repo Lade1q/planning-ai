@@ -591,3 +591,57 @@ Xóa vĩnh viễn study plan và tất cả dữ liệu liên quan. Không thể
     }
   }
   ```
+
+---
+
+### 9. Đổi tài liệu khác cho Plan thất bại (Change Document)
+
+- **Endpoint:** `POST /api/v1/plans/:id/document`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Content-Type:** `multipart/form-data`
+- **Request Fields:**
+  - `file` (file upload, required): Tài liệu thay thế (hỗ trợ `.pdf`, `.txt`, `.png`, `.jpg`, tối đa 10MB).
+
+- **Dùng để:** Khi `AnalysisJob` gần nhất của Plan `failed` vì **chính tệp gốc có vấn đề** (ví dụ PDF bị mã hoá khiến Gemini không đọc được nội dung) — retry (mục 5) không giúp được gì vì nó dùng lại đúng `fileKey` cũ. Endpoint này tải lên tệp mới và tạo `AnalysisJob` mới trỏ vào tệp đó.
+
+- **Xử lý Document cũ:** Bản ghi `Document` hiện có của Plan bị **ghi đè** (`filename`/`fileKey`/`kind`/`pageCount`/`byteSize`) chứ không tạo dòng mới — khớp với cách `processAnalysisJob` neo `concept_sources` vào Document theo `orderBy: createdAt asc`. Tệp vật lý cũ bị xoá khỏi storage (best-effort, không làm fail request nếu xoá lỗi).
+
+- **Response thành công (HTTP 202 Accepted):**
+
+  ```json
+  {
+    "success": true,
+    "data": {
+      "plan": {
+        "id": "c1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
+        "name": "Kế hoạch ôn thi Giải tích",
+        "deadline": "2026-08-30T00:00:00.000Z",
+        "status": "draft",
+        "analysisStatus": "pending"
+      },
+      "message": "Document changed, analysis initiated"
+    }
+  }
+  ```
+
+  Sau khi nhận 202, client **tiếp tục polling `GET /api/v1/plans/:id`** (giống luồng tạo plan mới ở mục 1.1) cho tới khi `analysisStatus` là `"done"` hoặc `"failed"`.
+
+- **Lỗi thiếu file (HTTP 400 Bad Request):** `code: "FILE_REQUIRED"` — giống hệt mục 1.
+
+- **Lỗi vượt quá dung lượng / định dạng không cho phép (HTTP 400 Bad Request):** `code: "FILE_TOO_LARGE"` / `"INVALID_FILE_TYPE"` — giống hệt mục 1.
+
+- **Lỗi trạng thái không cho phép (HTTP 409 Conflict), cùng `code: "DOCUMENT_CHANGE_NOT_ALLOWED"`:**
+
+  Khi Plan không ở trạng thái `draft` (`message: "Changing the document is only allowed for draft plans"`), khi Plan chưa từng có `AnalysisJob` nào (`message: "No analysis job found for this plan"`), khi đang có job chạy (`message: "An analysis is already in progress"`), hoặc khi `AnalysisJob` gần nhất không ở trạng thái `failed` (`message: "Plan analysis is not in a failed state"`) — cùng một `code`, khác `message`, giống quy ước của retry (mục 5).
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "DOCUMENT_CHANGE_NOT_ALLOWED",
+      "message": "Plan analysis is not in a failed state"
+    }
+  }
+  ```
+
+- **Lỗi không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.

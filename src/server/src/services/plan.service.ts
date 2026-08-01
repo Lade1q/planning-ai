@@ -10,6 +10,7 @@ import {
   PlanDetailResponse,
   RetryPlanResponse,
   ReanalyzePlanResponse,
+  ChangeDocumentResponse,
   UpdatePlanStatusResponse,
   DocumentMeta,
 } from '../types/plan.types';
@@ -353,6 +354,148 @@ export async function retryPlanAnalysis(
       analysisStatus: 'pending' as const,
     };
   });
+}
+
+/**
+ * Swaps the source file of a `draft` plan whose analysis failed and starts a fresh job
+ * against it (Issue #187) — the mockup's "Đổi tài liệu khác" alt flow, for when the
+ * original file itself was the problem (e.g. an encrypted PDF Gemini can't read), not
+ * something a same-file retry (#106) can fix.
+ *
+ * Direction (A) from the issue: overwrites the plan's existing Document row in place
+ * rather than inserting a new one. `processAnalysisJob` anchors `concept_sources` to
+ * `tx.document.findFirst({ where: { planId }, orderBy: { createdAt: 'asc' } })` — overwriting
+ * keeps that query correct for the new file without touching analysis.service.ts.
+ *
+ * Guards mirror retryPlanAnalysis: same `draft` + `failed`/stale-job checks, same
+ * `SELECT ... FOR UPDATE` serialization. The old file is deleted from storage best-effort
+ * after the transaction commits — same "DB is source of truth" policy as deletePlan.
+ */
+export async function changePlanDocument(
+  planId: string,
+  userId: string,
+  document: DocumentMeta
+): Promise<ChangeDocumentResponse> {
+  const { response, oldFileKey } = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM study_plans WHERE id = ${planId}::uuid FOR UPDATE`;
+
+    const plan = await tx.studyPlan.findUnique({
+      where: { id: planId },
+      select: { id: true, userId: true, name: true, deadline: true, status: true },
+    });
+
+    if (!plan) {
+      throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+    }
+
+    if (plan.userId !== userId) {
+      throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
+    }
+
+    // Guard: only a draft plan can have its document swapped — an active plan already has
+    // concepts and uses reanalyze (#170) instead, which reuses the existing file on purpose.
+    if (plan.status !== 'draft') {
+      throw new AppError(
+        'Changing the document is only allowed for draft plans',
+        409,
+        'DOCUMENT_CHANGE_NOT_ALLOWED'
+      );
+    }
+
+    const latestJob = await tx.analysisJob.findFirst({
+      where: { planDraftId: planId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true, createdAt: true },
+    });
+
+    if (!latestJob) {
+      throw new AppError('No analysis job found for this plan', 409, 'DOCUMENT_CHANGE_NOT_ALLOWED');
+    }
+
+    if (latestJob.status === 'pending' || latestJob.status === 'processing') {
+      const isStale = Date.now() - latestJob.createdAt.getTime() > STALE_JOB_THRESHOLD_MS;
+      if (!isStale) {
+        throw new AppError(
+          'An analysis is already in progress',
+          409,
+          'DOCUMENT_CHANGE_NOT_ALLOWED'
+        );
+      }
+      // Stuck past the threshold — release it so this isn't blocked forever (same as #178).
+      await tx.analysisJob.update({
+        where: { id: latestJob.id },
+        data: { status: 'failed', completedAt: new Date() },
+      });
+    } else if (latestJob.status !== 'failed') {
+      throw new AppError(
+        'Plan analysis is not in a failed state',
+        409,
+        'DOCUMENT_CHANGE_NOT_ALLOWED'
+      );
+    }
+
+    const existingDocument = await tx.document.findFirst({
+      where: { planId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, fileKey: true },
+    });
+
+    let oldFileKey: string | null = null;
+    if (existingDocument) {
+      oldFileKey = existingDocument.fileKey;
+      await tx.document.update({
+        where: { id: existingDocument.id },
+        data: {
+          filename: document.filename,
+          fileKey: document.fileKey,
+          kind: document.kind,
+          pageCount: document.pageCount,
+          byteSize: document.byteSize,
+        },
+      });
+    } else {
+      // Defensive fallback — createPlanInDb always creates a Document alongside a draft
+      // plan, so a plan reaching this guard with none should not happen in practice.
+      await tx.document.create({
+        data: {
+          planId,
+          filename: document.filename,
+          fileKey: document.fileKey,
+          kind: document.kind,
+          pageCount: document.pageCount,
+          byteSize: document.byteSize,
+        },
+      });
+    }
+
+    await tx.analysisJob.create({
+      data: { planDraftId: planId, fileKey: document.fileKey, status: 'pending' },
+    });
+
+    return {
+      response: {
+        id: plan.id,
+        name: plan.name,
+        deadline: plan.deadline,
+        status: plan.status,
+        analysisStatus: 'pending' as const,
+      },
+      oldFileKey,
+    };
+  });
+
+  if (oldFileKey) {
+    try {
+      await storageService.delete(oldFileKey);
+    } catch (err) {
+      console.warn(
+        `[changePlanDocument] Failed to cleanup old file ${oldFileKey} for plan ${planId}:`,
+        err
+      );
+    }
+  }
+
+  return response;
 }
 
 /**
