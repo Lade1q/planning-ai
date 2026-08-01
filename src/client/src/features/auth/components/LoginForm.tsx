@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -13,11 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-
-// Kích cỡ input theo `.input` trong screen-auth.html (38px cao, radius 0.65×,
-// padding 9px/12px) — Input dùng chung mặc định (h-8, rounded-lg) còn phục vụ
-// CreatePlanPage nên không đổi ở đó, chỉ áp cục bộ cho 2 form auth.
-const AUTH_INPUT_CLASS = 'h-[38px] rounded-[calc(var(--radius)*0.65)] px-3 py-[9px]';
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
@@ -71,7 +66,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                   type="email"
                   placeholder="m@example.com"
                   autoComplete="email"
-                  className={AUTH_INPUT_CLASS}
                   {...register('email')}
                 />
                 {errors.email?.message && <FieldError>{errors.email.message}</FieldError>}
@@ -92,7 +86,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    className={cn(AUTH_INPUT_CLASS, 'pr-10')}
+                    className="pr-10"
                     {...register('password')}
                   />
                   <button
@@ -112,12 +106,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               </Field>
 
               <Field>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-10 w-full rounded-md px-[18px]"
-                >
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" loading={isSubmitting} className="w-full">
                   {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </Button>
                 <FieldDescription className="text-center">
