@@ -108,37 +108,54 @@ export async function cleanupStaleJobs(): Promise<number> {
 }
 
 /**
+ * Thrown by the finalize guard below when the job's `processing` claim was pulled out
+ * from under this call (e.g. cleanupStaleJobs marked it `failed` while Gemini was still
+ * hanging). Caught separately from real processing errors (PR #164 review, point 1/2):
+ * the thief already wrote its own terminal state, so this is not a real failure — the
+ * catch below must not overwrite it with a generic error message or reset retryCount.
+ */
+class JobClaimLostError extends Error {}
+
+/**
  * Processes one pending AnalysisJob end-to-end: calls the AI (or mock), validates
  * the returned graph is a DAG, and persists Concepts/ConceptEdges in one transaction.
  * All routing here is deterministic software logic — the AI only extracts (C4).
  */
 export async function processAnalysisJob(jobId: string): Promise<void> {
-  // Claim nguyên tử (Issue #164): chỉ tiếp tục xử lý nếu chính lần gọi này là lần
-  // chuyển pending -> processing. Một lần gọi thứ hai đồng thời trên cùng jobId,
-  // hoặc một lần gọi tranh chấp với cleanupStaleJobs/retry đã dời job sang trạng
-  // thái khác, sẽ thấy count = 0 và dừng lại thay vì chạy lại extraction và tạo
-  // trùng concepts.
+  // Atomic claim (Issue #164): only proceed if this call is the one that flips
+  // pending -> processing. A second concurrent call on the same jobId, or a call
+  // racing against cleanupStaleJobs/retry already having moved the job elsewhere,
+  // sees count 0 and bails instead of re-running extraction and duplicating concepts.
   const claimed = await prisma.analysisJob.updateMany({
     where: { id: jobId, status: 'pending' },
     data: { status: 'processing' },
   });
   if (claimed.count === 0) {
-    console.warn(`[analysis] job ${jobId} already claimed or not pending, skipping`);
+    console.warn(
+      `[analysis] job ${jobId} already claimed, no longer pending, or does not exist, skipping`
+    );
     return;
   }
-  const job = await prisma.analysisJob.findUniqueOrThrow({ where: { id: jobId } });
 
-  if (!job.fileKey || !job.planDraftId) {
-    await markFailed(jobId, new Error('AnalysisJob is missing fileKey or planDraftId'));
-    return;
-  }
-  const planId = job.planDraftId;
-
-  const setPhase: OnPhase = async (phase) => {
-    await prisma.analysisJob.update({ where: { id: jobId }, data: { phase } });
-  };
+  // Everything after the claim runs inside try/catch (PR #164 review, point 3): if the
+  // job row was hard-deleted between the claim and this fetch, findUniqueOrThrow throws
+  // and must still route through markFailed below, not bubble up and leave the job
+  // stuck at `processing` until cleanupStaleJobs eventually sweeps it.
+  let planId: string;
 
   try {
+    const job = await prisma.analysisJob.findUniqueOrThrow({ where: { id: jobId } });
+
+    if (!job.fileKey || !job.planDraftId) {
+      await markFailed(jobId, new Error('AnalysisJob is missing fileKey or planDraftId'));
+      return;
+    }
+    planId = job.planDraftId;
+
+    const setPhase: OnPhase = async (phase) => {
+      await prisma.analysisJob.update({ where: { id: jobId }, data: { phase } });
+    };
+
     const extracted = await callAiWithRetry(job.fileKey, setPhase);
     await setPhase('validating');
     // Concepts aren't persisted yet, so the graph is keyed by concept name here.
@@ -236,19 +253,28 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
           languageDetected: extracted.language_detected,
         },
       });
-      // Guard tương tự claim ban đầu: nếu job đã bị "cướp" mất trạng thái processing
-      // (vd. cleanupStaleJobs đánh dấu failed trong lúc Gemini vẫn còn treo), không
-      // được ghi đè 'done' lên để hồi sinh job đó — abort để cả transaction (kể cả
-      // concepts/edges vừa tạo) rollback hết.
+      // Guard mirroring the initial claim: if this job was pulled out from under us
+      // (e.g. cleanupStaleJobs marked it failed while Gemini was still hanging), don't
+      // let a late 'done' write resurrect it — abort so the whole transaction (including
+      // the concepts/edges just created) rolls back.
       const finalized = await tx.analysisJob.updateMany({
         where: { id: jobId, status: 'processing' },
         data: { status: 'done', completedAt: new Date() },
       });
       if (finalized.count === 0) {
-        throw new Error(`[analysis] job ${jobId} no longer processing, aborting commit`);
+        throw new JobClaimLostError(
+          `[analysis] job ${jobId} no longer processing, aborting commit`
+        );
       }
     });
   } catch (error) {
+    if (error instanceof JobClaimLostError) {
+      // Benign: the thief already wrote its own terminal state (failed, or a fresh retry
+      // job). Nothing left for us to persist — in particular, no markFailed, so we don't
+      // overwrite that state with our internal message or an unrelated retryCount.
+      console.warn(error.message);
+      return;
+    }
     console.error(`[analysis] job ${jobId} failed:`, error);
     await markFailed(jobId, error);
     return;

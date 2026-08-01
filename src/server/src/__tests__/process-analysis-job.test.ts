@@ -148,7 +148,8 @@ describe('processAnalysisJob', () => {
   });
 
   // --- Guard cuối transaction: job bị lấy mất trạng thái 'processing' giữa chừng ---
-  it('aborts the commit and marks the job failed when the finalize guard no longer sees it processing', async () => {
+  it('rolls back and warns, without marking the job failed, when the finalize guard no longer sees it processing', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     (mockedPrisma.analysisJob.updateMany as jest.Mock)
       .mockResolvedValueOnce({ count: 1 }) // claim ban đầu thành công
       .mockResolvedValueOnce({ count: 0 }); // guard finalize: job đã bị "cướp" mất trạng thái processing
@@ -166,14 +167,12 @@ describe('processAnalysisJob', () => {
       where: { id: JOB_ID, status: 'processing' },
       data: { status: 'done', completedAt: expect.any(Date) },
     });
-    expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
-      where: { id: JOB_ID },
-      data: {
-        status: 'failed',
-        completedAt: expect.any(Date),
-        retryCount: 2,
-        errorMessage: expect.stringContaining('no longer processing'),
-      },
-    });
+    // "Cướp" giữa chừng là benign — thủ phạm (cleanupStaleJobs/retry) đã tự ghi trạng thái
+    // cuối của nó rồi, nên ở đây chỉ log cảnh báo, không được gọi markFailed đè lên
+    // (tránh leak message nội bộ ra UI qua #183, và tránh ép sai retryCount).
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no longer processing'));
+    expectMarkFailedNotCalled();
+
+    warnSpy.mockRestore();
   });
 });
