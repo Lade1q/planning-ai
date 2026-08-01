@@ -36,3 +36,12 @@ export const updatePlanStatusSchema = z.object({
 });
 
 export type UpdatePlanStatusInput = z.infer<typeof updatePlanStatusSchema>;
+
+/**
+ * Shared params schema for every /plans/:id route (Issue liên quan PR #160) — id là
+ * @db.Uuid trong Prisma nên một chuỗi không phải UUID sẽ ném P2023 chưa được map,
+ * rớt xuống 500 INTERNAL_ERROR nếu không chặn ở đây trước khi gọi service.
+ */
+export const planIdParamSchema = z.object({
+  id: z.string().uuid('Plan ID phải là UUID hợp lệ'),
+});
