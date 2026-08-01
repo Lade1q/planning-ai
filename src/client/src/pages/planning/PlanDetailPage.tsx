@@ -343,10 +343,18 @@ export default function PlanDetailPage() {
                     </span>
                     <span className="text-[15px] font-semibold">Phân tích tài liệu thất bại</span>
                   </div>
-                  <p className="text-muted-foreground mb-4 text-pretty text-[13px] leading-[1.65]">
-                    AI không trích xuất được khái niệm từ tài liệu đã tải lên. Tài liệu và kế hoạch
-                    nháp vẫn còn nguyên — bạn có thể thử lại.
+                  <p className="text-muted-foreground mb-2 text-pretty text-[13px] leading-[1.65]">
+                    Tài liệu và kế hoạch nháp vẫn còn nguyên — bạn có thể thử lại.
                   </p>
+                  {plan?.analysisErrorMessage ? (
+                    <pre className="text-muted-foreground bg-muted border-border mb-4 overflow-x-auto whitespace-pre-wrap rounded-[calc(var(--radius)*0.6)] border px-3 py-2.5 font-mono text-[11.5px] leading-[1.7]">
+                      {plan.analysisErrorMessage}
+                    </pre>
+                  ) : (
+                    <p className="text-muted-foreground mb-4 text-pretty text-[13px] leading-[1.65]">
+                      AI không trích xuất được khái niệm từ tài liệu đã tải lên.
+                    </p>
+                  )}
                   <Button variant="secondary" size="sm" onClick={handleRetry} disabled={isRetrying}>
                     {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
                   </Button>

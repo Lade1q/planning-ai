@@ -112,7 +112,7 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
   const jobs = await prisma.analysisJob.findMany({
     where: { planDraftId: { in: plans.map((p) => p.id) } },
     orderBy: { createdAt: 'desc' },
-    select: { planDraftId: true, status: true, createdAt: true },
+    select: { planDraftId: true, status: true, createdAt: true, errorMessage: true },
   });
 
   const latestJobByPlan = new Map<string, (typeof jobs)[number]>();
@@ -135,6 +135,7 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
       masteryDistribution: summariseMasteryDistribution(p.concepts.map((c) => c.masteryScore)),
       analysisStatus: latestJob?.status ?? null,
       analysisStartedAt: latestJob?.createdAt ?? null,
+      analysisErrorMessage: latestJob?.errorMessage ?? null,
       document: document
         ? { filename: document.filename, pageCount: document.pageCount, kind: document.kind }
         : null,
@@ -187,7 +188,7 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     prisma.analysisJob.findFirst({
       where: { planDraftId: planId },
       orderBy: { createdAt: 'desc' },
-      select: { status: true, phase: true, createdAt: true },
+      select: { status: true, phase: true, createdAt: true, errorMessage: true },
     }),
   ]);
 
@@ -210,6 +211,7 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     analysisStatus: latestJob?.status ?? null,
     analysisPhase: latestJob?.phase ?? null,
     analysisStartedAt: latestJob?.createdAt ?? null,
+    analysisErrorMessage: latestJob?.errorMessage ?? null,
     document: document
       ? { filename: document.filename, pageCount: document.pageCount, kind: document.kind }
       : null,

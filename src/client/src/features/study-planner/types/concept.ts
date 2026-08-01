@@ -47,6 +47,8 @@ export interface PlanDetails {
   analysisStatus?: AnalysisStatus | null;
   analysisPhase?: AnalysisPhase | null;
   analysisStartedAt?: string | null;
+  /** Real reason the latest job failed, truncated/safe — null unless status is `failed` (#183). */
+  analysisErrorMessage?: string | null;
   document?: PlanDocumentSummary | null;
   dagAutoFixed?: boolean;
   graph: PlanGraph;
@@ -70,6 +72,8 @@ export interface PlanSummary {
   masteryDistribution: MasteryDistribution;
   analysisStatus: AnalysisStatus | null;
   analysisStartedAt: string | null;
+  /** Real reason the latest job failed, truncated/safe — null unless status is `failed` (#183). */
+  analysisErrorMessage: string | null;
   document: PlanDocumentSummary | null;
   createdAt: string;
 }
@@ -97,6 +101,7 @@ export interface BackendPlanDetails {
   analysisStatus: AnalysisStatus | null;
   analysisPhase: AnalysisPhase | null;
   analysisStartedAt: string | null;
+  analysisErrorMessage: string | null;
   document: PlanDocumentSummary | null;
   dagAutoFixed: boolean;
   concepts: BackendConcept[];

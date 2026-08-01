@@ -41,6 +41,8 @@ export interface PlanItemResponse {
   analysisStatus: AnalysisJobStatus | null;
   /** When that job was queued — the client turns it into an elapsed timer. */
   analysisStartedAt: Date | null;
+  /** Real reason the latest job failed, truncated/safe — null unless status is `failed` (#183). */
+  analysisErrorMessage: string | null;
   document: PlanDocumentSummary | null;
   createdAt: Date;
 }
@@ -87,6 +89,8 @@ export interface PlanDetailResponse {
   analysisPhase: AnalysisJobPhase | null;
   /** When the latest job was queued — the client turns it into an elapsed timer (Issue #186). */
   analysisStartedAt: Date | null;
+  /** Real reason the latest job failed, truncated/safe — null unless status is `failed` (#183). */
+  analysisErrorMessage: string | null;
   document: PlanDocumentSummary | null;
   dagAutoFixed: boolean;
   tracebackEnabled: boolean;

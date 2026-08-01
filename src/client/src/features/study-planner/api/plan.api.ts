@@ -93,6 +93,7 @@ export const planApi = {
       analysisStatus: backendData.analysisStatus,
       analysisPhase: backendData.analysisPhase,
       analysisStartedAt: backendData.analysisStartedAt,
+      analysisErrorMessage: backendData.analysisErrorMessage,
       document: backendData.document,
       dagAutoFixed: backendData.dagAutoFixed,
       graph: {
