@@ -69,6 +69,10 @@
 
   /* --- Radius — crisp, never pill-shaped for large containers --- */
   --radius-sm: calc(var(--radius) * 0.55);
+  /* Ô nhập: 0.65× — nằm giữa sm và md, đúng thang trong components.html
+     ("nút 0.8×, ô nhập 0.65×, thẻ 1.35×"). Có token riêng vì trước đây mỗi
+     màn hình tự chép lại chuỗi calc() này (xem AUTH_INPUT_CLASS cũ). */
+  --radius-field: calc(var(--radius) * 0.65);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.35);

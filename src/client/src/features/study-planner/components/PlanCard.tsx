@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Archive, ArchiveRestore, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -171,13 +172,9 @@ export function PlanCard({
       >
         <div className="flex items-start justify-between gap-2.5">
           {isAnalysing ? (
-            <span className="bg-ai-accent/10 text-ai-accent inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em]">
-              Đang phân tích
-            </span>
+            <Badge tone="ai">Đang phân tích</Badge>
           ) : (
-            <span className="bg-mastery-weak/10 text-mastery-weak inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em]">
-              Phân tích lỗi
-            </span>
+            <Badge tone="weak">Phân tích lỗi</Badge>
           )}
           {actions}
         </div>

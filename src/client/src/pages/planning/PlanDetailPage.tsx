@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
@@ -205,7 +206,7 @@ export default function PlanDetailPage() {
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               ) : analysisRunning ? (
-                <span className="border-primary/30 border-t-primary h-2.5 w-2.5 animate-spin rounded-full border-2" />
+                <Spinner className="size-2.5" />
               ) : (
                 <svg
                   width="11"
@@ -267,7 +268,7 @@ export default function PlanDetailPage() {
             {isLoading ? (
               <div className="border-border bg-card flex h-full w-full items-center justify-center rounded-xl border">
                 <div className="text-muted-foreground flex flex-col items-center gap-2">
-                  <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+                  <Spinner className="size-8" />
                   <span>
                     {analysisRunning ? 'Đang phân tích tài liệu...' : 'Đang tải đồ thị...'}
                   </span>
