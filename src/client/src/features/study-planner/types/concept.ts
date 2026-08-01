@@ -25,12 +25,29 @@ export type PlanStatus = 'draft' | 'active' | 'archived';
 
 export type AnalysisStatus = 'pending' | 'processing' | 'done' | 'failed';
 
+/** Sub-step of a `processing` AnalysisJob (Issue #186, SP-06 mockup's 4-phase progress). */
+export type AnalysisPhase = 'sending_to_ai' | 'extracting' | 'validating';
+
+/**
+ * `kind` matters to the SP-06 progress panel: a `text` document is inlined into the extract
+ * call, so it never goes through a "gửi tài liệu tới AI Service" upload step — the panel
+ * must not show that phase as done for one (Issue #186).
+ */
+export interface PlanDocumentSummary {
+  filename: string;
+  pageCount: number | null;
+  kind: 'pdf' | 'image' | 'text';
+}
+
 export interface PlanDetails {
   id: string;
   name: string;
   deadline?: string;
   status: PlanStatus;
   analysisStatus?: AnalysisStatus | null;
+  analysisPhase?: AnalysisPhase | null;
+  analysisStartedAt?: string | null;
+  document?: PlanDocumentSummary | null;
   dagAutoFixed?: boolean;
   graph: PlanGraph;
 }
@@ -53,7 +70,7 @@ export interface PlanSummary {
   masteryDistribution: MasteryDistribution;
   analysisStatus: AnalysisStatus | null;
   analysisStartedAt: string | null;
-  document: { filename: string; pageCount: number | null } | null;
+  document: PlanDocumentSummary | null;
   createdAt: string;
 }
 
@@ -78,6 +95,9 @@ export interface BackendPlanDetails {
   deadline: string;
   status: PlanStatus;
   analysisStatus: AnalysisStatus | null;
+  analysisPhase: AnalysisPhase | null;
+  analysisStartedAt: string | null;
+  document: PlanDocumentSummary | null;
   dagAutoFixed: boolean;
   concepts: BackendConcept[];
   edges: BackendEdge[];

@@ -96,7 +96,7 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
       // for a plan whose document currently only covers 3.
       concepts: { where: { status: 'active' }, select: { masteryScore: true } },
       documents: {
-        select: { filename: true, pageCount: true },
+        select: { filename: true, pageCount: true, kind: true },
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
@@ -135,7 +135,9 @@ export async function getUserPlans(userId: string): Promise<PlanItemResponse[]> 
       masteryDistribution: summariseMasteryDistribution(p.concepts.map((c) => c.masteryScore)),
       analysisStatus: latestJob?.status ?? null,
       analysisStartedAt: latestJob?.createdAt ?? null,
-      document: document ? { filename: document.filename, pageCount: document.pageCount } : null,
+      document: document
+        ? { filename: document.filename, pageCount: document.pageCount, kind: document.kind }
+        : null,
       createdAt: p.createdAt,
     };
   });
@@ -173,12 +175,19 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
             toConceptId: true,
           },
         },
+        // Powers the SP-06 progress panel's "N trang" and filename (Issue #186) — same
+        // "latest document" pattern as getUserPlans.
+        documents: {
+          select: { filename: true, pageCount: true, kind: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     }),
     prisma.analysisJob.findFirst({
       where: { planDraftId: planId },
       orderBy: { createdAt: 'desc' },
-      select: { status: true },
+      select: { status: true, phase: true, createdAt: true },
     }),
   ]);
 
@@ -190,6 +199,8 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     throw new AppError('Access denied to this study plan', 403, 'FORBIDDEN');
   }
 
+  const document = plan.documents[0];
+
   return {
     id: plan.id,
     userId: plan.userId,
@@ -197,6 +208,11 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
     deadline: plan.deadline,
     status: plan.status,
     analysisStatus: latestJob?.status ?? null,
+    analysisPhase: latestJob?.phase ?? null,
+    analysisStartedAt: latestJob?.createdAt ?? null,
+    document: document
+      ? { filename: document.filename, pageCount: document.pageCount, kind: document.kind }
+      : null,
     dagAutoFixed: plan.dagAutoFixed,
     tracebackEnabled: plan.tracebackEnabled,
     createdAt: plan.createdAt,
