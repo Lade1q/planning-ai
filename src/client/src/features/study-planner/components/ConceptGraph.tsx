@@ -236,7 +236,9 @@ function EdgeLegend() {
       stroke: 'var(--mastery-weak)',
       width: 2,
       dash: '4 3',
-      label: 'Tiên quyết còn yếu — đường truy ngược AE-07',
+      // Không để lộ mã use-case nội bộ (AE-07) ra UI người dùng — thay bằng ý nghĩa thật của
+      // nét cạnh: đây là tiên quyết còn yếu của khái niệm đang chọn, nên ôn nó trước.
+      label: 'Tiên quyết còn yếu — nên ôn trước',
     },
   ];
 
