@@ -160,6 +160,12 @@ describe('processAnalysisJob', () => {
     // minh guard đúng chỗ chứ không phải crash sớm do thiếu mock (false-green).
     expect(mockedPrisma.concept.create).toHaveBeenCalled();
     expect(mockedPrisma.studyPlan.update).toHaveBeenCalled();
+    // Xác nhận rõ lần updateMany thứ 2 chính là finalize guard (where: status 'processing')
+    // — không phải một lỗi khác xảy ra sớm hơn trong transaction.
+    expect(mockedPrisma.analysisJob.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: JOB_ID, status: 'processing' },
+      data: { status: 'done', completedAt: expect.any(Date) },
+    });
     expect(mockedPrisma.analysisJob.update).toHaveBeenCalledWith({
       where: { id: JOB_ID },
       data: {
