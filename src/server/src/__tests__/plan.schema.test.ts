@@ -1,4 +1,4 @@
-import { createPlanSchema } from '../schemas/plan.schema';
+import { createPlanSchema, planIdParamSchema } from '../schemas/plan.schema';
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -59,5 +59,33 @@ describe('createPlanSchema deadline', () => {
 
   it('rejects an empty deadline', () => {
     expect(() => createPlanSchema.parse({ ...base, deadline: '' })).toThrow(/required/);
+  });
+});
+
+// Regression coverage for PR #160: id là @db.Uuid trong Prisma — một id không phải UUID
+// ném PrismaClientKnownRequestError P2023 chưa được errorHandler map, rớt xuống 500
+// INTERNAL_ERROR nếu không bị chặn ở đây trước khi chạm service/Prisma.
+describe('planIdParamSchema', () => {
+  it('accepts a valid UUID', () => {
+    expect(() =>
+      planIdParamSchema.parse({ id: '11111111-1111-4111-8111-111111111111' })
+    ).not.toThrow();
+  });
+
+  it('rejects a missing id', () => {
+    expect(() => planIdParamSchema.parse({})).toThrow();
+  });
+
+  it('rejects an empty id', () => {
+    expect(() => planIdParamSchema.parse({ id: '' })).toThrow();
+  });
+
+  it('rejects a non-UUID string id', () => {
+    expect(() => planIdParamSchema.parse({ id: 'plan-uuid' })).toThrow();
+    expect(() => planIdParamSchema.parse({ id: 'abc' })).toThrow();
+  });
+
+  it('rejects a UUID missing a segment', () => {
+    expect(() => planIdParamSchema.parse({ id: '11111111-1111-4111-8111' })).toThrow();
   });
 });
