@@ -18,7 +18,7 @@ function LockedValue({ className, children, ...props }: React.ComponentProps<'di
     <div
       data-slot="locked-value"
       className={cn(
-        'border-border rounded-field bg-muted text-muted-foreground flex min-h-[38px] w-full items-center gap-[9px] border px-3 py-[9px] text-sm',
+        'border-border rounded-field bg-muted text-muted-foreground flex min-h-9.5 w-full items-center gap-2.25 border px-3 py-2.25 text-sm',
         className
       )}
       {...props}

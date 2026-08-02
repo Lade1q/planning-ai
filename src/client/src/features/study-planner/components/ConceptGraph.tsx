@@ -301,7 +301,7 @@ function FilterChip({
       )}
     >
       {color && (
-        <i className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: color }} />
+        <i className="block h-2 w-2 shrink-0 rounded-xs" style={{ background: color }} />
       )}
       {children}
     </button>
