@@ -15,14 +15,14 @@ interface FileDropzoneProps {
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const DEFAULT_ALLOWED_TYPES = ['application/pdf', 'text/plain', 'image/png', 'image/jpeg'];
 
-export function FileDropzone({ 
-  onFileSelect, 
-  selectedFile, 
+export function FileDropzone({
+  onFileSelect,
+  selectedFile,
   error: externalError,
   allowedTypes = DEFAULT_ALLOWED_TYPES,
-  acceptString = ".pdf,.txt,.png,.jpg,.jpeg",
-  hintText = "PDF, TXT, PNG, JPG · tối đa 10 MB",
-  errorText = "Định dạng không được hỗ trợ. Chỉ nhận PDF, TXT, PNG, JPG."
+  acceptString = '.pdf,.txt,.png,.jpg,.jpeg',
+  hintText = 'PDF, TXT, PNG, JPG · tối đa 10 MB',
+  errorText = 'Định dạng không được hỗ trợ. Chỉ nhận PDF, TXT, PNG, JPG.',
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function FileDropzone({
           <div className="flex flex-col items-center justify-center">
             <UploadCloud className="text-primary mb-2 h-7 w-7" />
             <div className="text-sm font-medium">{selectedFile.name}</div>
-            <div className="text-muted-foreground font-mono mt-1 text-xs">
+            <div className="text-muted-foreground mt-1 font-mono text-xs">
               {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
             </div>
           </div>
@@ -104,9 +104,7 @@ export function FileDropzone({
               className={cn('mb-2 h-7 w-7', error ? 'text-destructive' : 'text-muted-foreground')}
             />
             <div className="text-sm font-medium">Kéo thả tệp vào đây, hoặc bấm để chọn</div>
-            <div className="text-muted-foreground font-mono mt-1 text-xs">
-              {hintText}
-            </div>
+            <div className="text-muted-foreground mt-1 font-mono text-xs">{hintText}</div>
           </div>
         )}
       </div>

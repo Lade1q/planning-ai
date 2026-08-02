@@ -207,7 +207,7 @@ function FieldError({
       role="alert"
       data-slot="field-error"
       className={cn(
-        'text-mastery-weak flex items-start gap-1.75 text-xs font-normal leading-[1.6]',
+        'text-mastery-weak gap-1.75 flex items-start text-xs font-normal leading-[1.6]',
         className
       )}
       {...props}
@@ -219,7 +219,7 @@ function FieldError({
         stroke="currentColor"
         strokeWidth={1.9}
         strokeLinecap="round"
-        className="mt-0.5 size-3.25 flex-none"
+        className="size-3.25 mt-0.5 flex-none"
       >
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7.5v5.5" />
@@ -249,7 +249,7 @@ function FieldRequirement({
       data-slot="field-requirement"
       data-satisfied={satisfied || undefined}
       className={cn(
-        'text-muted-foreground data-satisfied:text-mastery-strong flex items-center gap-1.75 text-xs',
+        'text-muted-foreground data-satisfied:text-mastery-strong gap-1.75 flex items-center text-xs',
         className
       )}
       {...props}

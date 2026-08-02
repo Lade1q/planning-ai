@@ -41,11 +41,11 @@ function MasteryBar({ distribution, total }: { distribution: MasteryDistribution
 
   return (
     <>
-      <div className="mb-3 flex h-2.5 gap-0.75" aria-hidden="true">
+      <div className="gap-0.75 mb-3 flex h-2.5" aria-hidden="true">
         {BANDS.filter(({ key }) => distribution[key] > 0).map(({ key, color }) => (
           <span
             key={key}
-            className="block min-w-0 rounded-xs"
+            className="rounded-xs block min-w-0"
             style={{ width: `${(distribution[key] / total) * 100}%`, background: color }}
           />
         ))}
@@ -61,7 +61,7 @@ function MasteryBar({ distribution, total }: { distribution: MasteryDistribution
               distribution[key] === 0 ? 'opacity-45' : ''
             }`}
           >
-            <i className="block size-2 flex-none rounded-xs" style={{ background: color }} />
+            <i className="rounded-xs block size-2 flex-none" style={{ background: color }} />
             <b className="text-foreground font-mono font-semibold tabular-nums">
               {distribution[key]}
             </b>
@@ -166,7 +166,7 @@ export function PlanCard({
 
     return (
       <div
-        className={`border-border bg-card rounded-xl border border-dashed px-5 pb-4.5 pt-5 ${
+        className={`border-border bg-card pb-4.5 rounded-xl border border-dashed px-5 pt-5 ${
           isBusy ? 'opacity-60' : ''
         }`}
       >
@@ -215,7 +215,7 @@ export function PlanCard({
 
   return (
     <div
-      className={`border-border bg-card relative rounded-xl border px-5 pb-4.5 pt-5 transition-shadow duration-150 hover:shadow-(--shadow-soft) ${
+      className={`border-border bg-card pb-4.5 hover:shadow-(--shadow-soft) relative rounded-xl border px-5 pt-5 transition-shadow duration-150 ${
         isBusy ? 'pointer-events-none opacity-60' : ''
       }`}
     >

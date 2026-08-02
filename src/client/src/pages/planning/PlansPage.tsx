@@ -269,7 +269,7 @@ export default function PlansPage() {
 function LoadErrorNotice({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="border-border bg-background rounded-xl border px-7 py-6">
-      <div className="mx-auto my-6 max-w-140 text-center">
+      <div className="max-w-140 mx-auto my-6 text-center">
         <h2 className="font-heading mb-2 text-[21px] tracking-[-0.02em]">
           Không thể tải danh sách kế hoạch
         </h2>
@@ -291,7 +291,7 @@ function LoadErrorNotice({ onRetry }: { onRetry: () => void }) {
 function EmptyState() {
   return (
     <div className="border-border bg-background rounded-xl border px-7 py-6">
-      <div className="mx-auto my-6 max-w-140 text-center">
+      <div className="max-w-140 mx-auto my-6 text-center">
         <div className="text-muted-foreground mb-4.5 flex justify-center opacity-55">
           <svg
             width="44"
