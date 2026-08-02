@@ -598,7 +598,12 @@ async function advanceFallback(
 
   const step = resolveFallbackStep({
     cachedQuestionCount: cached.length,
-    conceptTurnsServed: view.conceptTurns.length,
+    // Audit finding (real-Gemini manual test): grading failure — the common trigger for
+    // fallback — always fires after a question was already asked by AI, so most concepts enter
+    // fallback already holding `source: 'ai'` turns. Those must not count against the cache
+    // index, or a concept with untouched cached questions finishes without ever serving them.
+    cachedTurnsServed: view.conceptTurns.filter((turn) => turn.source === 'cache_fallback').length,
+    totalTurnsServed: view.conceptTurns.length,
     maxTurns: view.session.maxTurnsPerConcept,
   });
 

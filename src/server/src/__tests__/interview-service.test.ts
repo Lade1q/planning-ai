@@ -351,8 +351,11 @@ describe('interview.service — AE-05 flashcard fallback', () => {
     expect(mockedGradeAnswer).not.toHaveBeenCalled();
     expect(mockedGenerateQuestion).not.toHaveBeenCalled();
     // The state machine kept going in fallback mode: the next turn comes from the cache too.
+    // Starts at cache[0] ('Cached question A'), not cache[1] — the one prior turn was
+    // `source: 'ai'`, so zero cache questions have actually been served yet (regression guard
+    // for the mixed ai+cache_fallback bug found via manual testing against live Gemini).
     expect(result.nextQuestion).toMatchObject({
-      questionText: 'Cached question B',
+      questionText: 'Cached question A',
       source: 'cache_fallback',
     });
   });
