@@ -47,7 +47,7 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       className={cn(
-        'outline-hidden focus:bg-accent data-[variant=destructive]:text-mastery-weak data-[variant=destructive]:focus:bg-mastery-weak/10 relative flex cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 py-2 text-[13px] data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0',
+        'outline-hidden focus:bg-accent data-[variant=destructive]:text-mastery-weak data-[variant=destructive]:focus:bg-mastery-weak/10 data-disabled:pointer-events-none data-disabled:opacity-50 relative flex cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 py-2 text-[13px] [&_svg]:size-3.5 [&_svg]:shrink-0',
         className
       )}
       {...props}
