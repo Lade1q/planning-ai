@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recall AI — Phiên kiểm tra vấn đáp</title>
+  <meta name="description" content="Phiên vấn đáp nhiều lượt với state machine điều phối, hỗ trợ trả lời bằng văn bản hoặc giọng nói." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <style>
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--background);
+      color: var(--foreground);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { cursor: pointer; font-family: var(--font-sans); }
+
+    /* ─── Shared Components ─── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 14px; font-weight: 500;
+      border-radius: calc(var(--radius) * 0.8); border: 1px solid transparent;
+      padding: 9px 16px;
+      transition: background var(--duration-fast) var(--ease-standard),
+                  transform var(--duration-fast) var(--ease-standard),
+                  opacity var(--duration-fast) var(--ease-standard);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: var(--primary-foreground); }
+    .btn-primary:hover:not(:disabled) { background: oklch(from var(--primary) calc(l - 0.04) c h); }
+    .btn-secondary { background: var(--secondary); color: var(--secondary-foreground); border-color: var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--muted); }
+    .btn-ghost { background: transparent; color: var(--foreground); }
+    .btn-ghost:hover { background: var(--muted); }
+    .btn-outline { background: var(--card); color: var(--foreground); border-color: var(--border); }
+    .btn-outline:hover { background: var(--muted); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 3px 10px; border-radius: 9999px;
+    }
+    kbd {
+      font-family: var(--font-mono); font-size: 11px;
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.5);
+      background: var(--muted); padding: 1px 5px;
+    }
+
+    /* ─── Chat Bubbles ─── */
+    .chat-bubble-ai {
+      background: oklch(from var(--ai-accent) l c h / 0.08);
+      border: 1px solid oklch(from var(--ai-accent) l c h / 0.28);
+      border-radius: calc(var(--radius) * 1.35) calc(var(--radius) * 1.35) calc(var(--radius) * 1.35) 2px;
+      color: var(--foreground); padding: 14px 18px; max-width: 72%;
+      font-size: 14.5px; line-height: 1.65;
+    }
+    .chat-bubble-user {
+      background: var(--secondary); border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 1.35) calc(var(--radius) * 1.35) 2px calc(var(--radius) * 1.35);
+      color: var(--foreground); padding: 14px 18px; max-width: 72%;
+      align-self: flex-end; font-size: 14.5px; line-height: 1.65;
+    }
+
+    /* ─── Shell ─── */
+    .ex-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ─── Top Bar ─── */
+    .ex-top {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+      z-index: 10;
+    }
+    .ex-top__id { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .ex-top__title { font-family: var(--font-heading); font-size: 17px; letter-spacing: -0.02em; }
+    .ex-top__plan { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ex-top__right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .clock { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+
+    .seg {
+      display: inline-flex; border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 0.7); overflow: hidden; background: var(--muted);
+    }
+    .seg button {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 0; background: transparent; color: var(--muted-foreground);
+      font-size: 13px; font-weight: 500; padding: 6px 12px;
+      transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+    }
+    .seg button:hover { color: var(--foreground); }
+    .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-soft); }
+
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 0.6); background: var(--card);
+      color: var(--muted-foreground);
+      transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+    }
+    .icon-btn:hover { color: var(--foreground); border-color: var(--muted-foreground); }
+
+    /* ─── Body Layout ─── */
+    .ex-body { display: grid; grid-template-columns: 280px 1fr; min-height: 0; }
+
+    /* ─── Left Rail ─── */
+    .rail {
+      border-right: 1px solid var(--border); background: var(--sidebar);
+      padding: 20px 18px; display: flex; flex-direction: column; gap: 24px;
+      overflow-y: auto;
+    }
+    .rail__label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--muted-foreground); margin-bottom: 8px;
+    }
+
+    /* Concept queue */
+    .qitem {
+      display: grid; grid-template-columns: 22px 1fr auto;
+      align-items: center; gap: 10px; padding: 8px 10px;
+      margin: 0 -10px; border-radius: calc(var(--radius) * 0.6); font-size: 13px;
+      transition: background var(--duration-fast) var(--ease-standard);
+    }
+    .qitem__no { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+    .qitem__score { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .qitem--done { color: var(--muted-foreground); }
+    .qitem--now { background: var(--card); border: 1px solid var(--foreground); font-weight: 600; margin: 2px -10px; }
+    .qitem--wait { color: var(--muted-foreground); opacity: 0.65; }
+
+    /* Turn tracker */
+    .turnbox { border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8); background: var(--card); overflow: hidden; }
+    .turnrow {
+      display: grid; grid-template-columns: 20px 1fr auto;
+      align-items: center; gap: 10px; padding: 10px 12px;
+      font-size: 13px; border-bottom: 1px solid var(--border);
+    }
+    .turnrow:last-child { border-bottom: 0; }
+    .turnrow__n { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+    .turnrow__w { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .turnrow--now { background: oklch(from var(--ai-accent) l c h / 0.07); }
+    .turnrow--locked { color: var(--muted-foreground); opacity: 0.6; }
+    .turnrow--done { color: var(--muted-foreground); }
+
+    .rail__source {
+      margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--muted-foreground); line-height: 1.55;
+    }
+
+    /* ─── Conversation Column ─── */
+    .conv-wrap { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+    .conv { padding: 24px 32px 8px; overflow-y: auto; min-height: 0; }
+    .conv__inner { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+    .turn-sep {
+      display: flex; align-items: center; gap: 12px; margin: 10px 0 4px;
+      font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-foreground);
+    }
+    .turn-sep::before, .turn-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+    .cite {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); margin-top: 9px;
+    }
+    .cite a { color: inherit; text-underline-offset: 3px; }
+
+    /* Grade card */
+    .grade {
+      border: 1px solid var(--border); border-left: 3px solid var(--border);
+      border-radius: calc(var(--radius) * 0.8); background: var(--card);
+      padding: 14px 16px; align-self: flex-end; max-width: 78%;
+    }
+    .grade--deep { border-left-color: var(--mastery-strong); }
+    .grade--shallow { border-left-color: var(--mastery-learning); }
+    .grade--wrong { border-left-color: var(--mastery-weak); }
+    .grade__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    .grade__score { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .grade__weight { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .grade__text { font-size: 13.5px; line-height: 1.6; color: var(--foreground); }
+    .grade__foot { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: 12px; }
+    .grade__foot a { color: var(--muted-foreground); text-underline-offset: 3px; cursor: pointer; }
+    .grade__foot a:hover { color: var(--foreground); }
+
+    /* System event */
+    .sys {
+      display: flex; gap: 11px; align-items: flex-start;
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8);
+      background: var(--muted); padding: 11px 14px; font-size: 12.5px; line-height: 1.55; color: var(--muted-foreground);
+    }
+    .sys__tag {
+      flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+      text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--border);
+      border-radius: 4px; background: var(--card); color: var(--muted-foreground); margin-top: 1px;
+    }
+    .sys--remediate {
+      background: oklch(from var(--remediate) l c h / 0.08);
+      border-color: oklch(from var(--remediate) l c h / 0.3); color: var(--foreground);
+    }
+    .sys--warn {
+      background: oklch(from var(--mastery-learning) l c h / 0.09);
+      border-color: oklch(from var(--mastery-learning) l c h / 0.34); color: var(--foreground);
+    }
+
+    /* Audio question (voice mode) */
+    .q-audio { display: flex; align-items: center; gap: 14px; padding: 14px 18px; max-width: 72%; }
+    .play-btn {
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: calc(var(--radius) * 0.7);
+      border: 1px solid oklch(from var(--ai-accent) l c h / 0.4);
+      background: oklch(from var(--ai-accent) l c h / 0.12); color: var(--ai-accent); cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-standard);
+    }
+    .play-btn:hover { background: oklch(from var(--ai-accent) l c h / 0.2); }
+    .speak-row { display: flex; align-items: center; gap: 11px; width: 100%; }
+    .wave { display: flex; align-items: center; gap: 3px; height: 16px; flex: none; }
+    .wave span {
+      width: 3px; height: 100%; flex: none; border-radius: 2px; background: var(--ai-accent);
+      opacity: 0.55; transform-origin: center; animation: wave-bar 1.15s var(--ease-standard) infinite;
+    }
+    .speak-track { flex: 1; height: 2px; border-radius: 2px; background: oklch(from var(--ai-accent) l c h / 0.22); overflow: hidden; }
+    .speak-track span { display: block; height: 100%; background: var(--ai-accent); }
+    @keyframes wave-bar { 0%, 100% { transform: scaleY(0.28); } 50% { transform: scaleY(1); } }
+    .q-audio__meta { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; color: var(--ai-accent); }
+    .q-audio__row { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .linkish { background: none; border: 0; padding: 0; font-family: var(--font-sans); font-size: 12px; color: var(--muted-foreground); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .linkish:hover { color: var(--foreground); }
+
+    /* ─── Answer Dock ─── */
+    .dock { border-top: 1px solid var(--border); background: var(--card); padding: 16px 32px 18px; }
+    .dock__inner { max-width: 680px; margin: 0 auto; }
+    .dock__hint { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; color: var(--muted-foreground); margin-top: 10px; }
+    .dock__actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+    .dock__actions .spacer { flex: 1; }
+
+    /* Text input */
+    .composer { display: flex; gap: 10px; align-items: flex-end; }
+    .composer textarea {
+      flex: 1; min-height: 74px; max-height: 160px; resize: vertical;
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8);
+      padding: 13px 15px; font-family: var(--font-sans); font-size: 14px; line-height: 1.6;
+      color: var(--foreground); background: var(--background); outline: none;
+      transition: border-color var(--duration-fast) var(--ease-standard);
+    }
+    .composer textarea:focus { border-color: var(--ring); box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 0.15); }
+
+    /* Voice input */
+    .transcript {
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8);
+      background: var(--background); padding: 14px 16px; font-size: 14px; line-height: 1.62; min-height: 68px;
+      outline: none; transition: border-color var(--duration-fast) var(--ease-standard);
+    }
+    .transcript:focus { border-color: var(--ring); box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 0.15); }
+    .stt-low { border-bottom: 1px dashed var(--remediate); color: var(--remediate); cursor: text; }
+    .rec-bar { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+    .mic-btn {
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 46px; height: 46px; border-radius: 14px; border: none;
+      background: var(--destructive); color: white; cursor: pointer;
+      transition: transform var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+    }
+    .mic-btn:active { transform: scale(0.96); }
+    .mic-btn--idle { background: var(--primary); }
+    .rec-state { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+    .rec-state__top { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 500; }
+    .rec-dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--destructive); animation: rec-pulse 1.4s var(--ease-standard) infinite; }
+    @keyframes rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    /* Flashcard */
+    .flash-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .self-grade {
+      display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 0.7); background: var(--background);
+      padding: 9px 15px; font-size: 13px; font-weight: 500; color: var(--foreground); cursor: pointer;
+      transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+    }
+    .self-grade:hover { border-color: var(--muted-foreground); background: var(--muted); }
+    .self-grade__val { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+
+    /* Traceback/Prereq list */
+    .prereq {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+    }
+    .prereq:last-of-type { border-bottom: 0; }
+    .prereq__meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+
+    /* Session end summary */
+    .summary-card { border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.1); background: var(--card); overflow: hidden; }
+    .summary-score { display: flex; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .summary-score__num { font-family: var(--font-mono); font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .summary-score__label { font-size: 13px; color: var(--muted-foreground); }
+    .summary-concepts { padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+    .concept-result { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; }
+
+    /* Modal overlay */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: oklch(0 0 0 / 0.4);
+      z-index: 100; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.is-open { display: flex; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4);
+      padding: 28px 32px; max-width: 420px; width: 100%; box-shadow: 0 12px 40px oklch(0 0 0 / 0.14);
+    }
+    .modal__title { font-family: var(--font-heading); font-size: 20px; margin-bottom: 10px; }
+    .modal__body { font-size: 14px; color: var(--muted-foreground); line-height: 1.6; margin-bottom: 24px; }
+    .modal__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* Toast notification */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: var(--foreground); color: var(--background);
+      padding: 12px 18px; border-radius: calc(var(--radius) * 0.9);
+      font-size: 13.5px; max-width: 320px;
+      opacity: 0; transform: translateY(8px);
+      transition: opacity var(--duration-normal) var(--ease-standard), transform var(--duration-normal) var(--ease-standard);
+      pointer-events: none;
+    }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    /* Loading / typing indicator */
+    .typing-indicator { display: flex; gap: 5px; align-items: center; padding: 14px 18px; }
+    .typing-indicator span {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--ai-accent); opacity: 0.5;
+      animation: dot-bounce 1.3s var(--ease-standard) infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.18s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes dot-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-6px); opacity: 1; } }
+
+    /* Reveal animation for new content */
+    .fade-in { animation: fadeIn var(--duration-normal) var(--ease-standard) forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Pause/skip state overlay */
+    .paused-overlay {
+      position: absolute; inset: 0; background: oklch(from var(--background) l c h / 0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5; backdrop-filter: blur(4px);
+    }
+    .paused-card { text-align: center; padding: 40px 48px; }
+    .paused-card h2 { font-family: var(--font-heading); font-size: 22px; margin-bottom: 10px; }
+    .paused-card p { color: var(--muted-foreground); font-size: 14px; margin-bottom: 24px; }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      .ex-body { grid-template-columns: 1fr; }
+      .rail { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ex-shell" id="appShell">
+
+    <!-- ── Top Bar ── -->
+    <header class="ex-top">
+      <div class="ex-top__id">
+        <span class="ex-top__title">Phiên kiểm tra</span>
+        <span class="ex-top__plan" id="planName">Cấu trúc dữ liệu &amp; Giải thuật</span>
+      </div>
+
+      <div class="ex-top__right">
+        <span class="clock" id="elapsedClock">00:00</span>
+
+        <div class="seg" role="group" aria-label="Chế độ trả lời">
+          <button type="button" id="btnModeText" aria-pressed="true" onclick="setMode('text')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2"/><path d="M9 19h6"/><path d="M12 5v14"/></svg>
+            Gõ
+          </button>
+          <button type="button" id="btnModeVoice" aria-pressed="false" onclick="setMode('voice')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+            Giọng nói
+          </button>
+        </div>
+
+        <button class="btn btn-ghost" style="padding:6px 12px; font-size:13px;" onclick="openPauseModal()">Tạm dừng &amp; thoát</button>
+        <button class="btn btn-ghost" style="padding:6px 12px; font-size:13px;" id="btnSkip" onclick="skipConcept()">Bỏ qua khái niệm</button>
+        <button class="icon-btn" aria-label="Cài đặt phiên kiểm tra" onclick="showToast('Tính năng cài đặt sẽ ra mắt sớm.')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="ex-body" style="position:relative;">
+
+      <!-- ── Left Rail ── -->
+      <aside class="rail">
+        <section>
+          <h2 class="rail__label" id="queueLabel">Hàng đợi khái niệm · 1/5</h2>
+          <div id="conceptQueue"></div>
+        </section>
+
+        <section>
+          <h2 class="rail__label" id="turnsLabel">Lượt hỏi</h2>
+          <div class="turnbox" id="turnBox"></div>
+          <p style="font-size:12px; color:var(--muted-foreground); margin-top:10px; line-height:1.55;">
+            Truy ngược lỗ hổng chạy sau khi chốt điểm cả khái niệm.
+          </p>
+        </section>
+
+        <div class="rail__source">
+          Chấm theo tài liệu bạn tải lên:<br />
+          <strong style="color:var(--foreground); font-weight:500;">Giáo trình CTDL — Chương 3.pdf</strong><br />
+          <span style="font-family:var(--font-mono); font-size:11px;">rubric v2 · 34 trang</span>
+        </div>
+      </aside>
+
+      <!-- ── Conversation + Dock ── -->
+      <div class="conv-wrap" id="mainContent">
+        <main class="conv" id="convScroll">
+          <div class="conv__inner" id="convInner"></div>
+        </main>
+
+        <footer class="dock" id="answerDock">
+          <div class="dock__inner" id="dockInner"></div>
+        </footer>
+      </div>
+
+      <!-- ── Pause Overlay ── -->
+      <div id="pauseOverlay" style="display:none; position:absolute; inset:0; background:oklch(from var(--background) l c h / 0.92); display:none; align-items:center; justify-content:center; z-index:5; backdrop-filter:blur(6px);">
+        <div class="paused-card">
+          <h2>Phiên đã tạm dừng</h2>
+          <p>Tiến trình đã được lưu. Bạn có thể tiếp tục bất lúc nào.</p>
+          <div style="display:flex; gap:12px; justify-content:center;">
+            <button class="btn btn-primary" onclick="resumeSession()">Tiếp tục phiên</button>
+            <button class="btn btn-secondary" onclick="exitSession()">Thoát về Dashboard</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Pause Modal ── -->
+  <div class="modal-overlay" id="pauseModal">
+    <div class="modal">
+      <h2 class="modal__title">Tạm dừng phiên kiểm tra?</h2>
+      <p class="modal__body">Tiến trình và điểm số các khái niệm đã hoàn thành sẽ được lưu lại. Bạn có thể tiếp tục sau.</p>
+      <div class="modal__actions">
+        <button class="btn btn-ghost" onclick="closePauseModal()">Tiếp tục làm</button>
+        <button class="btn btn-primary" onclick="confirmPause()">Tạm dừng &amp; thoát</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    //  DATA — Khái niệm và câu hỏi mẫu
+    // ═══════════════════════════════════════════════
+    const CONCEPTS = [
+      { id: 'c1', name: 'Mảng & Con trỏ', done: true, score: 0.86 },
+      { id: 'c2', name: 'Đệ quy', done: true, score: 0.71 },
+      { id: 'c3', name: 'Ngăn xếp', done: false, score: null },
+      { id: 'c4', name: 'Hàng đợi', done: false, score: null },
+      { id: 'c5', name: 'Duyệt đồ thị DFS', done: false, score: null },
+    ];
+
+    const TURNS_CONFIG = [
+      { weight: 0.2, label: 'Lượt 1' },
+      { weight: 0.3, label: 'Lượt 2' },
+      { weight: 0.5, label: 'Lượt 3' },
+    ];
+
+    const QUESTIONS = {
+      c3: [
+        {
+          text: 'Bạn vừa nói ngăn xếp hoạt động theo nguyên tắc LIFO. Vậy nếu mình push lần lượt 3, 5, 7 rồi pop hai lần, phần tử còn lại trên đỉnh là gì?',
+          cite: 'Chương 3, tr. 4 — Định nghĩa LIFO',
+          voiceText: 'Câu hỏi lượt 1: Nếu push 3, 5, 7 rồi pop hai lần, phần tử còn lại trên đỉnh là gì?',
+          gradeDeep: { verdict: 'deep', score: 0.90, feedback: 'Bạn xác định đúng thứ tự lấy ra và nêu được lý do 3 nằm dưới cùng. Câu trả lời khớp với ví dụ ở trang 4. Nếu muốn chắc hơn, thử nói xem điều gì xảy ra khi pop trên ngăn xếp rỗng.' },
+          gradeShallow: { verdict: 'shallow', score: 0.55, feedback: 'Bạn trả lời đúng kết quả nhưng chưa giải thích được thứ tự LIFO một cách rõ ràng. Hãy nói thêm tại sao 7 và 5 bị lấy ra trước.' },
+          gradeWrong: { verdict: 'wrong', score: 0.10, feedback: 'Câu trả lời chưa đúng. LIFO nghĩa là phần tử vào sau sẽ ra trước. 7 vào cuối nên ra đầu, tiếp theo là 5. Sau 2 lần pop, đỉnh ngăn xếp là 3.' },
+        },
+        {
+          text: 'Tốt! Bây giờ hãy giải thích vì sao ngăn xếp là cấu trúc phù hợp để khử đệ quy, còn hàng đợi thì không thể thay thế được.',
+          cite: 'Chương 3, mục 3.2 — Ngăn xếp lời gọi hàm',
+          voiceText: 'Câu hỏi lượt 2: Vì sao ngăn xếp phù hợp để khử đệ quy trong khi hàng đợi không thể?',
+          gradeDeep: { verdict: 'deep', score: 0.88, feedback: 'Xuất sắc! Bạn nắm rõ cơ chế call stack và lý giải chính xác vì sao thứ tự LIFO trùng khớp với thứ tự trả về của lời gọi đệ quy.' },
+          gradeShallow: { verdict: 'shallow', score: 0.60, feedback: 'Bạn hiểu ý tưởng nhưng chưa diễn đạt rõ sự tương ứng giữa LIFO của ngăn xếp và thứ tự return của các lời gọi đệ quy lồng nhau.' },
+          gradeWrong: { verdict: 'wrong', score: 0.15, feedback: 'Đệ quy dùng call stack với thứ tự LIFO. Khi khử đệ quy thủ công, ta cần cấu trúc giữ đúng thứ tự này — ngăn xếp làm được, hàng đợi (FIFO) thì ngược chiều.' },
+        },
+        {
+          text: 'Câu hỏi cuối: Một chương trình có vòng lặp đệ quy không có điều kiện dừng. Mô tả chính xác điều gì xảy ra bên trong bộ nhớ và tại sao chương trình bị lỗi.',
+          cite: 'Chương 3, mục 3.4 — Stack Overflow',
+          voiceText: 'Câu hỏi cuối: Đệ quy không có điều kiện dừng gây ra lỗi gì trong bộ nhớ và tại sao?',
+          gradeDeep: { verdict: 'deep', score: 0.94, feedback: 'Hoàn hảo! Bạn mô tả đúng: mỗi lời gọi đẩy một stack frame mới, vùng nhớ stack có giới hạn cứng, khi vượt quá giới hạn hệ điều hành báo Stack Overflow.' },
+          gradeShallow: { verdict: 'shallow', score: 0.62, feedback: 'Bạn biết kết quả là Stack Overflow nhưng chưa giải thích cơ chế: mỗi lần gọi đệ quy tạo một stack frame mới chứa tham số và địa chỉ return.' },
+          gradeWrong: { verdict: 'wrong', score: 0.05, feedback: 'Khi đệ quy không dừng, mỗi lời gọi tạo một stack frame trên call stack. Stack có kích thước giới hạn. Khi tràn, OS dừng chương trình với lỗi Stack Overflow.' },
+        },
+      ],
+      c4: [
+        {
+          text: 'Hàng đợi khác ngăn xếp như thế nào về thứ tự lấy phần tử ra?',
+          cite: 'Chương 4, tr. 1 — Định nghĩa FIFO',
+          voiceText: 'Câu hỏi lượt 1: Hàng đợi khác ngăn xếp như thế nào về thứ tự lấy phần tử ra?',
+          gradeDeep: { verdict: 'deep', score: 0.90, feedback: 'Chính xác! FIFO vs LIFO được giải thích rõ ràng.' },
+          gradeShallow: { verdict: 'shallow', score: 0.55, feedback: 'Đúng kết quả nhưng chưa nêu ứng dụng cụ thể của FIFO.' },
+          gradeWrong: { verdict: 'wrong', score: 0.10, feedback: 'Hàng đợi dùng FIFO: vào trước ra trước. Ngăn xếp dùng LIFO: vào sau ra trước.' },
+        },
+      ],
+    };
+
+    // Traceback kết quả mẫu cho khi verdict='wrong'
+    const TRACEBACK_PREREQS = [
+      { name: 'Mảng & Con trỏ', depth: 1, score: 0.86, strong: true },
+      { name: 'Đệ quy', depth: 1, score: 0.71, strong: true },
+    ];
+
+    const TRACEBACK_PREREQS_WEAK = [
+      { name: 'Mảng & Con trỏ', depth: 1, score: 0.54, strong: false },
+      { name: 'Danh sách liên kết', depth: 1, score: null, strong: false },
+    ];
+
+    // ═══════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════
+    let state = {
+      mode: 'text',             // 'text' | 'voice'
+      phase: 'questioning',     // 'questioning' | 'awaiting_answer' | 'grading' | 'graded' | 'fallback' | 'traceback' | 'ended' | 'paused'
+      currentConceptIdx: 2,     // index vào CONCEPTS (c3 = Ngăn xếp đang làm)
+      currentTurn: 0,           // 0-indexed
+      turnScores: [],
+      conversationLog: [],      // array of DOM-rendered elements
+      elapsedSeconds: 0,
+      isRecording: false,
+      aiTyping: false,
+      aiAvailable: true,        // toggle để demo fallback
+      sessionStarted: true,
+    };
+
+    let clockInterval = null;
+
+    // ═══════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════
+    function init() {
+      renderRail();
+      startClock();
+      renderCurrentQuestion();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  CLOCK
+    // ═══════════════════════════════════════════════
+    function startClock() {
+      clockInterval = setInterval(() => {
+        state.elapsedSeconds++;
+        const m = String(Math.floor(state.elapsedSeconds / 60)).padStart(2, '0');
+        const s = String(state.elapsedSeconds % 60).padStart(2, '0');
+        document.getElementById('elapsedClock').textContent = m + ':' + s;
+      }, 1000);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  RAIL RENDER
+    // ═══════════════════════════════════════════════
+    function renderRail() {
+      const concept = CONCEPTS[state.currentConceptIdx];
+
+      // Concept queue
+      const queueEl = document.getElementById('conceptQueue');
+      const activeConcepts = CONCEPTS;
+      document.getElementById('queueLabel').textContent =
+        `Hàng đợi khái niệm · ${state.currentConceptIdx + 1}/${activeConcepts.length}`;
+
+      queueEl.innerHTML = activeConcepts.map((c, i) => {
+        let cls = 'qitem';
+        if (c.done) cls += ' qitem--done';
+        else if (i === state.currentConceptIdx) cls += ' qitem--now';
+        else cls += ' qitem--wait';
+
+        let scoreHtml = '—';
+        if (c.score !== null) {
+          const color = c.score >= 0.8 ? 'var(--mastery-strong)' : c.score >= 0.6 ? 'var(--mastery-learning)' : 'var(--mastery-weak)';
+          scoreHtml = `<span style="color:${color}">${c.score.toFixed(2)}</span>`;
+        } else if (i === state.currentConceptIdx) {
+          scoreHtml = '<span style="color:var(--muted-foreground)">—</span>';
+        }
+
+        return `<div class="${cls}">
+          <span class="qitem__no">${String(i + 1).padStart(2, '0')}</span>
+          <span>${c.name}</span>
+          <span class="qitem__score">${scoreHtml}</span>
+        </div>`;
+      }).join('');
+
+      // Turn tracker
+      document.getElementById('turnsLabel').textContent = `Lượt hỏi — ${concept.name}`;
+      const turnBox = document.getElementById('turnBox');
+      turnBox.innerHTML = TURNS_CONFIG.map((t, i) => {
+        let cls = 'turnrow';
+        let content = '<span>Chưa mở</span>';
+        let extraColor = '';
+
+        if (i < state.currentTurn) {
+          cls += ' turnrow--done';
+          const sc = state.turnScores[i];
+          if (sc !== undefined) {
+            const verdictLabel = sc.verdict === 'deep' ? 'Hiểu sâu' : sc.verdict === 'shallow' ? 'Nắm được' : 'Cần ôn';
+            const verdictColor = sc.verdict === 'deep' ? 'var(--mastery-strong)' : sc.verdict === 'shallow' ? 'var(--mastery-learning)' : 'var(--mastery-weak)';
+            content = `<span style="display:flex;align-items:center;gap:7px;">
+              <span class="badge" style="background:oklch(from ${verdictColor} l c h / 0.14);color:${verdictColor}">${verdictLabel}</span>
+              <span class="qitem__score">${sc.score.toFixed(2)}</span>
+            </span>`;
+          }
+        } else if (i === state.currentTurn) {
+          cls += ' turnrow--now';
+          content = '<span>Đang trả lời</span>';
+        } else {
+          cls += ' turnrow--locked';
+        }
+
+        return `<div class="${cls}">
+          <span class="turnrow__n">${i + 1}</span>
+          ${content}
+          <span class="turnrow__w">×${t.weight}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // ═══════════════════════════════════════════════
+    //  CONVERSATION HELPERS
+    // ═══════════════════════════════════════════════
+    function getConvInner() { return document.getElementById('convInner'); }
+
+    function scrollConv() {
+      const el = document.getElementById('convScroll');
+      setTimeout(() => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }), 80);
+    }
+
+    function appendTurnSep(label) {
+      const sep = document.createElement('div');
+      sep.className = 'turn-sep';
+      sep.textContent = label;
+      getConvInner().appendChild(sep);
+    }
+
+    function appendAIBubble(html, extraClass) {
+      const el = document.createElement('article');
+      el.className = `chat-bubble-ai fade-in${extraClass ? ' ' + extraClass : ''}`;
+      el.innerHTML = html;
+      getConvInner().appendChild(el);
+      return el;
+    }
+
+    function appendUserBubble(text) {
+      const el = document.createElement('div');
+      el.className = 'chat-bubble-user fade-in';
+      el.textContent = text;
+      getConvInner().appendChild(el);
+    }
+
+    function appendSysMessage(html, type) {
+      const el = document.createElement('div');
+      el.className = `sys fade-in${type ? ' sys--' + type : ''}`;
+      el.innerHTML = html;
+      getConvInner().appendChild(el);
+      return el;
+    }
+
+    function appendGrade(gradeData, turnIdx) {
+      const el = document.createElement('div');
+      const verdictClass = gradeData.verdict === 'deep' ? 'grade--deep' : gradeData.verdict === 'shallow' ? 'grade--shallow' : 'grade--wrong';
+      const verdictLabel = gradeData.verdict === 'deep' ? 'Hiểu sâu' : gradeData.verdict === 'shallow' ? 'Nắm được' : 'Cần ôn';
+      const verdictColor = gradeData.verdict === 'deep' ? 'var(--mastery-strong)' : gradeData.verdict === 'shallow' ? 'var(--mastery-learning)' : 'var(--mastery-weak)';
+      const weight = TURNS_CONFIG[turnIdx].weight;
+
+      el.className = `grade ${verdictClass} fade-in`;
+      el.innerHTML = `
+        <div class="grade__head">
+          <span class="badge" style="background:oklch(from ${verdictColor} l c h / 0.14);color:${verdictColor}">${verdictLabel}</span>
+          <span class="grade__score">${gradeData.score.toFixed(2)}</span>
+          <span class="grade__weight">lượt ${turnIdx + 1} · trọng số ${weight}</span>
+        </div>
+        <p class="grade__text" style="margin:0">${gradeData.feedback}</p>
+        <div class="grade__foot"><a onclick="showToast('Phản hồi của bạn đã được ghi nhận.')">Không đồng ý với điểm này</a></div>
+      `;
+      getConvInner().appendChild(el);
+      return el;
+    }
+
+    function showTyping() {
+      const el = document.createElement('div');
+      el.className = 'chat-bubble-ai';
+      el.id = 'typingIndicator';
+      el.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+      getConvInner().appendChild(el);
+      scrollConv();
+      return el;
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typingIndicator');
+      if (el) el.remove();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  CURRENT QUESTION
+    // ═══════════════════════════════════════════════
+    function getCurrentConceptId() { return CONCEPTS[state.currentConceptIdx].id; }
+    function getCurrentQuestion() {
+      const qs = QUESTIONS[getCurrentConceptId()];
+      return qs ? qs[state.currentTurn] : null;
+    }
+
+    function renderCurrentQuestion() {
+      const convInner = getConvInner();
+      convInner.innerHTML = '';
+
+      // Replay done turns (c1, c2 are already done)
+      // Just show current concept from turn 0
+      appendTurnSep(`Lượt ${state.currentTurn + 1}`);
+      renderQuestionBubble();
+      renderDock();
+    }
+
+    function renderQuestionBubble() {
+      const q = getCurrentQuestion();
+      if (!q) return;
+
+      if (state.mode === 'voice') {
+        const el = document.createElement('article');
+        el.className = 'chat-bubble-ai q-audio fade-in';
+        el.id = 'audioQuestion';
+        el.innerHTML = `
+          <button class="play-btn" aria-label="Tạm dừng đọc câu hỏi" onclick="togglePlayQuestion()">
+            <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
+          </button>
+          <div class="q-audio__meta">
+            <div class="speak-row">
+              <div class="wave" aria-hidden="true">
+                <span style="animation-delay:0ms"></span>
+                <span style="animation-delay:130ms"></span>
+                <span style="animation-delay:260ms"></span>
+                <span style="animation-delay:390ms"></span>
+                <span style="animation-delay:520ms"></span>
+              </div>
+              <div class="speak-track" role="progressbar" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100" aria-label="Tiến độ đọc câu hỏi">
+                <span style="width:64%"></span>
+              </div>
+            </div>
+            <div class="q-audio__row">
+              <span>0:09 / 0:14</span>
+              <button class="linkish" type="button" onclick="toggleShowText()">Hiện văn bản</button>
+              <button class="linkish" type="button" onclick="showToast('Đang đọc lại câu hỏi...')">Nghe lại</button>
+            </div>
+          </div>`;
+        getConvInner().appendChild(el);
+
+        // Hidden text version
+        const textEl = document.createElement('article');
+        textEl.className = 'chat-bubble-ai fade-in';
+        textEl.id = 'questionText';
+        textEl.style.display = 'none';
+        textEl.innerHTML = `${q.text}
+          <div class="cite">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+            <a href="#">${q.cite}</a>
+          </div>`;
+        getConvInner().appendChild(textEl);
+      } else {
+        appendAIBubble(`${q.text}
+          <div class="cite">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+            <a href="#">${q.cite}</a>
+          </div>`);
+      }
+
+      scrollConv();
+    }
+
+    function toggleShowText() {
+      const el = document.getElementById('questionText');
+      if (el) { el.style.display = el.style.display === 'none' ? '' : 'none'; }
+    }
+    function togglePlayQuestion() {
+      showToast('Đang tạm dừng TTS...');
+    }
+
+    // ═══════════════════════════════════════════════
+    //  DOCK RENDER
+    // ═══════════════════════════════════════════════
+    function renderDock() {
+      const dock = document.getElementById('dockInner');
+      if (state.phase === 'graded' || state.phase === 'fallback' || state.phase === 'traceback') {
+        // Should not render editable dock, handled separately
+        return;
+      }
+
+      if (state.mode === 'text') {
+        dock.innerHTML = `
+          <div class="composer">
+            <textarea id="answerInput" placeholder="Nhập câu trả lời của bạn…" rows="3"></textarea>
+            <button class="btn btn-primary" id="btnSubmit" onclick="submitTextAnswer()">Gửi</button>
+          </div>
+          <div class="dock__hint">
+            <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> để gửi nhanh</span>
+            <span style="font-family:var(--font-mono);font-size:12px;">Lượt ${state.currentTurn + 1} / ${TURNS_CONFIG.length}</span>
+          </div>`;
+
+        const ta = document.getElementById('answerInput');
+        if (ta) {
+          ta.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submitTextAnswer();
+          });
+          ta.focus();
+        }
+      } else {
+        // Voice mode
+        if (!state.isRecording) {
+          dock.innerHTML = `
+            <div style="display:flex;align-items:center;gap:14px;">
+              <button class="mic-btn mic-btn--idle" aria-label="Bắt đầu ghi âm" onclick="startRecording()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+              </button>
+              <span style="font-size:13px;color:var(--muted-foreground);">Nhấn để bắt đầu ghi âm câu trả lời</span>
+            </div>`;
+        } else {
+          dock.innerHTML = `
+            <div class="rec-bar">
+              <button class="mic-btn" aria-label="Dừng ghi âm" onclick="stopRecording()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>
+              </button>
+              <div class="rec-state">
+                <div class="rec-state__top">
+                  <span class="rec-dot" aria-hidden="true"></span>
+                  <span>Đang ghi âm</span>
+                  <span class="clock" id="recTimer">0:00</span>
+                </div>
+                <span style="font-size:12px;color:var(--muted-foreground)">Ngừng nói 2 giây sẽ tự dừng. Bấm <kbd>Space</kbd> để dừng ngay.</span>
+              </div>
+              <button class="btn btn-ghost" style="font-size:13px;" onclick="setMode('text')">Chuyển sang gõ</button>
+            </div>`;
+        }
+      }
+    }
+
+    function renderVoiceTranscript(transcriptText) {
+      const dock = document.getElementById('dockInner');
+      dock.innerHTML = `
+        <div contenteditable="true" class="transcript" role="textbox" aria-label="Bản ghi câu trả lời, có thể chỉnh sửa" spellcheck="false" id="voiceTranscript">${transcriptText}</div>
+        <div class="dock__hint">
+          <span>Kiểm tra lại trước khi gửi — đây là nội dung được đem đi chấm.</span>
+          <span style="font-family:var(--font-mono);font-size:12px;" id="wordCount">
+            ${transcriptText.split(' ').filter(w => w).length} từ
+          </span>
+        </div>
+        <div class="dock__actions">
+          <button class="btn btn-secondary" onclick="restartRecording()">Ghi lại từ đầu</button>
+          <span class="spacer"></span>
+          <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted-foreground);">
+            <input type="checkbox" checked id="autoReadNext" />
+            Tự đọc câu hỏi tiếp theo
+          </label>
+          <button class="btn btn-primary" onclick="submitVoiceAnswer()">Gửi câu trả lời</button>
+        </div>`;
+
+      const el = document.getElementById('voiceTranscript');
+      if (el) el.addEventListener('input', () => {
+        const text = el.innerText || el.textContent || '';
+        const wc = document.getElementById('wordCount');
+        if (wc) wc.textContent = text.split(' ').filter(w => w).length + ' từ';
+      });
+    }
+
+    // ═══════════════════════════════════════════════
+    //  RECORDING
+    // ═══════════════════════════════════════════════
+    let recTimerInterval = null;
+    let recSeconds = 0;
+
+    function startRecording() {
+      state.isRecording = true;
+      recSeconds = 0;
+      renderDock();
+
+      recTimerInterval = setInterval(() => {
+        recSeconds++;
+        const m = Math.floor(recSeconds / 60);
+        const s = String(recSeconds % 60).padStart(2, '0');
+        const el = document.getElementById('recTimer');
+        if (el) el.textContent = `${m}:${s}`;
+      }, 1000);
+
+      // Simulate auto-stop after 8 seconds
+      setTimeout(() => { if (state.isRecording) stopRecording(); }, 8000);
+    }
+
+    function stopRecording() {
+      state.isRecording = false;
+      clearInterval(recTimerInterval);
+      // Simulate STT transcript
+      renderVoiceTranscript('Nếu hàm đệ quy không có điều kiện dừng thì mỗi lần gọi sẽ đẩy thêm một <span class="stt-low">khung ngăn xếp</span> mới, đến khi hết vùng nhớ dành cho ngăn xếp thì chương trình bị lỗi tràn ngăn xếp.');
+    }
+
+    function restartRecording() {
+      state.isRecording = false;
+      renderDock();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  SUBMIT & GRADING
+    // ═══════════════════════════════════════════════
+    function getAnswerText() {
+      if (state.mode === 'text') {
+        const ta = document.getElementById('answerInput');
+        return ta ? ta.value.trim() : '';
+      } else {
+        const el = document.getElementById('voiceTranscript');
+        return el ? (el.innerText || el.textContent || '').trim() : '';
+      }
+    }
+
+    function submitTextAnswer() {
+      const answer = getAnswerText();
+      if (!answer) { showToast('Hãy nhập câu trả lời trước khi gửi.'); return; }
+      processAnswer(answer);
+    }
+
+    function submitVoiceAnswer() {
+      const answer = getAnswerText();
+      if (!answer) { showToast('Câu trả lời trống. Hãy ghi âm lại.'); return; }
+      processAnswer(answer);
+    }
+
+    function processAnswer(answer) {
+      // Clear dock
+      document.getElementById('dockInner').innerHTML = '';
+
+      // Show user bubble
+      appendUserBubble(answer);
+      scrollConv();
+
+      // Simulate AI grading
+      if (!state.aiAvailable) {
+        // AI unavailable → fallback
+        setTimeout(() => showFallback(), 900);
+        return;
+      }
+
+      // Show typing
+      const typingEl = showTyping();
+      state.phase = 'grading';
+
+      // Simulate 1.2–2s grading delay
+      const delay = 1200 + Math.random() * 800;
+      setTimeout(() => {
+        removeTyping();
+        // Pick grade based on answer length as demo heuristic
+        const q = getCurrentQuestion();
+        let gradeData;
+        const len = answer.length;
+        if (len > 80) gradeData = q.gradeDeep;
+        else if (len > 30) gradeData = q.gradeShallow;
+        else gradeData = q.gradeWrong;
+
+        showGradeResult(gradeData);
+      }, delay);
+    }
+
+    function showGradeResult(gradeData) {
+      const q = getCurrentQuestion();
+      const turnIdx = state.currentTurn;
+
+      // Save score
+      state.turnScores[turnIdx] = gradeData;
+
+      // Show grade card
+      appendGrade(gradeData, turnIdx);
+
+      // Determine next action by state machine
+      const hasMoreTurns = state.currentTurn < TURNS_CONFIG.length - 1;
+      const verdict = gradeData.verdict;
+
+      if (verdict === 'wrong' && hasPrereqs()) {
+        // Show sys message then traceback
+        const sysText = hasMoreTurns
+          ? `<span class="sys__tag">Hệ thống</span><span>Kết quả <strong>cần ôn</strong>. Phiên hỏi sẽ tiếp tục lượt sau trước khi truy ngược.</span>`
+          : `<span class="sys__tag">Hệ thống</span><span>Kết quả <strong>cần ôn</strong> và đã hết lượt. Bắt đầu truy ngược tiên quyết...</span>`;
+        appendSysMessage(sysText);
+      } else if (hasMoreTurns) {
+        const nextType = verdict === 'deep' ? 'đào sâu hơn' : 'thăm dò thêm';
+        appendSysMessage(`<span class="sys__tag">Hệ thống</span><span>Kết quả <strong>${verdict === 'deep' ? 'hiểu sâu' : 'nắm được'}</strong> và còn lượt → yêu cầu AI ra câu hỏi ${nextType}. Chuyển sang lượt ${turnIdx + 2} trong ${TURNS_CONFIG.length}.</span>`);
+      } else {
+        appendSysMessage(`<span class="sys__tag">Hệ thống</span><span>Đã hoàn thành tất cả ${TURNS_CONFIG.length} lượt cho khái niệm <strong>${CONCEPTS[state.currentConceptIdx].name}</strong>. Đang tính điểm tổng hợp...</span>`);
+      }
+
+      renderRail();
+      scrollConv();
+
+      // Decide next phase
+      if (!hasMoreTurns) {
+        // Done all turns — finalize concept
+        const finalScore = calcFinalScore();
+        CONCEPTS[state.currentConceptIdx].score = finalScore;
+        CONCEPTS[state.currentConceptIdx].done = true;
+        renderRail();
+
+        setTimeout(() => {
+          if (finalScore < 0.6 && hasPrereqs()) {
+            showTraceback(finalScore);
+          } else {
+            advanceConcept();
+          }
+        }, 1600);
+      } else if (verdict === 'wrong' && hasPrereqs() && turnIdx === TURNS_CONFIG.length - 1) {
+        // Already handled above
+      } else {
+        // Next turn
+        setTimeout(() => {
+          state.currentTurn++;
+          renderRail();
+          appendTurnSep(`Lượt ${state.currentTurn + 1}`);
+          showNextQuestion();
+        }, 1600);
+      }
+    }
+
+    function hasPrereqs() { return true; } // Simplification for demo
+
+    function calcFinalScore() {
+      let weighted = 0;
+      state.turnScores.forEach((sc, i) => {
+        if (sc) weighted += sc.score * TURNS_CONFIG[i].weight;
+      });
+      // Fill missing turns with 0
+      TURNS_CONFIG.forEach((t, i) => {
+        if (!state.turnScores[i]) weighted += 0;
+      });
+      return Math.round(weighted * 100) / 100;
+    }
+
+    function showNextQuestion() {
+      const q = getCurrentQuestion();
+      if (!q) return;
+
+      const typingEl = showTyping();
+      setTimeout(() => {
+        removeTyping();
+
+        if (state.mode === 'voice') {
+          // Audio bubble
+          const el = document.createElement('article');
+          el.className = 'chat-bubble-ai q-audio fade-in';
+          el.innerHTML = `
+            <button class="play-btn" aria-label="Nghe câu hỏi" onclick="togglePlayQuestion()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <div class="q-audio__meta">
+              <div class="speak-row">
+                <div class="wave" aria-hidden="true">
+                  <span style="animation-delay:0ms"></span><span style="animation-delay:130ms"></span>
+                  <span style="animation-delay:260ms"></span><span style="animation-delay:390ms"></span>
+                  <span style="animation-delay:520ms"></span>
+                </div>
+                <div class="speak-track"><span style="width:0%"></span></div>
+              </div>
+              <div class="q-audio__row">
+                <span>0:00 / 0:12</span>
+                <button class="linkish" onclick="toggleShowText()">Hiện văn bản</button>
+                <button class="linkish" onclick="showToast('Đang đọc lại...')">Nghe lại</button>
+              </div>
+            </div>`;
+          getConvInner().appendChild(el);
+
+          const textEl = document.createElement('article');
+          textEl.className = 'chat-bubble-ai';
+          textEl.id = 'questionText';
+          textEl.style.display = 'none';
+          textEl.textContent = q.text;
+          getConvInner().appendChild(textEl);
+        } else {
+          appendAIBubble(`${q.text}
+            <div class="cite">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+              <a href="#">${q.cite}</a>
+            </div>`);
+        }
+
+        renderDock();
+        scrollConv();
+      }, 1400);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  FALLBACK FLASHCARD (AE-05)
+    // ═══════════════════════════════════════════════
+    function showFallback() {
+      const dock = document.getElementById('dockInner');
+      dock.innerHTML = '';
+
+      appendSysMessage(`<span class="sys__tag">Hệ thống</span><span>Không nhận được phản hồi chấm điểm sau 2 lần thử. Chuyển sang flashcard tự chấm cho khái niệm này.</span>`, 'warn');
+
+      const q = getCurrentQuestion();
+      const el = document.createElement('div');
+      el.className = 'fade-in';
+      el.style.cssText = 'padding:4px 0;';
+      el.innerHTML = `
+        <p style="font-size:15px;line-height:1.6;margin:0 0 6px;max-width:60ch;">${q ? q.text : ''}</p>
+        <p style="font-size:12px;color:var(--muted-foreground);margin:0;">Tự trả lời trong đầu, rồi chọn mức độ đúng của bạn.</p>
+        <div class="flash-actions">
+          <button class="self-grade" onclick="submitFlashcard(1.0)">Đúng <span class="self-grade__val">1.0</span></button>
+          <button class="self-grade" onclick="submitFlashcard(0.5)">Một phần <span class="self-grade__val">0.5</span></button>
+          <button class="self-grade" onclick="submitFlashcard(0.0)">Sai <span class="self-grade__val">0.0</span></button>
+          <button class="btn btn-ghost" style="font-size:13px;" onclick="showToast('Gợi ý: ' + (q ? q.gradeDeep.feedback : ''))">Xem gợi ý đáp án</button>
+        </div>`;
+      getConvInner().appendChild(el);
+      scrollConv();
+
+      state.phase = 'fallback';
+    }
+
+    function submitFlashcard(score) {
+      const verdict = score >= 0.8 ? 'deep' : score >= 0.4 ? 'shallow' : 'wrong';
+      const gradeData = { verdict, score, feedback: 'Điểm tự chấm được ghi nhận.' };
+      state.turnScores[state.currentTurn] = gradeData;
+
+      const el = document.getElementById('dockInner');
+      el.innerHTML = '';
+
+      appendGrade(gradeData, state.currentTurn);
+      renderRail();
+      scrollConv();
+      state.aiAvailable = true; // reset
+
+      const hasMoreTurns = state.currentTurn < TURNS_CONFIG.length - 1;
+      if (!hasMoreTurns) {
+        const finalScore = calcFinalScore();
+        CONCEPTS[state.currentConceptIdx].score = finalScore;
+        CONCEPTS[state.currentConceptIdx].done = true;
+        setTimeout(() => advanceConcept(), 1400);
+      } else {
+        setTimeout(() => {
+          state.currentTurn++;
+          renderRail();
+          appendTurnSep(`Lượt ${state.currentTurn + 1}`);
+          showNextQuestion();
+          state.phase = 'questioning';
+        }, 1400);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    //  TRACEBACK (AE-07)
+    // ═══════════════════════════════════════════════
+    function showTraceback(finalScore) {
+      const conceptName = CONCEPTS[state.currentConceptIdx].name;
+      const prereqs = finalScore < 0.6 ? TRACEBACK_PREREQS_WEAK : [];
+
+      const allStrong = prereqs.every(p => p.strong);
+      if (allStrong || prereqs.length === 0) {
+        // No weak prereqs — SRS
+        appendSysMessage(`<span class="sys__tag">Engine lập lịch</span><span>Tất cả khái niệm tiên quyết đã vững. Áp dụng spaced repetition cho <strong>${conceptName}</strong>.</span>`, 'remediate');
+        setTimeout(() => advanceConcept(), 1800);
+        return;
+      }
+
+      const weakPrereqs = prereqs.filter(p => !p.strong);
+
+      const block = document.createElement('div');
+      block.className = 'sys sys--remediate fade-in';
+      block.style.cssText = 'display:block;padding:16px 18px;';
+      block.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span class="sys__tag" style="background:transparent;border-color:oklch(from var(--remediate) l c h / 0.45);color:var(--remediate)">Engine lập lịch</span>
+          <span style="font-size:13px;font-weight:600;">Khái niệm <strong>${conceptName}</strong> đạt ${finalScore.toFixed(2)} — dưới ngưỡng 0.60</span>
+        </div>
+        <p style="font-size:13.5px;line-height:1.6;margin:0 0 6px;color:var(--foreground);">
+          Truy ngược 2 tầng tiên quyết tìm được ${weakPrereqs.length} khái niệm nền cần củng cố trước.
+          Chúng sẽ được xếp lên đầu phiên kế tiếp.
+        </p>
+        ${prereqs.find(p => p.strong) ? `<p style="font-size:12px;color:var(--muted-foreground);margin:0 0 14px;">
+          Bỏ qua tầng 2 của <strong>${prereqs.find(p => p.strong).name}</strong> vì đã đạt ${prereqs.find(p => p.strong).score.toFixed(2)} — nhánh được cắt tại đó.
+        </p>` : ''}
+        <div style="border-top:1px solid oklch(from var(--remediate) l c h / 0.25);padding-top:4px;" id="prereqList">
+          ${weakPrereqs.map(p => `
+            <div class="prereq" data-name="${p.name}">
+              <span><strong style="font-weight:500">${p.name}</strong>${p.score ? ` — điểm hiện tại: ${p.score.toFixed(2)}` : ' — chưa từng kiểm tra'}</span>
+              <span style="display:flex;align-items:center;gap:14px;">
+                <span class="prereq__meta">tầng ${p.depth}</span>
+                <button class="linkish" type="button" onclick="removePrereq(this, '${p.name}')">Bỏ khỏi lịch</button>
+              </span>
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;" id="tracebackActions">
+          <button class="btn btn-primary" style="font-size:13px;" onclick="acceptTraceback(this)">Đồng ý, thêm vào lịch</button>
+          <button class="btn btn-secondary" style="font-size:13px;" onclick="showToast('Mở đồ thị khái niệm...')">Xem trên đồ thị khái niệm</button>
+        </div>`;
+      getConvInner().appendChild(block);
+      scrollConv();
+      state.phase = 'traceback';
+
+      // Clear dock
+      document.getElementById('dockInner').innerHTML = '';
+    }
+
+    function removePrereq(btn, name) {
+      const item = btn.closest('.prereq');
+      if (item) {
+        item.style.opacity = '0.4';
+        item.style.pointerEvents = 'none';
+        btn.textContent = 'Đã bỏ';
+        showToast(`Đã bỏ "${name}" khỏi lịch ôn tiếp theo.`);
+      }
+    }
+
+    function acceptTraceback(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Đã thêm ✓';
+      showToast('Đã cập nhật lịch ôn tập. Các khái niệm tiên quyết sẽ được học trước.');
+      setTimeout(() => advanceConcept(), 1500);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  ADVANCE CONCEPT
+    // ═══════════════════════════════════════════════
+    function advanceConcept() {
+      // Find next undone concept
+      let next = -1;
+      for (let i = state.currentConceptIdx + 1; i < CONCEPTS.length; i++) {
+        if (!CONCEPTS[i].done) { next = i; break; }
+      }
+
+      if (next === -1) {
+        // All done — show summary
+        showSessionEnd();
+        return;
+      }
+
+      state.currentConceptIdx = next;
+      state.currentTurn = 0;
+      state.turnScores = [];
+      state.phase = 'questioning';
+
+      renderRail();
+      getConvInner().innerHTML = '';
+      appendTurnSep('Lượt 1');
+      renderQuestionBubble();
+      renderDock();
+      scrollConv();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  SESSION END (AE-09)
+    // ═══════════════════════════════════════════════
+    function showSessionEnd() {
+      state.phase = 'ended';
+      clearInterval(clockInterval);
+
+      const doneConcepts = CONCEPTS.filter(c => c.done);
+      const avgScore = doneConcepts.reduce((s, c) => s + (c.score || 0), 0) / (doneConcepts.length || 1);
+      const avgColor = avgScore >= 0.8 ? 'var(--mastery-strong)' : avgScore >= 0.6 ? 'var(--mastery-learning)' : 'var(--mastery-weak)';
+
+      const convInner = getConvInner();
+      convInner.innerHTML = '';
+
+      const summary = document.createElement('div');
+      summary.className = 'fade-in';
+      summary.innerHTML = `
+        <div class="turn-sep">Kết thúc phiên</div>
+        <div class="summary-card" style="margin-top:8px;">
+          <div class="summary-score">
+            <div class="summary-score__num" style="color:${avgColor}">${avgScore.toFixed(2)}</div>
+            <div>
+              <div style="font-weight:600;font-size:15px;">Điểm trung bình phiên</div>
+              <div class="summary-score__label">${doneConcepts.length} khái niệm · ${Math.floor(state.elapsedSeconds / 60)} phút</div>
+            </div>
+          </div>
+          <div class="summary-concepts">
+            ${doneConcepts.map(c => {
+              const color = c.score >= 0.8 ? 'var(--mastery-strong)' : c.score >= 0.6 ? 'var(--mastery-learning)' : 'var(--mastery-weak)';
+              const label = c.score >= 0.8 ? 'Vững' : c.score >= 0.6 ? 'Đang học' : 'Cần ôn';
+              return `<div class="concept-result">
+                <span>${c.name}</span>
+                <span style="display:flex;align-items:center;gap:12px;">
+                  <span class="badge" style="background:oklch(from ${color} l c h / 0.14);color:${color}">${label}</span>
+                  <span style="font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums;">${c.score.toFixed(2)}</span>
+                </span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      convInner.appendChild(summary);
+
+      // AI summary (simulated)
+      setTimeout(() => {
+        const aiSummary = document.createElement('article');
+        aiSummary.className = 'chat-bubble-ai fade-in';
+        aiSummary.innerHTML = `Phiên hôm nay bạn hoàn thành <strong>${doneConcepts.length} khái niệm</strong>. 
+          ${avgScore >= 0.7 
+            ? 'Bạn nắm vững phần lớn nội dung — đặc biệt ở <strong>Mảng & Con trỏ</strong> và <strong>Đệ quy</strong>. Tiếp tục duy trì nhịp ôn đều đặn!' 
+            : 'Một số khái niệm cần được củng cố thêm. Hệ thống đã lên lịch ôn lại cho phiên tiếp theo.'}`;
+        convInner.appendChild(aiSummary);
+        scrollConv();
+      }, 800);
+
+      // Dock
+      const dock = document.getElementById('dockInner');
+      dock.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn btn-primary" onclick="showToast('Đang chuyển đến phiên tiếp theo...')">Bắt đầu phiên tiếp theo</button>
+          <button class="btn btn-secondary" onclick="showToast('Đang chuyển về Dashboard...')">Về Dashboard</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-ghost" style="font-size:13px;" onclick="showToast('Xuất báo cáo...')">Xuất báo cáo</button>
+        </div>`;
+
+      scrollConv();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  SKIP CONCEPT
+    // ═══════════════════════════════════════════════
+    function skipConcept() {
+      if (state.phase === 'ended' || state.phase === 'paused') return;
+
+      CONCEPTS[state.currentConceptIdx].done = true;
+      CONCEPTS[state.currentConceptIdx].score = null; // skipped
+
+      appendSysMessage(`<span class="sys__tag">Hệ thống</span><span>Đã bỏ qua khái niệm <strong>${CONCEPTS[state.currentConceptIdx].name}</strong>. Chuyển sang khái niệm kế tiếp.</span>`);
+      scrollConv();
+
+      state.currentTurn = 0;
+      state.turnScores = [];
+      renderRail();
+
+      setTimeout(() => advanceConcept(), 1000);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  MODE SWITCH
+    // ═══════════════════════════════════════════════
+    function setMode(mode) {
+      if (state.mode === mode) return;
+      state.mode = mode;
+      state.isRecording = false;
+      clearInterval(recTimerInterval);
+
+      document.getElementById('btnModeText').setAttribute('aria-pressed', mode === 'text' ? 'true' : 'false');
+      document.getElementById('btnModeVoice').setAttribute('aria-pressed', mode === 'voice' ? 'true' : 'false');
+
+      // Re-render question bubble if needed (voice shows audio player)
+      const convInner = getConvInner();
+      const lastBubble = convInner.lastElementChild;
+
+      renderDock();
+    }
+
+    // ═══════════════════════════════════════════════
+    //  PAUSE / RESUME
+    // ═══════════════════════════════════════════════
+    function openPauseModal() {
+      document.getElementById('pauseModal').classList.add('is-open');
+    }
+    function closePauseModal() {
+      document.getElementById('pauseModal').classList.remove('is-open');
+    }
+    function confirmPause() {
+      closePauseModal();
+      clearInterval(clockInterval);
+      state.phase = 'paused';
+      const overlay = document.getElementById('pauseOverlay');
+      overlay.style.display = 'flex';
+    }
+    function resumeSession() {
+      state.phase = 'questioning';
+      document.getElementById('pauseOverlay').style.display = 'none';
+      startClock();
+    }
+    function exitSession() {
+      showToast('Đang lưu tiến trình và chuyển về Dashboard...');
+      setTimeout(() => { window.history.back(); }, 1500);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  TOAST
+    // ═══════════════════════════════════════════════
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('is-visible');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('is-visible'), 3200);
+    }
+
+    // ═══════════════════════════════════════════════
+    //  KEYBOARD SHORTCUTS
+    // ═══════════════════════════════════════════════
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closePauseModal();
+      // Space to toggle recording in voice mode
+      if (e.code === 'Space' && state.mode === 'voice' && state.isRecording) {
+        e.preventDefault();
+        stopRecording();
+      }
+    });
+
+    // ═══════════════════════════════════════════════
+    //  BOOT
+    // ═══════════════════════════════════════════════
+    init();
+  </script>
+</body>
+</html>
