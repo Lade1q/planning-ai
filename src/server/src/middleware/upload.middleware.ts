@@ -11,7 +11,7 @@ if (!fs.existsSync(STAGING_DIR)) {
 }
 
 const ALLOWED_MIMES = ['application/pdf', 'text/plain', 'image/png', 'image/jpeg'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit (inclusive)
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -25,11 +25,18 @@ const storage = multer.diskStorage({
 
 /**
  * Multer middleware configured for file uploads.
- * Restricts files to PDF, TXT, PNG, and JPG up to 10MB.
+ * Restricts files to PDF, TXT, PNG, and JPG up to 10MB (inclusive).
+ *
+ * `limits.fileSize` đặt dư 1 byte (MAX_FILE_SIZE + 1) vì busboy đánh dấu stream
+ * "truncated" và bắn `LIMIT_FILE_SIZE` ngay khi `fileSize === fileSizeLimit`. Nếu
+ * đặt đúng MAX_FILE_SIZE thì file có kích thước CHÍNH XÁC 10MB cũng bị từ chối oan
+ * (bug #195). Với limit MAX_FILE_SIZE + 1, file <= 10MB được chấp nhận, còn file
+ * > 10MB (tức >= MAX_FILE_SIZE + 1 bytes) vẫn bị busboy abort sớm và trả về
+ * FILE_TOO_LARGE qua errorHandler — không cần kiểm tra kích thước thủ công sau upload.
  */
 export const upload = multer({
   storage,
-  limits: { fileSize: MAX_FILE_SIZE },
+  limits: { fileSize: MAX_FILE_SIZE + 1 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIMES.includes(file.mimetype)) {
       cb(null, true);
