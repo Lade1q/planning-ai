@@ -49,10 +49,11 @@ const JOB_ID = 'job-uuid';
 const PLAN_ID = 'plan-uuid';
 const pendingJob = { id: JOB_ID, fileKey: 'notes.txt', planDraftId: PLAN_ID };
 
-/** `data.status === 'failed'` chỉ có thể đến từ markFailed — phân biệt với các lời gọi
- * `analysisJob.update` khác (setPhase ghi field `phase` trong lúc xử lý bình thường). */
+/** `data.status === 'failed'` chỉ có thể đến từ markFailed (dùng `analysisJob.updateMany`) —
+ * phân biệt với claim (`status: 'processing'`) và finalize guard (`status: 'done'`), vốn cùng
+ * gọi updateMany nhưng khác trạng thái. */
 function expectMarkFailedNotCalled() {
-  expect(mockedPrisma.analysisJob.update).not.toHaveBeenCalledWith(
+  expect(mockedPrisma.analysisJob.updateMany).not.toHaveBeenCalledWith(
     expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) })
   );
 }
@@ -174,5 +175,32 @@ describe('processAnalysisJob', () => {
     expectMarkFailedNotCalled();
 
     warnSpy.mockRestore();
+  });
+
+  // --- Nhánh fetch sau claim ném (row bị hard-delete bởi delete-plan cascade giữa
+  // claim và findUniqueOrThrow): phải route qua markFailed và resolve, không bubble ---
+  it('routes a post-claim fetch failure through markFailed and resolves, without entering the transaction', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (mockedPrisma.analysisJob.updateMany as jest.Mock)
+      .mockResolvedValueOnce({ count: 1 }) // claim thành công
+      .mockResolvedValue({ count: 0 }); // markFailed: updateMany no-op vì row đã biến mất
+    (mockedPrisma.analysisJob.findUniqueOrThrow as jest.Mock).mockRejectedValue(
+      new Error('No AnalysisJob found') // ~ Prisma P2025 khi row đã bị xóa
+    );
+
+    // Không được ném ra ngoài dù row đã mất — markFailed (updateMany) tự no-op count 0
+    // thay vì ném P2025 lần thứ hai từ trong chính handler lỗi.
+    await expect(processAnalysisJob(JOB_ID)).resolves.toBeUndefined();
+
+    // Fetch ném trước khi vào pipeline nên transaction không được mở.
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    // markFailed thực sự chạy: updateMany với status 'failed', guard chỉ theo id (không kèm
+    // status trong where) nên an toàn kể cả khi row không còn.
+    expect(mockedPrisma.analysisJob.updateMany).toHaveBeenLastCalledWith({
+      where: { id: JOB_ID },
+      data: expect.objectContaining({ status: 'failed' }),
+    });
+
+    errorSpy.mockRestore();
   });
 });

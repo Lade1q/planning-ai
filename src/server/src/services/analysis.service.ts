@@ -77,9 +77,15 @@ async function callAiWithRetry(fileKey: string, onPhase: OnPhase): Promise<AiExt
  * validation exception, ...) and is stored so the UI can show the actual reason instead of a
  * generic message (Issue #183). Omitted for paths with no real error to report — the stale-job
  * sweep and the retry/reanalyze force-fail paths don't call this at all, by design.
+ *
+ * Uses `updateMany` (not `update`) on purpose: this is called from the processing catch-all,
+ * where the very error being reported can be the job row having been hard-deleted mid-flight
+ * (delete-plan cascade). `update` would throw P2025 on the missing row and bubble a second
+ * error out of the failure handler; `updateMany` no-ops to count 0 — there is nothing left to
+ * fail, and nothing is stuck at `processing` since the row is gone.
  */
 async function markFailed(jobId: string, error?: unknown): Promise<void> {
-  await prisma.analysisJob.update({
+  await prisma.analysisJob.updateMany({
     where: { id: jobId },
     data: {
       status: 'failed',
@@ -137,10 +143,11 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
     return;
   }
 
-  // Everything after the claim runs inside try/catch (PR #164 review, point 3): if the
-  // job row was hard-deleted between the claim and this fetch, findUniqueOrThrow throws
-  // and must still route through markFailed below, not bubble up and leave the job
-  // stuck at `processing` until cleanupStaleJobs eventually sweeps it.
+  // Everything after the claim runs inside try/catch (PR #164 review, point 3): a throw
+  // from findUniqueOrThrow (row hard-deleted between claim and fetch) or any later step
+  // routes through markFailed below instead of bubbling up and leaving the job stuck at
+  // `processing`. markFailed is updateMany-based, so it stays a no-op if the row really is
+  // gone rather than throwing a second time.
   let planId: string;
 
   try {
