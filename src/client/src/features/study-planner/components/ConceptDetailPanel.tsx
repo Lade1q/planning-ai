@@ -113,7 +113,7 @@ function HighlightedExcerpt({ text, term }: { text: string; term: string }) {
     <>
       {parts.map((part, i) =>
         i % 2 === 1 ? (
-          <mark key={i} className="bg-remediate/16 rounded-[2px] px-0.5 text-inherit">
+          <mark key={i} className="bg-remediate/16 rounded-xs px-0.5 text-inherit">
             {part}
           </mark>
         ) : (

@@ -32,6 +32,20 @@ export function formatDeadlineShort(deadline: string): string {
 }
 
 /**
+ * The deadline as `d/m/yyyy`, formatted from UTC parts so a deadline
+ * stored at `23:59:59.999Z` does not jump to the next day in timezones east of UTC (e.g. UTC+7).
+ */
+export function formatDeadlineFull(deadline: string): string {
+  const date = new Date(deadline);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = date.getUTCDate();
+  const month = date.getUTCMonth() + 1;
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+
+/**
  * Whole days from today to the deadline. `0` is today, negative means overdue.
  * Returns `null` for an unparseable date rather than guessing.
  */
