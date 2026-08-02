@@ -165,12 +165,13 @@ tính lại bằng phép toán thuần mỗi lần đọc (đồ thị nhỏ nê
   }
   ```
 
-- **Lỗi thiếu `itemId` (HTTP 400 Bad Request):**
+- **Lỗi `itemId` thiếu hoặc không phải UUID (HTTP 400 Bad Request):** `itemId` là `@db.Uuid`
+  trong Prisma nên được validate là UUID hợp lệ trước khi chạm DB (tránh P2023 → 500).
 
   ```json
   {
     "success": false,
-    "error": { "code": "BAD_REQUEST", "message": "Review queue item id is required" }
+    "error": { "code": "VALIDATION_ERROR", "message": "Invalid input data", "details": [] }
   }
   ```
 

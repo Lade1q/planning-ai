@@ -2,13 +2,13 @@ import { z } from 'zod';
 
 const limitSchema = z.coerce
   .number()
-  .int('limit phải là số nguyên')
-  .positive('limit phải lớn hơn 0')
-  .max(50, 'limit tối đa là 50')
+  .int('limit must be an integer')
+  .positive('limit must be greater than 0')
+  .max(50, 'limit must be at most 50')
   .optional();
 
 export const getReviewQueueQuerySchema = z.object({
-  planId: z.string().uuid('planId phải là UUID hợp lệ'),
+  planId: z.string().uuid('planId must be a valid UUID'),
   limit: limitSchema,
 });
 
@@ -29,3 +29,14 @@ export const updateReviewQueueItemSchema = z.object({
 });
 
 export type UpdateReviewQueueItemInput = z.infer<typeof updateReviewQueueItemSchema>;
+
+/**
+ * PATCH /review-queue/:itemId — `ReviewQueueItem.id` là `@db.Uuid` trong Prisma; một `itemId`
+ * không phải UUID sẽ ném `P2023` (chưa được errorHandler map → rớt xuống 500) nếu không chặn
+ * ở đây trước khi gọi service. Cùng lớp lỗi #165/#191 đã vá cho các route /plans.
+ */
+export const reviewQueueItemIdParamSchema = z.object({
+  itemId: z.string().uuid('itemId must be a valid UUID'),
+});
+
+export type ReviewQueueItemIdParam = z.infer<typeof reviewQueueItemIdParamSchema>;

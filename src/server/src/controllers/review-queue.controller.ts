@@ -8,6 +8,7 @@ import {
   getReviewQueueQuerySchema,
   getTodayQueueQuerySchema,
   updateReviewQueueItemSchema,
+  reviewQueueItemIdParamSchema,
 } from '../schemas/review-queue.schema';
 import { AppError } from '../middleware/errorHandler';
 
@@ -58,10 +59,7 @@ export async function updateReviewQueueItemController(req: Request, res: Respons
     throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
   }
 
-  const { itemId } = req.params;
-  if (!itemId || typeof itemId !== 'string') {
-    throw new AppError('Review queue item id is required', 400, 'BAD_REQUEST');
-  }
+  const { itemId } = reviewQueueItemIdParamSchema.parse(req.params);
 
   const { status } = updateReviewQueueItemSchema.parse(req.body);
 

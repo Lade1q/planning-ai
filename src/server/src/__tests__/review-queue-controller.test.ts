@@ -27,7 +27,7 @@ const mockedUpdateItem = updateReviewQueueItemStatus as jest.Mock;
 
 const USER_ID = 'user-owner-uuid';
 const PLAN_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
-const ITEM_ID = 'item-uuid';
+const ITEM_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
 function mockRes(): Response {
   return {
@@ -139,13 +139,27 @@ describe('updateReviewQueueItemController', () => {
     expect(mockedUpdateItem).not.toHaveBeenCalled();
   });
 
-  it('throws 400 BAD_REQUEST when itemId param is missing', async () => {
+  it('throws a ZodError (400 VALIDATION_ERROR) when itemId param is missing', async () => {
     const req = { userId: USER_ID, params: {}, body: { status: 'accepted' } } as unknown as Request;
     const res = mockRes();
 
     const error = await updateReviewQueueItemController(req, res).catch((e) => e);
-    expect(error).toBeInstanceOf(AppError);
-    expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST' });
+    expect(error).toBeInstanceOf(ZodError);
+    expect(mockedUpdateItem).not.toHaveBeenCalled();
+  });
+
+  // itemId là @db.Uuid — không phải UUID phải bị chặn ở controller, tránh P2023→500 (#165/#191).
+  it('throws a ZodError when itemId is not a valid UUID', async () => {
+    const req = {
+      userId: USER_ID,
+      params: { itemId: 'not-a-uuid' },
+      body: { status: 'accepted' },
+    } as unknown as Request;
+    const res = mockRes();
+
+    const error = await updateReviewQueueItemController(req, res).catch((e) => e);
+    expect(error).toBeInstanceOf(ZodError);
+    expect(mockedUpdateItem).not.toHaveBeenCalled();
   });
 
   it('throws a ZodError when status is neither accepted nor skipped', async () => {
