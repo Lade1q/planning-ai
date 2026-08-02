@@ -96,36 +96,6 @@ function RelatedConceptRow({
 }
 
 /**
- * Tô đậm tên khái niệm ngay trong trích đoạn gốc — đây là chỗ ràng buộc C5 ("AI không bịa")
- * trở thành thứ nhìn thấy được: không chỉ nói "khái niệm này đến từ trang 118", mà chỉ đúng
- * chữ trên trang đó.
- */
-function HighlightedExcerpt({ text, term }: { text: string; term: string }) {
-  const needle = term.trim();
-  if (!needle) return <>{text}</>;
-
-  // Tên khái niệm là dữ liệu người dùng/AI sinh ra ("Mảng & Con trỏ", "Cây AVL (tự cân bằng)"),
-  // không phải hằng số — phải escape trước khi nhét vào RegExp.
-  const pattern = new RegExp(`(${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  // Nhóm bắt trong `split` đẩy mọi đoạn KHỚP vào chỉ số lẻ, đoạn còn lại vào chỉ số chẵn.
-  const parts = text.split(pattern);
-
-  return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <mark key={i} className="bg-remediate/16 rounded-xs px-0.5 text-inherit">
-            {part}
-          </mark>
-        ) : (
-          part
-        )
-      )}
-    </>
-  );
-}
-
-/**
  * DB-06 — panel chi tiết khái niệm (Issue #168). Chỉ đọc dữ liệu đồ thị; hai nút ở cuối là
  * điều hướng sang FS-01 / AE-01 (cả hai đang là placeholder — panel chỉ mở đúng route với
  * `planId`/`conceptId` trên query string, không giả định gì về màn hình đích).
