@@ -1,0 +1,113 @@
+import type { QuestionMode, Verdict } from '../schemas/ai-interview.schema';
+import { TURN_WEIGHTS } from './mastery';
+
+/**
+ * The Interview state machine (I6.3 / #115, UC-04 UC-11) — the one place that decides what
+ * happens after a turn is graded.
+ *
+ * Pure function: no Prisma, no Gemini, no clock. Constraint C4 says this routing is
+ * deterministic software logic and no prompt may ever ask the model "what should I do next",
+ * and SDP risk R05 says that logic must stay provable with the database and the API key
+ * switched off — which is only true if it lives in a module neither of them can reach.
+ * `interview.service.ts` reads the state from the DB, calls this, and executes the answer.
+ *
+ * Lives in `utils/` for that reason, rather than inside `interview.service.ts` as #115's
+ * sketch drew it: that file imports Prisma, so importing it from a test would need a
+ * DATABASE_URL. Same split as `utils/interview-grading.ts` (I6.2) and `utils/mastery.ts` (I7.2).
+ */
+
+/** What the session does next. Ordered as the decision table in #115 reads. */
+export type NextStep = 'ask_deeper' | 'ask_probe' | 'finish_concept' | 'finish_session';
+
+/**
+ * Deliberately **no** `finish_concept_with_traceback` (audit A5): whether a finished concept
+ * needs remediation is decided by `finalizeConceptResult()` (I7.2) from the concept's final
+ * weighted mastery score, not from one turn's verdict. A `deep → deep → wrong` concept can end
+ * on `wrong` and still score 0.65, above the 0.6 threshold — the two conditions genuinely
+ * disagree, so only one of them may own the decision.
+ */
+export interface InterviewStateInput {
+  /** Verdict of the turn that was just graded. */
+  verdict: Verdict;
+  /** 1-based index of that turn within the current concept. */
+  turnIndex: number;
+  /** The session's `maxTurnsPerConcept` — the C6 hard limit, read from the DB, never the client. */
+  maxTurns: number;
+  /** Concepts still queued *after* the current one. */
+  remainingConcepts: number;
+}
+
+/** Default N in "at most N turns per concept" (UC-11), overridable per session within C6. */
+export const DEFAULT_MAX_TURNS_PER_CONCEPT = 3;
+
+/**
+ * The ceiling a session's `maxTurnsPerConcept` may not exceed, whatever the client asks for.
+ *
+ * Tied to the weighted-average formula rather than picked separately: `calculateMasteryScore`
+ * has one weight per turn (`TURN_WEIGHTS`) and throws a RangeError past the last one, because
+ * guessing a fourth weight would quietly produce a wrong mastery score — and mastery is what
+ * drives remediation. C6 and that formula are the same limit seen from two sides.
+ */
+export const MAX_TURNS_PER_CONCEPT = TURN_WEIGHTS.length;
+
+/**
+ * How many concepts one session may cover ("Số khái niệm tối đa mỗi phiên" — UC-11's
+ * State Machine limits). Every concept costs up to `maxTurns` pairs of Gemini calls, so this
+ * is what keeps a session inside a sitting and inside the API budget.
+ */
+export const MAX_CONCEPTS_PER_SESSION = 5;
+
+/** Concepts pulled from the review queue when the client doesn't name any (AE-01). */
+export const DEFAULT_CONCEPTS_PER_SESSION = 3;
+
+/**
+ * Decides the next step after a turn is graded (#115's decision table, UC-11):
+ *
+ * | verdict   | turns left | step                            |
+ * | --------- | ---------- | ------------------------------- |
+ * | `deep`    | yes        | `ask_deeper` — same concept     |
+ * | `shallow` | yes        | `ask_probe` — same concept      |
+ * | `wrong`   | –          | end the concept immediately     |
+ * | any       | no         | end the concept (C6 hard limit) |
+ *
+ * Ending a concept is reported as `finish_concept` while the queue still holds another one and
+ * as `finish_session` on the last, but both mean "finalise this concept first": the caller runs
+ * `finalizeConceptResult()` on either, so every concept gets its mastery score and its
+ * spaced-repetition row even when the student answered it perfectly (audit A4).
+ */
+export function decideNextStep({
+  verdict,
+  turnIndex,
+  maxTurns,
+  remainingConcepts,
+}: InterviewStateInput): NextStep {
+  // C6: `turnIndex` is the turn just answered, so another one is only allowed while it is
+  // strictly below the limit. `>=` here rather than `===` so a session whose limit was somehow
+  // lowered mid-flight still stops instead of running away.
+  const hasTurnsLeft = turnIndex < maxTurns;
+
+  // `wrong` ends the concept even with turns to spare: AE-02 step 9 says the feedback explains
+  // the mistake and the concept stops there, rather than spending two more questions on
+  // material the student has just shown they do not have.
+  if (verdict !== 'wrong' && hasTurnsLeft) {
+    return verdict === 'deep' ? 'ask_deeper' : 'ask_probe';
+  }
+
+  return remainingConcepts > 0 ? 'finish_concept' : 'finish_session';
+}
+
+/** The `generate_question` mode each continuing step asks for. The model never picks it (C4). */
+const MODE_BY_STEP: Partial<Record<NextStep, QuestionMode>> = {
+  ask_deeper: 'deeper',
+  ask_probe: 'probe',
+};
+
+/** `null` for the two terminal steps — they end a concept instead of asking anything. */
+export function questionModeForStep(step: NextStep): QuestionMode | null {
+  return MODE_BY_STEP[step] ?? null;
+}
+
+/** True while `turnIndex` is a turn the session is allowed to ask (C6, checked server-side). */
+export function isTurnWithinLimit(turnIndex: number, maxTurns: number): boolean {
+  return turnIndex >= 1 && turnIndex <= Math.min(maxTurns, MAX_TURNS_PER_CONCEPT);
+}
