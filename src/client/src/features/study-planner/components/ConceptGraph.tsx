@@ -48,6 +48,7 @@ import {
 } from '../utils/graphTransform';
 import { formatRelativeDays } from '../utils/planDates';
 import { ConceptDetailPanel, type RelatedConcept } from './ConceptDetailPanel';
+import { ConceptSourcesSection } from './ConceptSources';
 
 /** Trên 50 node, UC-17 [E1] yêu cầu mặc định chỉ vẽ vùng quanh node chưa vững. */
 const LARGE_GRAPH_THRESHOLD = 50;
@@ -79,8 +80,6 @@ function GraphNode({ data, selected }: NodeProps) {
   const score = data.mastery as number | null;
   const band = masteryBand(score);
   const isEditMode = data.mode === 'edit';
-  // Tạm thời coi như luôn có nguồn (vì API chưa trả về excerpt) để tránh cờ đỏ toàn bộ.
-  // Khi nào API support thì sẽ check dựa trên c.description.
   const difficulty = (data.difficulty as number | undefined) ?? null;
   const lastTestedAt = (data.lastTestedAt as string | null | undefined) ?? null;
   const isRemediating = Boolean(data.isRemediating);
@@ -652,7 +651,6 @@ export function ConceptGraph({
       const concepts: Concept[] = nodes.map((n) => ({
         id: n.id,
         name: n.data.label as string,
-        description: (n.data.description as string) || undefined,
         mastery_score: n.data.mastery as number | null,
       }));
       const conceptEdges: ConceptEdge[] = edges.map((e) => ({
@@ -699,7 +697,7 @@ export function ConceptGraph({
     const newNode: Node = {
       id: newId,
       type: 'conceptNode',
-      data: { label: name, mastery: null, description: '' },
+      data: { label: name, mastery: null },
       position: { x: Math.random() * 300 + 50, y: Math.random() * 200 + 50 },
     };
 
@@ -1090,15 +1088,18 @@ export function ConceptGraph({
               <div className="mb-2 flex items-baseline justify-between">
                 <span className="text-[13px] font-semibold">Trích từ tài liệu</span>
               </div>
-              {selectedNode.data.description ? (
-                <blockquote className="text-muted-foreground border-border m-0 mb-3 text-pretty border-l-[3px] py-0.5 pl-3.5 text-[13.5px] leading-[1.65]">
-                  {selectedNode.data.description as string}
-                </blockquote>
-              ) : (
-                <p className="text-muted-foreground mb-3 text-[13px] italic">
-                  Không có trích đoạn gốc.
-                </p>
-              )}
+              {/* Cổng xác nhận C5: người dùng chỉ "xác nhận" được sau khi đối chiếu tên khái
+                  niệm với đúng câu trong tài liệu — nên panel này phải hiện trích đoạn THẬT,
+                  cùng khối dùng chung với panel view mode (Issue #202). Remount theo id để
+                  state fetch khởi tạo đúng cho từng khái niệm. */}
+              <div className="mb-3">
+                <ConceptSourcesSection
+                  key={selectedNode.id}
+                  planId={planId}
+                  conceptId={selectedNode.id}
+                  conceptName={selectedNode.data.label as string}
+                />
+              </div>
               <div className="flex gap-4">
                 <button
                   type="button"

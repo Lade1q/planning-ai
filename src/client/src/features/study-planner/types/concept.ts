@@ -1,7 +1,6 @@
 export interface Concept {
   id: string;
   name: string;
-  description?: string;
   mastery_score: number | null; // null means untested
   difficulty?: number | null;
   /** Last time an interview graded this concept — DB-06's `last_tested_at` (Issue #168). */
