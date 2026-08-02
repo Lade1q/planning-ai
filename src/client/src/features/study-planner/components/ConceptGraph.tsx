@@ -81,6 +81,9 @@ function GraphNode({ data, selected }: NodeProps) {
   const band = masteryBand(score);
   const isEditMode = data.mode === 'edit';
   const difficulty = (data.difficulty as number | undefined) ?? null;
+  // Khái niệm người dùng tự thêm không có độ khó do ai ước lượng: server đặt mặc định 1 khi
+  // tạo. Hiện con số đó lên là bịa ra một dữ kiện — nói thẳng nguồn gốc node thì đúng hơn.
+  const isManual = data.source === 'manual';
   const lastTestedAt = (data.lastTestedAt as string | null | undefined) ?? null;
   const isRemediating = Boolean(data.isRemediating);
   const dependentCount = (data.dependentCount as number | undefined) ?? 0;
@@ -141,7 +144,11 @@ function GraphNode({ data, selected }: NodeProps) {
           chỗ đó thuộc về mastery_score, thứ đã nằm ngay trong node. */}
       {isEditMode && (
         <div className="node__diff">
-          {difficulty !== null ? `độ khó ${difficulty}/5` : 'có nguồn'}
+          {isManual
+            ? 'bạn tự thêm'
+            : difficulty !== null
+              ? `độ khó ${difficulty}/5`
+              : 'chưa rõ độ khó'}
         </div>
       )}
 
@@ -697,7 +704,9 @@ export function ConceptGraph({
     const newNode: Node = {
       id: newId,
       type: 'conceptNode',
-      data: { label: name, mastery: null },
+      // `source: 'manual'` khớp thứ server sẽ ghi khi lưu node này (graph.service tạo concept
+      // mới với `source: 'manual'`), nên câu chữ trước và sau khi lưu là một.
+      data: { label: name, mastery: null, source: 'manual' },
       position: { x: Math.random() * 300 + 50, y: Math.random() * 200 + 50 },
     };
 
@@ -1064,6 +1073,16 @@ export function ConceptGraph({
                 {selectedNode.data.label as string}
               </h2>
               {(() => {
+                // Khái niệm tự thêm: `difficulty` là mặc định của server (1), không ai ước
+                // lượng nó — vẽ thang 5 vạch kèm chữ "AI ước lượng" ở đây là gán cho AI một
+                // phán đoán nó chưa từng đưa ra. Nói đúng nguồn gốc node và bỏ con số đi.
+                if (selectedNode.data.source === 'manual') {
+                  return (
+                    <p className="text-muted-foreground text-[12px]">
+                      Bạn tự thêm khái niệm này — chưa có ước lượng độ khó.
+                    </p>
+                  );
+                }
                 const diff = (selectedNode.data.difficulty as number | undefined) ?? null;
                 if (diff === null) return null;
                 return (

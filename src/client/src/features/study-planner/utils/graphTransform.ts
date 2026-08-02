@@ -20,6 +20,8 @@ export function toReactFlowNodes(concepts: Concept[]): Node[] {
       label: c.name,
       mastery: c.mastery_score,
       difficulty: c.difficulty ?? null,
+      // Provenance quyết định câu chữ quanh `difficulty` — xem `ConceptSource`.
+      source: c.source ?? null,
       // DB-05/DB-06 (Issue #168): dải "đang ôn lại" độc lập với mastery band, và last_tested_at
       // cho hover tooltip + panel chi tiết.
       lastTestedAt: c.lastTestedAt ?? null,
