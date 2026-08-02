@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recall AI — Focus Session</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: var(--font-sans); }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Layout Khung ── */
+    .fs-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 100dvh;
+      background: var(--background);
+    }
+
+    .fs-top {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; padding: 14px 28px; border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .fs-top__id { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .fs-top__title { font-family: var(--font-heading); font-size: 17px; letter-spacing: -0.02em; }
+    .fs-top__plan { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fs-top__right { display: flex; align-items: center; gap: 14px; }
+    
+    .link { font-size: 13px; color: var(--muted-foreground); border-bottom: 1px solid transparent; }
+    .link:hover { color: var(--foreground); border-bottom-color: var(--border); }
+    .link--u { color: var(--foreground); border-bottom-color: var(--border); }
+    .link--u:hover { border-bottom-color: var(--foreground); }
+
+    .fs-body {
+      display: grid; place-items: center; padding: 28px 32px 36px; overflow-y: auto;
+    }
+    .stage {
+      width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ── Trạng thái (hiển thị 1 state tại 1 thời điểm) ── */
+    .state-view { display: none; width: 100%; flex-direction: column; gap: 20px; }
+    .state-view.is-active { display: flex; animation: fadeIn 200ms var(--ease-standard) both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── SETUP STATE ── */
+    .setup-card {
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.35);
+      background: var(--card); overflow: hidden; margin-bottom: 16px;
+    }
+    .setup-card__head {
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .setup-card__title { font-size: 14px; font-weight: 600; }
+    
+    .tabs { display: flex; gap: 4px; background: var(--muted); padding: 4px; border-radius: calc(var(--radius) * 0.9); }
+    .tab {
+      padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--muted-foreground);
+      border-radius: calc(var(--radius) * 0.7); border: 0; background: transparent; transition: all 150ms ease;
+    }
+    .tab.is-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-soft); }
+
+    .tab-content { display: none; padding: 18px 22px; }
+    .tab-content.is-active { display: block; }
+
+    /* Concept List (Gợi ý hôm nay) */
+    .concept-item {
+      display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 0.9); cursor: pointer; transition: border-color 150ms ease; margin-bottom: 10px;
+    }
+    .concept-item:last-child { margin-bottom: 0; }
+    .concept-item:hover { border-color: var(--muted-foreground); }
+    .concept-item input[type="radio"] { margin-top: 2px; }
+    .concept-item__info { min-width: 0; flex: 1; }
+    .concept-item__name { font-size: 13.5px; font-weight: 500; margin-bottom: 4px; }
+    .concept-item__reason { font-size: 12px; color: var(--muted-foreground); line-height: 1.5; }
+    .concept-item.is-selected { border-color: var(--focus-session); background: oklch(from var(--focus-session) l c h / 0.04); }
+    
+    .chip {
+      display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 9999px;
+      margin-bottom: 6px;
+    }
+    .chip--remediate { background: oklch(from var(--remediate) l c h / 0.12); color: var(--remediate); }
+    .chip--srs { background: oklch(from var(--mastery-learning) l c h / 0.12); color: var(--mastery-learning); }
+
+    /* Concept Dropdown (Chọn từ Plan) */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--muted-foreground); }
+    .select-box {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8);
+      background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 13.5px;
+    }
+    
+    /* Config Pomodoro */
+    .config-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .config-input {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8);
+      background: var(--background); color: var(--foreground); font-family: var(--font-mono); font-size: 14px; text-align: center;
+    }
+    .config-preview { text-align: center; font-size: 12px; color: var(--muted-foreground); margin-top: 16px; font-family: var(--font-mono); }
+
+    /* ── RUNNING / PAUSED STATE ── */
+    .why {
+      border: 1px solid var(--border); border-left: 2px solid var(--remediate);
+      border-radius: calc(var(--radius) * 0.9); background: var(--card); padding: 16px 18px;
+    }
+    .why__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .why__concept { font-family: var(--font-heading); font-size: 20px; letter-spacing: -0.02em; }
+    .why__body { font-size: 13px; line-height: 1.65; color: var(--muted-foreground); margin: 0; text-wrap: pretty; }
+    .why__body strong { color: var(--foreground); font-weight: 500; }
+
+    .clockcard {
+      display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 28px;
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.1); background: var(--card); padding: 20px 26px;
+    }
+    .ring { position: relative; width: 140px; height: 140px; flex: none; }
+    .ring svg { display: block; transform: rotate(-90deg); transition: stroke-dasharray 1s linear; }
+    .ring__inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .ring__time { font-family: var(--font-mono); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .ring__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); margin-top: 2px; }
+
+    .stats { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    .stat { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+    .stat__k { color: var(--muted-foreground); }
+    .stat__v { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+    .stat--lead .stat__k, .stat--lead .stat__v { color: var(--foreground); font-weight: 600; }
+    .stat--drift .stat__v { color: var(--mastery-weak); }
+    .stats__rule { height: 1px; background: var(--border); }
+
+    .cycles { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--focus-session); }
+    .dot--done { background: var(--focus-session); }
+    .dot--now { background: var(--focus-session); box-shadow: 0 0 0 3px oklch(from var(--focus-session) l c h / 0.18); }
+    .dot--break { border-color: var(--border); border-style: dashed; width: 7px; height: 7px; }
+
+    .actions { display: flex; align-items: center; gap: 10px; }
+    .actions__spacer { flex: 1; }
+
+    .strict {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 14px;
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.9); background: var(--card); padding: 14px 16px;
+    }
+    .strict__icon { color: var(--focus-session); margin-top: 1px; }
+    .strict__t { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+    .strict__d { font-size: 12px; line-height: 1.6; color: var(--muted-foreground); margin: 0; text-wrap: pretty; }
+    .switch {
+      flex: none; width: 38px; height: 22px; border-radius: 9999px; border: 1px solid var(--focus-session);
+      background: oklch(from var(--focus-session) l c h / 0.22); position: relative; cursor: pointer; transition: all 200ms ease;
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--focus-session); transition: all 200ms ease;
+    }
+    .switch.is-off { border-color: var(--border); background: var(--muted); }
+    .switch.is-off::after { right: auto; left: 2px; background: var(--mastery-untested); }
+
+    /* Paused Ring Modifier */
+    .clockcard--paused .ring svg circle:last-child { stroke: var(--muted-foreground); }
+    .clockcard--paused .ring__time { color: var(--muted-foreground); }
+
+    /* ── BREAK STATE ── */
+    .panel-center {
+      padding: 40px 32px; display: flex; flex-direction: column; align-items: center;
+      gap: 18px; text-align: center; border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.35); background: var(--card);
+    }
+    .panel-center__k { font-family: var(--font-mono); font-size: 44px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; color: var(--focus-session); }
+    .panel-center__t { font-family: var(--font-heading); font-size: 19px; letter-spacing: -0.02em; }
+    .panel-center__d { font-size: 13.5px; line-height: 1.7; color: var(--muted-foreground); margin: 0; max-width: 46ch; text-wrap: pretty; }
+
+    /* ── COMPLETE STATE ── */
+    .summary {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+      background: var(--border); border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.9); overflow: hidden; width: 100%; max-width: 470px;
+    }
+    .summary__cell { background: var(--card); padding: 14px 16px; text-align: left; }
+    .summary__v { font-family: var(--font-mono); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .summary__k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin-top: 2px; }
+
+    .handoff {
+      border: 1px solid var(--border); border-left: 2px solid var(--ai-accent); background: var(--card);
+      border-radius: calc(var(--radius) * 0.9); padding: 18px 20px; text-align: left; width: 100%; max-width: 470px;
+    }
+    .handoff__t { font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+    .handoff__d { font-size: 12.5px; line-height: 1.65; color: var(--muted-foreground); margin: 0 0 16px; text-wrap: pretty; }
+
+    /* ── CANCEL CONFIRM MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: oklch(0 0 0 / 0.4); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+      opacity: 0; pointer-events: none; transition: opacity 200ms ease;
+    }
+    .modal-overlay.is-active { opacity: 1; pointer-events: auto; }
+    .modal {
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.1); background: var(--card);
+      box-shadow: var(--shadow-soft); padding: 24px; max-width: 400px; width: 100%; text-align: left;
+      transform: translateY(10px); transition: transform 200ms ease;
+    }
+    .modal-overlay.is-active .modal { transform: translateY(0); }
+    .modal__t { font-family: var(--font-heading); font-size: 18px; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .modal__d { font-size: 13.5px; line-height: 1.65; color: var(--muted-foreground); margin: 0 0 20px; text-wrap: pretty; }
+    .modal__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* ── RESPONSIVE (Mobile không vỡ layout) ── */
+    @media (max-width: 600px) {
+      .fs-top { flex-direction: column; align-items: flex-start; gap: 16px; padding: 16px; }
+      .fs-top__right { width: 100%; justify-content: space-between; }
+      .fs-body { padding: 16px; }
+      
+      .setup-card__head { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .config-row { grid-template-columns: 1fr; }
+      
+      .clockcard { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 20px; padding: 20px 16px; }
+      .stats { width: 100%; }
+      .stat { justify-content: space-between; }
+      .cycles { justify-content: center; }
+      
+      .strict { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .strict__icon { margin-bottom: 8px; }
+      
+      .summary { grid-template-columns: 1fr; }
+      .summary__cell { text-align: center; }
+      
+      .actions { width: 100%; flex-wrap: wrap; }
+      .actions > .btn { flex: 1; min-width: 120px; }
+      .actions__spacer { display: none; }
+      
+      .panel-center { padding: 30px 20px; }
+      .modal { margin: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Shell -->
+  <main class="fs-shell">
+    <header class="fs-top">
+      <div class="fs-top__id">
+        <span class="fs-top__title">Phiên học Focus</span>
+        <span class="fs-top__plan">Cấu trúc dữ liệu &amp; Giải thuật</span>
+      </div>
+      <div class="fs-top__right" id="topNav">
+        <!-- Will show actions if running, or nothing in setup -->
+      </div>
+    </header>
+
+    <div class="fs-body">
+      
+      <!-- ── 1. SETUP STATE ── -->
+      <div class="stage state-view" id="view-setup">
+        <!-- Khái niệm -->
+        <div class="setup-card">
+          <div class="setup-card__head">
+            <span class="setup-card__title">1. Khái niệm cần học</span>
+            <div class="tabs">
+              <button class="tab is-active" onclick="switchTab(1)">Gợi ý hôm nay</button>
+              <button class="tab" onclick="switchTab(2)">Chọn từ Plan</button>
+            </div>
+          </div>
+          
+          <div class="tab-content is-active" id="tab-suggest">
+            <!-- Rendered by JS -->
+          </div>
+          
+          <div class="tab-content" id="tab-plan">
+            <div class="form-group">
+              <label>Plan</label>
+              <select class="select-box" disabled>
+                <option>Cấu trúc dữ liệu & Giải thuật</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Khái niệm</label>
+              <select class="select-box" id="planConceptSelect" onchange="onPlanConceptChange()">
+                <option value="c3">Ngăn xếp (Stack)</option>
+                <option value="c4">Hàng đợi (Queue)</option>
+                <option value="c5">Duyệt đồ thị DFS</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cấu hình Pomodoro -->
+        <div class="setup-card">
+          <div class="setup-card__head">
+            <span class="setup-card__title">2. Cấu hình Pomodoro</span>
+          </div>
+          <div class="tab-content is-active">
+            <div class="config-row">
+              <div>
+                <label style="display:block;font-size:12px;margin-bottom:6px;color:var(--muted-foreground)">Tập trung (phút)</label>
+                <input type="number" id="cfgWork" class="config-input" value="25" min="1" max="60" onchange="updateCfgPreview()">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;margin-bottom:6px;color:var(--muted-foreground)">Nghỉ ngắn (phút)</label>
+                <input type="number" id="cfgBreak" class="config-input" value="5" min="1" max="15" onchange="updateCfgPreview()">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;margin-bottom:6px;color:var(--muted-foreground)">Số chu kỳ</label>
+                <input type="number" id="cfgCycles" class="config-input" value="4" min="1" max="10" onchange="updateCfgPreview()">
+              </div>
+            </div>
+            <div class="config-preview" id="cfgPreview">Mục tiêu: 4 × 25 phút = 100 phút tập trung</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="padding:14px;font-size:15px;width:100%" onclick="startSession()">
+          Bắt đầu phiên học
+        </button>
+      </div>
+
+
+      <!-- ── 2. RUNNING / PAUSED STATE ── -->
+      <div class="stage state-view" id="view-running">
+        
+        <section class="why">
+          <div class="why__row">
+            <h1 class="why__concept" id="runConceptName">Ngăn xếp (Stack)</h1>
+            <span class="chip chip--remediate" id="runConceptTag">Truy ngược · tầng 1</span>
+          </div>
+          <p class="why__body" id="runConceptWhy">Lý do...</p>
+        </section>
+
+        <section class="clockcard" id="runClockcard" aria-label="Đồng hồ phiên học">
+          <div class="ring">
+            <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+              <circle cx="70" cy="70" r="64" fill="none" stroke="var(--border)" stroke-width="3" />
+              <!-- 402 is approx 2 * pi * 64 -->
+              <circle id="runRing" cx="70" cy="70" r="64" fill="none" stroke="var(--focus-session)" stroke-width="3" stroke-linecap="round" stroke-dasharray="402 402" />
+            </svg>
+            <div class="ring__inner">
+              <div class="ring__time" id="runTime">25:00</div>
+              <div class="ring__label" id="runLabel">Còn lại</div>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat stat--lead">
+              <span class="stat__k">Tập trung</span>
+              <span class="stat__v" id="statFocus">00:00</span>
+            </div>
+            <div class="stat">
+              <span class="stat__k">Trôi qua</span>
+              <span class="stat__v" id="statElapsed">00:00</span>
+            </div>
+            <div class="stat stat--drift">
+              <span class="stat__k">Chuyển tab</span>
+              <span class="stat__v" id="statDrift">0 lần</span>
+            </div>
+            <div class="stats__rule"></div>
+            <div class="cycles">
+              <div id="runCyclesDots" style="display:flex;gap:4px;"></div>
+              <span style="margin-left:8px;" id="runCyclesText">Pomodoro 1/4</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button class="btn btn-secondary" id="btnPause" type="button" onclick="togglePause()">Tạm dừng</button>
+          <span class="actions__spacer"></span>
+          <button class="btn btn-ghost" type="button" onclick="finishEarly()">Kết thúc sớm</button>
+        </div>
+
+        <section class="strict">
+          <span class="strict__icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></svg>
+          </span>
+          <div>
+            <div class="strict__t">Chế độ nghiêm ngặt</div>
+            <p class="strict__d">
+              Mỗi lần bạn rời khỏi tab này, đồng hồ tập trung dừng lại và lượt rời tab được ghi nhận. Thời gian tập trung mới là thứ được lưu.
+            </p>
+          </div>
+          <button class="switch" id="strictSwitch" role="switch" aria-checked="true" aria-label="Chế độ nghiêm ngặt" type="button" onclick="toggleStrict()"></button>
+        </section>
+      </div>
+
+
+      <!-- ── 3. BREAK STATE ── -->
+      <div class="stage state-view" id="view-break">
+        <div class="panel-center">
+          <div class="panel-center__k" id="breakTime">05:00</div>
+          <div class="panel-center__t">Nghỉ giải lao</div>
+          <p class="panel-center__d">
+            Hết giờ nghỉ, Pomodoro tiếp theo sẽ tự bắt đầu. Hãy đứng dậy vươn vai nhé!
+          </p>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-secondary" type="button" onclick="skipBreak()">Bỏ qua giờ nghỉ</button>
+            <button class="btn btn-outline" type="button" onclick="finishEarly()">Kết thúc phiên học</button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ── 4. COMPLETE STATE ── -->
+      <div class="stage state-view" id="view-complete">
+        <div class="panel-center" style="padding:40px 32px">
+          <div class="panel-center__t" style="margin-bottom:10px">Xong phiên học</div>
+          
+          <div class="summary">
+            <div class="summary__cell">
+              <div class="summary__v" id="compFocus">47:12</div>
+              <div class="summary__k">Tập trung</div>
+            </div>
+            <div class="summary__cell">
+              <div class="summary__v" id="compCycles">2/4</div>
+              <div class="summary__k">Pomodoro</div>
+            </div>
+            <div class="summary__cell">
+              <div class="summary__v" id="compDrifts">3</div>
+              <div class="summary__k">Chuyển tab</div>
+            </div>
+          </div>
+          
+          <div class="handoff">
+            <div class="handoff__t" id="compHandoffTitle">Kiểm tra lại ngay: Ngăn xếp (Stack)</div>
+            <p class="handoff__d">
+              Đọc xong chưa chứng minh được là hiểu. Phiên kiểm tra vấn đáp 3 lượt sẽ chấm điểm mastery và quyết định có cần truy ngược tiếp hay không.
+            </p>
+            <div class="actions">
+              <a href="screen-interview.html" class="btn btn-primary" style="padding:10px 18px">
+                Bắt đầu kiểm tra
+              </a>
+              <a href="screen-dashboard.html" class="link" style="margin-left:12px">Để sau — về Dashboard</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── 5. CANCEL MODAL ── -->
+  <div class="modal-overlay" id="cancelModal">
+    <div class="modal">
+      <div class="modal__t">Hủy phiên này?</div>
+      <p class="modal__d">
+        Thời gian tập trung sẽ không được ghi vào lịch sử học tập. Muốn giữ lại thời gian đã học thì hãy chọn "Kết thúc sớm" thay vì hủy.
+      </p>
+      <div class="modal__actions">
+        <button class="btn btn-ghost" type="button" onclick="hideCancelModal()">Quay lại phiên</button>
+        <button class="btn btn-secondary" style="color:var(--destructive)" type="button" onclick="confirmCancel()">Hủy phiên</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── SCRIPT ── -->
+  <script>
+    // ── DATA MOCK
+    const SUGGESTIONS = [
+      { id: 'c3', name: 'Ngăn xếp (Stack)', reason: 'Truy ngược · Tầng 1', tag: 'chip--remediate',
+        why: 'Phiên kiểm tra 24/07 chấm Đệ quy ở mức 0.42 — Ngăn xếp là nền tảng chưa vững.' },
+      { id: 'c1', name: 'Mảng & Con trỏ',   reason: 'Đến hạn SRS', tag: 'chip--srs',
+        why: 'Interval SRS đánh giá khái niệm này cần được ôn lại hôm nay để chống quên.' },
+      { id: 'c6', name: 'Đệ quy',           reason: 'Dưới ngưỡng', tag: 'chip--remediate',
+        why: 'Điểm dưới ngưỡng, hệ thống đưa vào hàng đợi ưu tiên.' },
+    ];
+    let selectedConcept = SUGGESTIONS[0];
+    let config = { work: 25, break: 5, cycles: 4 };
+
+    // ── APP STATE
+    let currentState = 'setup'; // setup, running, paused, break, complete
+    let strictMode = true;
+
+    // Timer state
+    let timerId = null;
+    let currentCycle = 1;      // 1..config.cycles
+    let cycleTimeLeft = 0;     // seconds
+    let totalFocusTime = 0;    // seconds
+    let totalElapsedTime = 0;  // seconds
+    let driftCount = 0;        // times tab switched
+
+    // ── DOM ELEMENTS
+    function $(id) { return document.getElementById(id); }
+
+    // ── INIT ──
+    function init() {
+      renderSuggestions();
+      updateCfgPreview();
+      switchState('setup');
+    }
+
+    // ── SETUP LOGIC ──
+    function switchTab(idx) {
+      document.querySelectorAll('.tab').forEach((el, i) => el.classList.toggle('is-active', i === idx - 1));
+      $('tab-suggest').classList.toggle('is-active', idx === 1);
+      $('tab-plan').classList.toggle('is-active', idx === 2);
+      
+      if (idx === 1) {
+        // Sync selectedConcept from radio
+        const checked = document.querySelector('input[name="selConcept"]:checked');
+        if (checked) {
+          selectedConcept = SUGGESTIONS.find(s => s.id === checked.value);
+        }
+      } else {
+        onPlanConceptChange();
+      }
+    }
+
+    function renderSuggestions() {
+      const html = SUGGESTIONS.map((s, i) => `
+        <label class="concept-item ${i===0 ? 'is-selected' : ''}" id="lbl-${s.id}">
+          <input type="radio" name="selConcept" value="${s.id}" ${i===0 ? 'checked' : ''} onchange="onSuggestChange('${s.id}')">
+          <div class="concept-item__info">
+            <div class="concept-item__name">${s.name}</div>
+            <div class="concept-item__reason">${s.why}</div>
+          </div>
+          <span class="chip ${s.tag}">${s.reason}</span>
+        </label>
+      `).join('');
+      $('tab-suggest').innerHTML = html;
+    }
+
+    function onSuggestChange(id) {
+      document.querySelectorAll('.concept-item').forEach(el => el.classList.remove('is-selected'));
+      $('lbl-' + id).classList.add('is-selected');
+      selectedConcept = SUGGESTIONS.find(s => s.id === id);
+    }
+
+    function onPlanConceptChange() {
+      const sel = $('planConceptSelect');
+      selectedConcept = {
+        id: sel.value,
+        name: sel.options[sel.selectedIndex].text,
+        reason: 'Chọn thủ công', tag: 'chip--srs',
+        why: 'Bạn đã chủ động chọn khái niệm này từ Plan.'
+      };
+    }
+
+    function updateCfgPreview() {
+      config.work = parseInt($('cfgWork').value) || 25;
+      config.break = parseInt($('cfgBreak').value) || 5;
+      config.cycles = parseInt($('cfgCycles').value) || 4;
+      $('cfgPreview').textContent = `Mục tiêu: ${config.cycles} × ${config.work} phút = ${config.cycles * config.work} phút tập trung`;
+    }
+
+    // ── STATE MACHINE ──
+    function switchState(state) {
+      currentState = state;
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('is-active'));
+
+      if (state === 'setup') {
+        $('view-setup').classList.add('is-active');
+        $('topNav').innerHTML = ''; // No actions in topnav during setup
+      }
+      else if (state === 'running' || state === 'paused') {
+        $('view-running').classList.add('is-active');
+        $('topNav').innerHTML = `
+          <a href="#" class="link" onclick="showCancelModal(event)">Hủy phiên</a>
+          <button class="btn btn-secondary" type="button" onclick="finishEarly()">Kết thúc sớm</button>
+        `;
+        
+        if (state === 'paused') {
+          $('runClockcard').classList.add('clockcard--paused');
+          $('btnPause').textContent = 'Tiếp tục';
+          $('runLabel').textContent = 'Đã dừng';
+          clearInterval(timerId);
+        } else {
+          $('runClockcard').classList.remove('clockcard--paused');
+          $('btnPause').textContent = 'Tạm dừng';
+          $('runLabel').textContent = 'Còn lại';
+          startTimer();
+        }
+      }
+      else if (state === 'break') {
+        $('view-break').classList.add('is-active');
+        $('topNav').innerHTML = `<button class="btn btn-ghost" type="button" onclick="skipBreak()">Bỏ qua nghỉ</button>`;
+        startTimer();
+      }
+      else if (state === 'complete') {
+        $('view-complete').classList.add('is-active');
+        $('topNav').innerHTML = ''; // Hide actions
+        
+        // Render stats
+        $('compFocus').textContent = fmtMSS(totalFocusTime);
+        $('compCycles').textContent = `${currentCycle-1}/${config.cycles}`;
+        $('compDrifts').textContent = driftCount;
+        $('compHandoffTitle').textContent = `Kiểm tra lại ngay: ${selectedConcept.name}`;
+        
+        clearInterval(timerId);
+      }
+    }
+
+    // ── SESSION LOGIC ──
+    function startSession() {
+      // Reset counters
+      currentCycle = 1;
+      totalFocusTime = 0;
+      totalElapsedTime = 0;
+      driftCount = 0;
+      
+      // Setup UI
+      $('runConceptName').textContent = selectedConcept.name;
+      $('runConceptTag').className = `chip ${selectedConcept.tag}`;
+      $('runConceptTag').textContent = selectedConcept.reason;
+      $('runConceptWhy').textContent = selectedConcept.why;
+      
+      beginCycle();
+    }
+
+    function beginCycle() {
+      cycleTimeLeft = config.work * 60;
+      renderCycles();
+      switchState('running');
+    }
+
+    function beginBreak() {
+      if (currentCycle >= config.cycles) {
+        // All cycles done
+        switchState('complete');
+        return;
+      }
+      cycleTimeLeft = config.break * 60;
+      switchState('break');
+    }
+
+    function skipBreak() {
+      currentCycle++;
+      beginCycle();
+    }
+
+    function finishEarly() {
+      switchState('complete');
+    }
+
+    function togglePause() {
+      if (currentState === 'running') switchState('paused');
+      else if (currentState === 'paused') switchState('running');
+    }
+
+    // ── TIMER LOGIC ──
+    function startTimer() {
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        cycleTimeLeft--;
+        totalElapsedTime++;
+        
+        if (currentState === 'running') {
+          totalFocusTime++;
+        }
+
+        renderTime();
+
+        if (cycleTimeLeft <= 0) {
+          clearInterval(timerId);
+          if (currentState === 'running') {
+            beginBreak();
+          } else if (currentState === 'break') {
+            currentCycle++;
+            beginCycle();
+          }
+        }
+      }, 1000);
+    }
+
+    function renderTime() {
+      // Running clock
+      if (currentState === 'running' || currentState === 'paused') {
+        $('runTime').textContent = fmtMSS(cycleTimeLeft);
+        $('statFocus').textContent = fmtMSS(totalFocusTime);
+        $('statElapsed').textContent = fmtMSS(totalElapsedTime);
+        
+        // Ring dasharray
+        const maxPct = config.work * 60;
+        const pct = cycleTimeLeft / maxPct;
+        const totalLen = 402; // approx circumference
+        const dash = pct * totalLen;
+        $('runRing').style.strokeDasharray = `${dash} ${totalLen}`;
+      }
+      // Break clock
+      else if (currentState === 'break') {
+        $('breakTime').textContent = fmtMSS(cycleTimeLeft);
+      }
+    }
+
+    function renderCycles() {
+      let html = '';
+      for (let i = 1; i <= config.cycles; i++) {
+        if (i < currentCycle) html += '<span class="dot dot--done"></span><span class="dot dot--break"></span>';
+        else if (i === currentCycle) html += '<span class="dot dot--now"></span><span class="dot dot--break"></span>';
+        else html += '<span class="dot"></span>' + (i < config.cycles ? '<span class="dot dot--break"></span>' : '');
+      }
+      $('runCyclesDots').innerHTML = html;
+      $('runCyclesText').textContent = `Pomodoro ${currentCycle}/${config.cycles}`;
+    }
+
+    function fmtMSS(s) {
+      return (s - (s %= 60)) / 60 + (9 < s ? ':' : ':0') + s;
+    }
+
+    // ── STRICT MODE / VISIBILITY ──
+    function toggleStrict() {
+      strictMode = !strictMode;
+      const sw = $('strictSwitch');
+      sw.setAttribute('aria-checked', strictMode);
+      sw.classList.toggle('is-off', !strictMode);
+    }
+
+    // Mock drift detection via Page Visibility
+    // In a real app, 'visibilitychange' event works. 
+    // Here we can just mock it for demo if needed, but since it's hard to trigger in a preview frame,
+    // we just bind the event listener.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && strictMode && currentState === 'running') {
+        driftCount++;
+        $('statDrift').textContent = `${driftCount} lần`;
+        // Optionally auto-pause
+        // switchState('paused'); 
+      }
+    });
+
+    // ── MODAL ──
+    function showCancelModal(e) {
+      e.preventDefault();
+      $('cancelModal').classList.add('is-active');
+    }
+    function hideCancelModal() {
+      $('cancelModal').classList.remove('is-active');
+    }
+    function confirmCancel() {
+      hideCancelModal();
+      clearInterval(timerId);
+      switchState('setup');
+    }
+
+    // Boot
+    init();
+  </script>
+</body>
+</html>
