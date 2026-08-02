@@ -300,9 +300,7 @@ function FilterChip({
         disabled && 'cursor-not-allowed opacity-45'
       )}
     >
-      {color && (
-        <i className="block h-2 w-2 shrink-0 rounded-xs" style={{ background: color }} />
-      )}
+      {color && <i className="rounded-xs block h-2 w-2 shrink-0" style={{ background: color }} />}
       {children}
     </button>
   );
@@ -454,10 +452,11 @@ export function ConceptGraph({
   const allUntested = initialConcepts.length > 0 && untestedCount === initialConcepts.length;
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
+  // `allUntested` chỉ vô hiệu hóa vế lọc-theo-mức: tên khái niệm và cờ "đang ôn lại" không
+  // phụ thuộc mastery nên vẫn phải lọc được trên một đồ thị chưa qua phiên kiểm tra nào.
   const hasActiveFilter =
     mode === 'view' &&
-    !allUntested &&
-    (trimmedQuery !== '' || filterBand !== 'all' || filterRemediating);
+    (trimmedQuery !== '' || filterRemediating || (filterBand !== 'all' && !allUntested));
 
   const matchedNodeIds = useMemo(() => {
     const ids = new Set<string>();
@@ -738,10 +737,12 @@ export function ConceptGraph({
 
   const hasSidePanel = Boolean(selectedNode);
 
-  const countLabel = allUntested
-    ? `${initialConcepts.length} khái niệm · chưa có dữ liệu mastery`
-    : hasActiveFilter
-      ? `${filterBand !== 'all' ? `${masteryLabel(filterBand)} · ` : ''}${matchedNodeIds.size} / ${initialConcepts.length} khái niệm`
+  // Đang lọc thì bộ đếm phải nói về kết quả lọc — kể cả khi đồ thị chưa có dữ liệu mastery,
+  // vì lúc đó người dùng vẫn tìm được theo tên.
+  const countLabel = hasActiveFilter
+    ? `${filterBand !== 'all' ? `${masteryLabel(filterBand)} · ` : ''}${matchedNodeIds.size} / ${initialConcepts.length} khái niệm`
+    : allUntested
+      ? `${initialConcepts.length} khái niệm · chưa có dữ liệu mastery`
       : `${initialConcepts.length} khái niệm · ${weakCount} yếu · ${untestedCount} chưa kiểm tra`;
 
   return (
