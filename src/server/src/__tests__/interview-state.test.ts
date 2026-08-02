@@ -1,10 +1,15 @@
 import {
   DEFAULT_MAX_TURNS_PER_CONCEPT,
+  MAX_CACHED_QUESTIONS_PER_CONCEPT,
   MAX_TURNS_PER_CONCEPT,
+  SELF_GRADE_SCORE,
+  SELF_GRADE_VERDICT,
   decideNextStep,
   isTurnWithinLimit,
   questionModeForStep,
+  resolveFallbackStep,
   type NextStep,
+  type SelfGrade,
 } from '../utils/interview-state';
 import { TURN_WEIGHTS } from '../utils/mastery';
 import type { Verdict } from '../schemas/ai-interview.schema';
@@ -130,5 +135,76 @@ describe('turn limits', () => {
 
   it('clamps to the global maximum even if a session row claims a bigger limit', () => {
     expect(isTurnWithinLimit(MAX_TURNS_PER_CONCEPT + 1, 10)).toBe(false);
+  });
+});
+
+/**
+ * AE-05's flashcard-fallback stepping (UC-12) — pure, same C4/R05 charter as `decideNextStep`
+ * above. Deliberately never consults a verdict: fallback mode always asks every cached question
+ * it has, in order, then finishes (confirmed product decision), unlike the AI-mode state table.
+ */
+describe('resolveFallbackStep', () => {
+  it('is UC-12 E1 when the concept has never had a question served and none is cached', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 0, conceptTurnsServed: 0, maxTurns: 3 })
+    ).toEqual({ type: 'no_cache_available' });
+  });
+
+  it('asks the first cached question when none has been served yet', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 2, conceptTurnsServed: 0, maxTurns: 3 })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
+  });
+
+  it('asks the second cached question after the first has been served', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 2, conceptTurnsServed: 1, maxTurns: 3 })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 1 });
+  });
+
+  it('finishes the concept once every cached question has been served — not an error', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 2, conceptTurnsServed: 2, maxTurns: 3 })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('finishes early when only one question was ever cached for this concept', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 1, conceptTurnsServed: 1, maxTurns: 3 })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('honours C6: a lower session maxTurns stops the fallback path too', () => {
+    expect(
+      resolveFallbackStep({ cachedQuestionCount: 2, conceptTurnsServed: 1, maxTurns: 1 })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('never asks past MAX_CACHED_QUESTIONS_PER_CONCEPT even if more rows were somehow cached', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 5,
+        conceptTurnsServed: MAX_CACHED_QUESTIONS_PER_CONCEPT,
+        maxTurns: 10,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+});
+
+describe('self-grade mapping (AE-05, UC-12 step 5 — hard-coded, no free-form score)', () => {
+  it.each<[SelfGrade, number]>([
+    ['correct', 1],
+    ['partial', 0.5],
+    ['wrong', 0],
+  ])('maps %s to score %s', (selfGrade, expectedScore) => {
+    expect(SELF_GRADE_SCORE[selfGrade]).toBe(expectedScore);
+  });
+
+  it.each<[SelfGrade, string]>([
+    ['correct', 'deep'],
+    ['partial', 'shallow'],
+    ['wrong', 'wrong'],
+  ])('maps %s to verdict %s', (selfGrade, expectedVerdict) => {
+    expect(SELF_GRADE_VERDICT[selfGrade]).toBe(expectedVerdict);
   });
 });

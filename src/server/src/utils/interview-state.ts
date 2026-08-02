@@ -111,3 +111,67 @@ export function questionModeForStep(step: NextStep): QuestionMode | null {
 export function isTurnWithinLimit(turnIndex: number, maxTurns: number): boolean {
   return turnIndex >= 1 && turnIndex <= Math.min(maxTurns, MAX_TURNS_PER_CONCEPT);
 }
+
+// --- AE-05 / AE-06: Flashcard fallback stepping ------------------------------------------
+
+/** AE-06: at most 2 pre-generated flashcard questions per concept (R01 cost limit). */
+export const MAX_CACHED_QUESTIONS_PER_CONCEPT = 2;
+
+/** What the fallback flow does next for the current concept (UC-12). */
+export type FallbackStep =
+  | { type: 'ask_cached'; cacheIndex: number }
+  | { type: 'finish_concept' }
+  | { type: 'no_cache_available' };
+
+export interface FallbackStateInput {
+  /** How many `question_cache` rows exist for the current concept (capped upstream at 2). */
+  cachedQuestionCount: number;
+  /** Turns already asked for this concept in this session, whatever their `source`. */
+  conceptTurnsServed: number;
+  /** The session's own C6 limit — the fallback path may not exceed it either. */
+  maxTurns: number;
+}
+
+/**
+ * AE-05's flashcard-fallback stepping (UC-12): linear and deterministic. Unlike `decideNextStep`,
+ * this never looks at a `deep`/`shallow`/`wrong` verdict — a concept in fallback mode always asks
+ * every cached question it has, in order, then finishes, whatever the student self-graded.
+ *
+ * `conceptTurnsServed` doubles as the 0-based index into the concept's cached rows (ordered by
+ * `generatedAt`) — same "re-derive from what's stored" philosophy as `decideNextStep`, so a
+ * resumed session picks up the same cached question a crashed request was about to serve.
+ */
+export function resolveFallbackStep({
+  cachedQuestionCount,
+  conceptTurnsServed,
+  maxTurns,
+}: FallbackStateInput): FallbackStep {
+  // UC-12 E1: this concept has never had a question served (AI or cache) and there is nothing
+  // cached to fall back to either. Distinct from "cache ran out after one question" below.
+  if (conceptTurnsServed === 0 && cachedQuestionCount === 0) {
+    return { type: 'no_cache_available' };
+  }
+
+  const effectiveLimit = Math.min(cachedQuestionCount, maxTurns, MAX_CACHED_QUESTIONS_PER_CONCEPT);
+  if (conceptTurnsServed < effectiveLimit) {
+    return { type: 'ask_cached', cacheIndex: conceptTurnsServed };
+  }
+  return { type: 'finish_concept' };
+}
+
+/** AE-05: what the student picked when self-grading a flashcard. */
+export type SelfGrade = 'correct' | 'partial' | 'wrong';
+
+/** Hard-coded mapping (UC-04 UC-12 step 5) — no free-form score input is ever allowed. */
+export const SELF_GRADE_SCORE: Record<SelfGrade, number> = {
+  correct: 1,
+  partial: 0.5,
+  wrong: 0,
+};
+
+/** Keeps the transcript's verdict column populated for a self-graded turn. */
+export const SELF_GRADE_VERDICT: Record<SelfGrade, Verdict> = {
+  correct: 'deep',
+  partial: 'shallow',
+  wrong: 'wrong',
+};

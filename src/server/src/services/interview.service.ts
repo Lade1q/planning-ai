@@ -13,7 +13,7 @@ import {
 } from './gemini.service';
 import { finalizeConceptResult, type FinalizeConceptResultOutput } from './concept-result.service';
 import { getReviewQueueForPlan } from './scheduling.service';
-import type { QuestionMode } from '../schemas/ai-interview.schema';
+import type { QuestionMode, QuestionType } from '../schemas/ai-interview.schema';
 import type { CreateInterviewInput } from '../schemas/interview.schema';
 import {
   DEFAULT_CONCEPTS_PER_SESSION,
@@ -21,6 +21,11 @@ import {
   decideNextStep,
   isTurnWithinLimit,
   questionModeForStep,
+  resolveFallbackStep,
+  MAX_CACHED_QUESTIONS_PER_CONCEPT,
+  SELF_GRADE_SCORE,
+  SELF_GRADE_VERDICT,
+  type SelfGrade,
 } from '../utils/interview-state';
 import { UPLOAD_DIR, resolveMaterialSource } from '../utils/material';
 import type {
@@ -65,6 +70,8 @@ const FALLBACK_GRADING_MESSAGE =
 const FALLBACK_QUESTION_MESSAGE =
   'AI tạm thời không sinh được câu hỏi tiếp theo. Hãy mở lại phiên sau giây lát để tiếp tục.';
 const NO_CONCEPTS_MESSAGE = 'Không có khái niệm nào cần ôn tập trong kế hoạch này.';
+const NO_CACHE_MESSAGE =
+  'Không thể chuyển sang chế độ Flashcard do chưa có câu hỏi sẵn. Vui lòng thử lại sau khi AI khả dụng.';
 
 // --- Row shapes -------------------------------------------------------------------------
 
@@ -223,8 +230,12 @@ const MOCK_MATERIAL: AiMaterial = { kind: 'text', text: '[mock material]' };
  * The plan's source document, as the two interview AI calls take it. Cached per plan by
  * `getPlanMaterial` (#114) — Sprint 4 re-sends the whole document every turn, and re-uploading
  * it each time would be both slow and wasteful.
+ *
+ * Exported for `question-cache.service.ts` (AE-06/I6.4): pregeneration needs the exact same
+ * material a live interview turn would use, and reuses this module's `getPlanMaterial` cache
+ * rather than uploading the document a second time.
  */
-async function loadMaterial(planId: string): Promise<AiMaterial> {
+export async function loadMaterial(planId: string): Promise<AiMaterial> {
   if (process.env.USE_MOCK_AI === 'true') {
     return MOCK_MATERIAL;
   }
@@ -338,6 +349,16 @@ function isUniqueViolation(error: unknown): boolean {
 /** Gemini failures arrive as `AI_*` AppErrors (#114); those are survivable, other errors are bugs. */
 function isAiFailure(error: unknown): boolean {
   return error instanceof AppError && (error.code?.startsWith('AI_') ?? false);
+}
+
+/**
+ * `question_cache.questionType` is an unconstrained `String?` column (unlike `InterviewTurn`'s
+ * `QuestionType` enum column), so a cached row's value is narrowed rather than cast — a bad or
+ * stale value (the enum has changed before, e.g. seed data once wrote `'open_ended'`) becomes
+ * `null` instead of a rejected insert or a silently wrong enum value.
+ */
+function toQuestionType(value: string | null): QuestionType | null {
+  return value === 'recall' || value === 'application' || value === 'why' ? value : null;
 }
 
 /** The turns already asked about this concept, so 'deeper'/'probe' can build on them. */
@@ -509,6 +530,13 @@ async function advanceToNextQuestion(
     return { view: { ...view, session }, question: null, completed, fallback: null };
   }
 
+  // Once fallbackMode is set, no code path below this line may run for the rest of the
+  // session (#115 / AE-05): a concept switch, a resume, a retry must all keep re-entering
+  // this branch rather than trying Gemini again just because it happens to be reachable now.
+  if (view.session.fallbackMode) {
+    return advanceFallback(view, concept, completed);
+  }
+
   const lastGraded = view.conceptTurns[view.conceptTurns.length - 1] ?? null;
   let mode: QuestionMode = 'initial';
 
@@ -548,6 +576,103 @@ async function advanceToNextQuestion(
       completed,
       fallback: { reason: 'question_unavailable', message: FALLBACK_QUESTION_MESSAGE },
     };
+  }
+}
+
+/**
+ * `advanceToNextQuestion`'s fallback-mode counterpart (AE-05 / I6.4): serves the concept's
+ * pre-generated cache instead of calling Gemini, and never falls back to `decideNextStep`'s
+ * deep/shallow/wrong branching — a flashcard concept always asks every cached question it has,
+ * in order, then finishes, whatever the student self-graded (confirmed product decision).
+ */
+async function advanceFallback(
+  view: SessionView,
+  concept: { id: string; name: string },
+  completed: ConceptCompletedResponse[]
+): Promise<AdvanceResult> {
+  const cached = await prisma.questionCache.findMany({
+    where: { conceptId: concept.id },
+    orderBy: { generatedAt: 'asc' },
+    take: MAX_CACHED_QUESTIONS_PER_CONCEPT,
+  });
+
+  const step = resolveFallbackStep({
+    cachedQuestionCount: cached.length,
+    conceptTurnsServed: view.conceptTurns.length,
+    maxTurns: view.session.maxTurnsPerConcept,
+  });
+
+  if (step.type === 'finish_concept') {
+    const conceptCompleted = await finishConcept(view, concept);
+    const fresh = await reloadView(view.session.id, view.session.userId);
+    // Not advanceFallback: fallbackMode is still true on the reloaded session, so the next
+    // concept re-enters advanceToNextQuestion's fallback branch and gets its own cache check
+    // instead of inheriting this concept's exhausted cache.
+    return advanceToNextQuestion(fresh, [...completed, conceptCompleted]);
+  }
+
+  const cacheRow = step.type === 'ask_cached' ? cached[step.cacheIndex] : undefined;
+  if (step.type === 'no_cache_available' || !cacheRow) {
+    // UC-12 E1: this concept never had a question served (AI or cache) and none is cached
+    // either. End the session gracefully rather than leaving the student with nothing to
+    // answer — the `!cacheRow` arm only guards resolveFallbackStep's own invariant (an index
+    // it just derived from `cached.length`), it is not expected to be reachable in practice.
+    const session = await completeSession(view.session);
+    return {
+      view: { ...view, session },
+      question: null,
+      completed,
+      fallback: { reason: 'no_cached_questions', message: NO_CACHE_MESSAGE },
+    };
+  }
+
+  const turn = await askCachedQuestion(view, concept, view.conceptTurns.length + 1, cacheRow);
+  const fresh = await reloadView(view.session.id, view.session.userId);
+  return { view: fresh, question: toQuestionResponse(turn), completed, fallback: null };
+}
+
+/**
+ * Creates the session's next turn from a pre-generated cache row instead of calling Gemini.
+ * Mirrors `askQuestion`'s C6 limit check and P2002 race handling exactly (audit A2) — the only
+ * difference is where the question text/type come from.
+ */
+async function askCachedQuestion(
+  view: SessionView,
+  concept: { id: string; name: string },
+  turnIndex: number,
+  cacheRow: { questionText: string; questionType: string | null }
+): Promise<TurnRow> {
+  const { session } = view;
+
+  if (!isTurnWithinLimit(turnIndex, session.maxTurnsPerConcept)) {
+    throw new AppError(
+      `Turn ${turnIndex} exceeds the limit of ${session.maxTurnsPerConcept} turns per concept`,
+      409,
+      'TURN_LIMIT_REACHED'
+    );
+  }
+
+  const identity = { sessionId: session.id, conceptId: concept.id, turnIndex };
+
+  try {
+    return await prisma.interviewTurn.create({
+      data: {
+        ...identity,
+        questionText: cacheRow.questionText,
+        questionType: toQuestionType(cacheRow.questionType),
+        source: 'cache_fallback',
+      },
+      select: turnSelect,
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+
+    const existing = await prisma.interviewTurn.findUnique({
+      where: { sessionId_conceptId_turnIndex: identity },
+      select: turnSelect,
+    });
+    if (!existing) throw error;
+    return existing;
   }
 }
 
@@ -686,14 +811,14 @@ export async function getInterview(
 }
 
 /**
- * POST /interviews/:id/answers — AE-02, the endpoint the whole session runs on:
- * grade → state machine → next question, or the end of a concept, or the end of the session.
+ * Loads a session that is ready to receive an answer of either kind (AI text or self-grade),
+ * shared by `submitAnswer` and `submitSelfGrade` — both need the exact same status/pending
+ * checks, only what they do with the pending turn differs.
  */
-export async function submitAnswer(
+async function loadPendingTurnForAnswering(
   sessionId: string,
-  userId: string,
-  answerText: string
-): Promise<SubmitAnswerResponse> {
+  userId: string
+): Promise<{ view: SessionView; concept: { id: string; name: string }; pending: TurnRow }> {
   const session = await loadSession(sessionId, userId);
 
   if (session.status === 'paused') {
@@ -718,6 +843,31 @@ export async function submitAnswer(
     );
   }
 
+  return { view, concept, pending };
+}
+
+/**
+ * POST /interviews/:id/answers — AE-02, the endpoint the whole session runs on:
+ * grade → state machine → next question, or the end of a concept, or the end of the session.
+ */
+export async function submitAnswer(
+  sessionId: string,
+  userId: string,
+  answerText: string
+): Promise<SubmitAnswerResponse> {
+  const { view, concept, pending } = await loadPendingTurnForAnswering(sessionId, userId);
+
+  if (view.session.fallbackMode) {
+    // Once in fallback mode a session must not flip back to AI grading (#115 / AE-05) — the
+    // client is expected to submit `selfGrade` instead of `answerText` from here on.
+    throw new AppError(
+      'This session is in flashcard fallback mode; submit a selfGrade instead of an answer',
+      409,
+      'FALLBACK_MODE_ACTIVE'
+    );
+  }
+
+  const session = view.session;
   const now = new Date();
   const staleBefore = new Date(now.getTime() - ANSWER_CLAIM_STALE_MS);
 
@@ -797,8 +947,10 @@ async function replayAnswer(
 
   return {
     session: toSessionState(view),
+    // `feedback` alone can't tell "not graded yet" from "self-graded" (self-grading legitimately
+    // leaves it `null`) — `verdict` is the field both AI grading and self-grading always set.
     grading:
-      turn.score !== null && turn.feedback !== null
+      turn.score !== null && turn.verdict !== null
         ? { score: turn.score, feedback: turn.feedback, verdict: turn.verdict }
         : null,
     gradedTurnId: turn.id,
@@ -839,6 +991,65 @@ async function gradingUnavailable(
     sessionCompleted: false,
     replayed: false,
     fallback: { reason: 'grading_unavailable', message: FALLBACK_GRADING_MESSAGE },
+  };
+}
+
+/**
+ * POST /interviews/:id/answers in fallback mode — AE-05, UC-12 step 4-6. Grades whatever turn is
+ * pending against the hard-coded self-grade mapping, whatever that turn's `source`: a turn left
+ * pending by `gradingUnavailable()` (AI-authored, grading failed) is self-graded here too, since
+ * a fallback session must never send it back to Gemini for grading.
+ */
+export async function submitSelfGrade(
+  sessionId: string,
+  userId: string,
+  selfGrade: SelfGrade
+): Promise<SubmitAnswerResponse> {
+  const { view, pending } = await loadPendingTurnForAnswering(sessionId, userId);
+
+  if (!view.session.fallbackMode) {
+    throw new AppError(
+      'Self-grading is only available once this session is in flashcard fallback mode',
+      409,
+      'NOT_IN_FALLBACK_MODE'
+    );
+  }
+
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - ANSWER_CLAIM_STALE_MS);
+
+  const claim = await prisma.interviewTurn.updateMany({
+    where: {
+      id: pending.id,
+      verdict: null,
+      OR: [{ answeredAt: null }, { answeredAt: { lt: staleBefore } }],
+    },
+    data: { answeredAt: now },
+  });
+
+  if (claim.count === 0) {
+    return replayAnswer(sessionId, userId, pending.id);
+  }
+
+  const score = SELF_GRADE_SCORE[selfGrade];
+  const verdict = SELF_GRADE_VERDICT[selfGrade];
+
+  await prisma.interviewTurn.update({
+    where: { id: pending.id },
+    data: { score, verdict },
+  });
+
+  const advance = await advanceToNextQuestion(await reloadView(sessionId, userId));
+
+  return {
+    session: toSessionState(advance.view),
+    grading: { score, feedback: null, verdict },
+    gradedTurnId: pending.id,
+    nextQuestion: advance.question,
+    conceptCompleted: advance.completed[0] ?? null,
+    sessionCompleted: advance.view.session.status === 'completed',
+    replayed: false,
+    fallback: advance.fallback,
   };
 }
 

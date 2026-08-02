@@ -5,11 +5,13 @@ import {
   resumeInterview,
   startInterview,
   submitAnswer,
+  submitSelfGrade,
 } from '../services/interview.service';
 import {
   createInterviewSchema,
   interviewIdParamSchema,
   submitAnswerSchema,
+  submitSelfGradeSchema,
 } from '../schemas/interview.schema';
 import { AppError } from '../middleware/errorHandler';
 
@@ -60,8 +62,10 @@ export async function getInterviewController(req: Request, res: Response): Promi
 }
 
 /**
- * POST /api/v1/interviews/:id/answers — AE-02.
- * Grades the answer, runs the state machine, and returns what happens next.
+ * POST /api/v1/interviews/:id/answers — AE-02, or AE-05's flashcard self-grade when the body
+ * carries `selfGrade` instead of `answerText`. Routed on the body's own shape, before either
+ * schema is parsed — `fallbackMode` itself isn't known until the session loads, so which schema
+ * applies has to come from what the client actually sent, not from session state read here.
  */
 export async function submitAnswerController(req: Request, res: Response): Promise<void> {
   if (!req.userId) {
@@ -69,8 +73,15 @@ export async function submitAnswerController(req: Request, res: Response): Promi
   }
 
   const { id } = interviewIdParamSchema.parse(req.params);
-  const { answerText } = submitAnswerSchema.parse(req.body);
 
+  if (typeof req.body?.selfGrade === 'string') {
+    const { selfGrade } = submitSelfGradeSchema.parse(req.body);
+    const result = await submitSelfGrade(id, req.userId, selfGrade);
+    res.status(200).json({ success: true, data: result });
+    return;
+  }
+
+  const { answerText } = submitAnswerSchema.parse(req.body);
   const result = await submitAnswer(id, req.userId, answerText);
 
   res.status(200).json({

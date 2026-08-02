@@ -50,6 +50,24 @@ export const submitAnswerSchema = z.object({
 export type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>;
 
 /**
+ * POST /interviews/:id/answers in flashcard fallback mode — AE-05. Hard-coded self-grade only;
+ * no free-form score is ever accepted (UC-12 step 5).
+ *
+ * `.strict()` so a body accidentally carrying both `answerText` and `selfGrade` is rejected by
+ * Zod with a clear validation error rather than the controller silently picking one field over
+ * the other (see the routing in `interview.controller.ts`).
+ */
+export const submitSelfGradeSchema = z
+  .object({
+    selfGrade: z.enum(['correct', 'partial', 'wrong'], {
+      message: 'selfGrade must be one of: correct, partial, wrong',
+    }),
+  })
+  .strict();
+
+export type SubmitSelfGradeInput = z.infer<typeof submitSelfGradeSchema>;
+
+/**
  * Params dùng chung cho mọi route /interviews/:id — `InterviewSession.id` là `@db.Uuid` trong
  * Prisma nên một `id` không phải UUID sẽ ném `P2023` (chưa được errorHandler map → rớt xuống
  * 500) nếu không chặn ở đây trước khi gọi service. Cùng lớp lỗi #165/#191 đã vá cho /plans và
