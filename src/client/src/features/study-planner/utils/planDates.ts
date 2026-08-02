@@ -38,12 +38,11 @@ export function formatDeadlineShort(deadline: string): string {
 export function formatDeadlineFull(deadline: string): string {
   const date = new Date(deadline);
   if (Number.isNaN(date.getTime())) return '';
-  const day = date.getUTCDate();
-  const month = date.getUTCMonth() + 1;
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const year = date.getUTCFullYear();
   return `${day}/${month}/${year}`;
 }
-
 
 /**
  * Whole days from today to the deadline. `0` is today, negative means overdue.

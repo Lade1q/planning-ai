@@ -45,7 +45,7 @@ function SpinIcon() {
       stroke="currentColor"
       strokeWidth="1.9"
       strokeLinecap="round"
-      className="animate-spin animation-duration-[900ms]"
+      className="animate-spin [animation-duration:900ms]"
     >
       <circle cx="12" cy="12" r="9" opacity="0.3" />
       <path d="M21 12a9 9 0 0 0-9-9" />
