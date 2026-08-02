@@ -1,4 +1,8 @@
-import { createPlanSchema, planIdParamSchema } from '../schemas/plan.schema';
+import {
+  conceptDetailParamsSchema,
+  createPlanSchema,
+  planIdParamSchema,
+} from '../schemas/plan.schema';
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -87,5 +91,34 @@ describe('planIdParamSchema', () => {
 
   it('rejects a UUID missing a segment', () => {
     expect(() => planIdParamSchema.parse({ id: '11111111-1111-4111-8111' })).toThrow();
+  });
+});
+
+// Route lồng GET /plans/:id/concepts/:conceptId — cả hai param đều là @db.Uuid, nên đều phải
+// chặn P2023→500 (cùng lỗi PR #191 đã vá cho các route /plans khác, xem concept.controller.ts).
+describe('conceptDetailParamsSchema', () => {
+  const validPlanId = '11111111-1111-4111-8111-111111111111';
+  const validConceptId = '22222222-2222-4222-8222-222222222222';
+
+  it('accepts a pair of valid UUIDs', () => {
+    expect(() =>
+      conceptDetailParamsSchema.parse({ id: validPlanId, conceptId: validConceptId })
+    ).not.toThrow();
+  });
+
+  it('rejects a non-UUID plan id', () => {
+    expect(() =>
+      conceptDetailParamsSchema.parse({ id: 'plan-uuid', conceptId: validConceptId })
+    ).toThrow();
+  });
+
+  it('rejects a non-UUID conceptId', () => {
+    expect(() =>
+      conceptDetailParamsSchema.parse({ id: validPlanId, conceptId: 'concept-uuid' })
+    ).toThrow();
+  });
+
+  it('rejects a missing conceptId', () => {
+    expect(() => conceptDetailParamsSchema.parse({ id: validPlanId })).toThrow();
   });
 });

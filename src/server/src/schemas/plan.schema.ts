@@ -45,3 +45,12 @@ export type UpdatePlanStatusInput = z.infer<typeof updatePlanStatusSchema>;
 export const planIdParamSchema = z.object({
   id: z.string().uuid('Plan ID must be a valid UUID'),
 });
+
+/**
+ * Params cho route lồng GET /plans/:id/concepts/:conceptId (DB-06, Issue #168). `conceptId`
+ * cũng là @db.Uuid nên mang đúng rủi ro P2023→500 như `id`; validate cả hai trước khi chạm
+ * Prisma. Kế thừa planIdParamSchema để dùng lại y hệt thông điệp lỗi cho `id`.
+ */
+export const conceptDetailParamsSchema = planIdParamSchema.extend({
+  conceptId: z.string().uuid('Concept ID must be a valid UUID'),
+});

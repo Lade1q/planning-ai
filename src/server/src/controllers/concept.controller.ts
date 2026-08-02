@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getConceptDetail } from '../services/concept-detail.service';
+import { conceptDetailParamsSchema } from '../schemas/plan.schema';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -12,12 +13,11 @@ export async function getConceptDetailController(req: Request, res: Response): P
     throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
   }
 
-  // mergeParams on the router makes `id` (the plan) visible alongside `conceptId` here —
-  // same pattern as graph.routes.ts.
-  const { id, conceptId } = req.params;
-  if (!id || typeof id !== 'string' || !conceptId || typeof conceptId !== 'string') {
-    throw new AppError('Plan ID and Concept ID are required', 400, 'BAD_REQUEST');
-  }
+  // mergeParams on the router makes `id` (the plan) visible alongside `conceptId` here.
+  // Cả hai đều là @db.Uuid: validate UUID trước khi chạm Prisma, nếu không một id sai định
+  // dạng ném P2023 chưa được map → 500 thay vì 400 (đúng lỗi PR #191 đã vá cho các route
+  // /plans khác). ZodError của .parse() được errorHandler map sẵn về 400.
+  const { id, conceptId } = conceptDetailParamsSchema.parse(req.params);
 
   const concept = await getConceptDetail(id, conceptId, req.userId);
 
