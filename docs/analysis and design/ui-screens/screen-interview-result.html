@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recall AI — Kết quả phiên kiểm tra</title>
+  <meta name="description" content="Tổng kết phiên vấn đáp: biểu đồ điểm, nhận xét AI, đề xuất ôn lại." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <style>
+    /* ─── Reset ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: var(--font-sans); }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── Page Shell ─── */
+    .page {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: var(--background);
+    }
+
+    /* ─── Top Bar ─── */
+    .top-bar {
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 32px; height: 56px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .top-bar__logo {
+      font-family: var(--font-heading); font-size: 17px;
+      letter-spacing: -0.02em; color: var(--foreground); flex-shrink: 0;
+    }
+    .top-bar__sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .top-bar__breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--muted-foreground); min-width: 0;
+    }
+    .top-bar__breadcrumb a:hover { color: var(--foreground); }
+    .top-bar__breadcrumb .crumb-sep { opacity: 0.4; }
+    .top-bar__right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .session-meta {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--muted-foreground); white-space: nowrap;
+    }
+    .demo-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.03em;
+      padding: 4px 10px; border-radius: calc(var(--radius) * 0.6);
+      border: 1px dashed var(--border); background: transparent;
+      color: var(--muted-foreground);
+      transition: color var(--duration-fast) var(--ease-standard),
+                  border-color var(--duration-fast) var(--ease-standard);
+    }
+    .demo-btn:hover { color: var(--foreground); border-color: var(--muted-foreground); }
+    .demo-btn--active {
+      border-color: var(--mastery-weak);
+      color: var(--mastery-weak);
+      background: oklch(from var(--mastery-weak) l c h / 0.07);
+    }
+
+    /* ─── Content ─── */
+    .content {
+      max-width: 960px; margin: 0 auto; padding: 36px 32px 64px; width: 100%;
+    }
+
+    .result-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; margin-bottom: 28px;
+    }
+    .result-header__title {
+      font-family: var(--font-heading); font-size: 26px; letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .result-header__sub {
+      font-size: 13.5px; color: var(--muted-foreground);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .result-header__sub .dot { opacity: 0.35; }
+
+    /* ─── Score Chips ─── */
+    .score-chips { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+    .score-chip {
+      display: flex; flex-direction: column; gap: 2px;
+      padding: 12px 18px; border-radius: calc(var(--radius) * 1.1);
+      border: 1px solid var(--border); background: var(--card);
+    }
+    .score-chip__val {
+      font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .score-chip__label { font-size: 12px; color: var(--muted-foreground); }
+
+    /* ─── 2-col main grid ─── */
+    .main-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      margin-bottom: 28px; align-items: start;
+    }
+    @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.35);
+      background: var(--card); overflow: hidden;
+    }
+    .panel__head {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .panel__title {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--muted-foreground);
+    }
+    .panel__body { padding: 20px; }
+
+    /* ─── Bar Chart ─── */
+    .chart-wrap { padding: 20px 20px 0; }
+    .chart-outer { display: flex; gap: 0; }
+    .chart-yaxis {
+      display: flex; flex-direction: column; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground);
+      padding: 0 8px 28px 0; height: 160px; flex-shrink: 0; text-align: right;
+    }
+    .chart {
+      flex: 1; display: flex; align-items: flex-end; gap: 10px;
+      height: 160px; position: relative; padding-bottom: 28px;
+    }
+    .chart::before {
+      content: ''; position: absolute; left: 0; right: 0; top: 0;
+      border-top: 1px dashed var(--border); pointer-events: none;
+    }
+    .chart::after {
+      content: ''; position: absolute; left: 0; right: 0; top: 50%;
+      border-top: 1px dashed var(--border); pointer-events: none;
+    }
+    .chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .chart__bar-wrap { width: 100%; flex: 1; display: flex; align-items: flex-end; }
+    .chart__bar {
+      width: 100%;
+      border-radius: calc(var(--radius) * 0.5) calc(var(--radius) * 0.5) 0 0;
+      transition: filter var(--duration-fast) var(--ease-standard);
+      cursor: pointer; position: relative;
+    }
+    .chart__bar:hover { filter: brightness(1.12); }
+    .chart__bar--strong  { background: var(--mastery-strong); }
+    .chart__bar--learning{ background: var(--mastery-learning); }
+    .chart__bar--weak    { background: var(--mastery-weak); }
+
+    /* Tooltip */
+    .chart__tooltip {
+      display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%);
+      background: var(--foreground); color: var(--background);
+      font-size: 11px; font-family: var(--font-mono);
+      padding: 7px 11px; border-radius: calc(var(--radius) * 0.6);
+      white-space: nowrap; z-index: 30; pointer-events: none; line-height: 1.7;
+    }
+    .chart__tooltip::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: var(--foreground);
+    }
+    .chart__bar:hover .chart__tooltip { display: block; }
+    .chart__label {
+      font-size: 11px; color: var(--muted-foreground); text-align: center;
+      padding-top: 8px; max-width: 100%; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .chart__avg-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 2px dashed var(--muted-foreground); opacity: 0.35;
+      pointer-events: none;
+    }
+
+    /* Concept table */
+    .concept-table { width: 100%; border-collapse: collapse; }
+    .concept-table td {
+      padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 13.5px;
+    }
+    .concept-table tr:last-child td { border-bottom: 0; }
+    .concept-table td:last-child { text-align: right; }
+    .concept-score { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+    /* ─── AI Summary ─── */
+    .ai-block {
+      border-radius: calc(var(--radius) * 1.2);
+      border: 1px solid oklch(from var(--ai-accent) l c h / 0.3);
+      background: oklch(from var(--ai-accent) l c h / 0.06);
+      padding: 18px 20px;
+    }
+    .ai-block__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .ai-tag {
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 2px 8px;
+      border: 1px solid oklch(from var(--ai-accent) l c h / 0.4);
+      border-radius: 4px; color: var(--ai-accent); background: transparent;
+    }
+    .ai-block__text { font-size: 14px; line-height: 1.75; color: var(--foreground); }
+    .ai-block__foot {
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid oklch(from var(--ai-accent) l c h / 0.2);
+      font-size: 11.5px; color: var(--muted-foreground); font-family: var(--font-mono);
+    }
+
+    /* Fallback */
+    .warn-block {
+      border-radius: calc(var(--radius) * 1.2);
+      border: 1px solid oklch(from var(--mastery-learning) l c h / 0.35);
+      background: oklch(from var(--mastery-learning) l c h / 0.07);
+      padding: 16px 18px; display: flex; gap: 12px; align-items: flex-start;
+    }
+    .warn-block__icon { flex-shrink: 0; color: var(--mastery-learning); margin-top: 1px; }
+    .warn-block__text { font-size: 13.5px; line-height: 1.6; }
+    .warn-block__text p { margin-bottom: 5px; }
+    .warn-block__text small { font-size: 12px; color: var(--muted-foreground); }
+
+    /* ─── Section separator ─── */
+    .section-head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .section-head__label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--muted-foreground); white-space: nowrap;
+    }
+    .section-head__line { flex: 1; height: 1px; background: var(--border); }
+
+    /* ─── Traceback (AE-08) ─── */
+    .traceback-zone { margin-bottom: 28px; }
+    .traceback-card {
+      border: 1px solid oklch(from var(--remediate) l c h / 0.35);
+      border-radius: calc(var(--radius) * 1.35);
+      background: var(--card); overflow: hidden; margin-bottom: 16px;
+    }
+    .traceback-card__head {
+      padding: 16px 20px;
+      background: oklch(from var(--remediate) l c h / 0.07);
+      border-bottom: 1px solid oklch(from var(--remediate) l c h / 0.2);
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .tb-tag {
+      flex-shrink: 0; font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 4px;
+      border: 1px solid oklch(from var(--remediate) l c h / 0.45);
+      color: var(--remediate); background: transparent; margin-top: 2px;
+    }
+    .traceback-card__title { font-size: 14px; font-weight: 600; line-height: 1.55; margin-bottom: 4px; }
+    .traceback-card__title .weak-score { color: var(--mastery-weak); font-family: var(--font-mono); font-weight: 500; }
+    .traceback-card__sub { font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
+
+    .prereq-list { border-top: 1px solid var(--border); }
+    .prereq-row {
+      display: grid; grid-template-columns: 1fr auto;
+      align-items: center; gap: 16px;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      transition: background var(--duration-fast) var(--ease-standard);
+    }
+    .prereq-row:last-child { border-bottom: 0; }
+    .prereq-row.is-added { background: oklch(from var(--mastery-strong) l c h / 0.05); }
+    .prereq-row.is-skipped { opacity: 0.45; }
+
+    .prereq-info { min-width: 0; }
+    .prereq-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .prereq-name--skipped { text-decoration: line-through; color: var(--muted-foreground); }
+    .prereq-meta { font-size: 12px; color: var(--muted-foreground); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .prereq-meta .dot { opacity: 0.35; }
+
+    .prereq-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .act-add, .act-skip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12.5px; font-weight: 500; padding: 6px 12px;
+      border-radius: calc(var(--radius) * 0.65); border: 1px solid;
+      transition: all var(--duration-fast) var(--ease-standard); white-space: nowrap;
+    }
+    .act-add {
+      color: var(--mastery-strong); background: transparent;
+      border-color: oklch(from var(--mastery-strong) l c h / 0.4);
+    }
+    .act-add:hover:not(:disabled) { background: oklch(from var(--mastery-strong) l c h / 0.1); }
+    .act-add:disabled { opacity: 0.5; cursor: not-allowed; }
+    .act-skip {
+      color: var(--muted-foreground); background: transparent; border-color: var(--border);
+    }
+    .act-skip:hover:not(:disabled) { color: var(--foreground); border-color: var(--muted-foreground); }
+    .act-skip:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .prereq-resolved {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12.5px; font-weight: 500; padding: 6px 12px;
+      border-radius: calc(var(--radius) * 0.65); white-space: nowrap;
+    }
+    .prereq-resolved--added { color: var(--mastery-strong); background: oklch(from var(--mastery-strong) l c h / 0.12); }
+    .prereq-resolved--skipped { color: var(--muted-foreground); }
+
+    .traceback-card__footer {
+      padding: 12px 20px; background: var(--muted);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .resolved-notice {
+      display: none; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--mastery-strong); font-weight: 500;
+    }
+    .resolved-notice.is-visible { display: flex; }
+
+    /* ─── CTA ─── */
+    .cta-zone { margin-bottom: 28px; }
+    .cta-card {
+      border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.35);
+      background: var(--card); padding: 28px 28px 24px;
+    }
+    .cta-card__title { font-family: var(--font-heading); font-size: 20px; margin-bottom: 6px; }
+    .cta-card__sub { font-size: 13.5px; color: var(--muted-foreground); margin-bottom: 22px; line-height: 1.55; }
+    .cta-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .cta-sched { font-size: 12.5px; color: var(--muted-foreground); display: flex; align-items: center; gap: 8px; }
+
+    /* ─── Toast ─── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: var(--foreground); color: var(--background);
+      padding: 12px 18px; border-radius: calc(var(--radius) * 0.9);
+      font-size: 13.5px; max-width: 320px;
+      opacity: 0; transform: translateY(8px); pointer-events: none;
+      transition: opacity var(--duration-normal) var(--ease-standard),
+                  transform var(--duration-normal) var(--ease-standard);
+    }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Fade-in ─── */
+    .fade-in { animation: fadeIn 300ms var(--ease-standard) both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- ── Top Bar ── -->
+    <header class="top-bar">
+      <span class="top-bar__logo">Recall AI</span>
+      <span class="top-bar__sep"></span>
+      <nav class="top-bar__breadcrumb" aria-label="Breadcrumb">
+        <a href="screen-dashboard.html">Dashboard</a>
+        <span class="crumb-sep">›</span>
+        <span id="breadPlan">—</span>
+        <span class="crumb-sep">›</span>
+        <span>Kết quả phiên</span>
+      </nav>
+      <div class="top-bar__right">
+        <span class="session-meta" id="sessionMeta">—</span>
+        <button class="demo-btn" id="demoFallbackBtn" onclick="toggleFallback()"
+          title="Mô phỏng AI lỗi để xem fallback UI">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Mô phỏng AI lỗi
+        </button>
+        <a href="screen-dashboard.html" class="btn btn-ghost" style="padding:6px 14px;font-size:13px;">
+          ← Dashboard
+        </a>
+      </div>
+    </header>
+
+    <!-- ── Main Content ── -->
+    <main class="content">
+
+      <!-- Page Header -->
+      <div class="result-header">
+        <div>
+          <h1 class="result-header__title">Kết quả phiên kiểm tra</h1>
+          <div class="result-header__sub">
+            <span id="headerPlan">—</span>
+            <span class="dot">·</span>
+            <span id="headerDate">—</span>
+            <span class="dot">·</span>
+            <span id="headerDuration">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score Chips -->
+      <div class="score-chips" id="scoreChips"></div>
+
+      <!-- 2-col: Chart + AI Summary -->
+      <div class="main-grid">
+
+        <!-- Chart Panel -->
+        <div class="panel">
+          <div class="panel__head">
+            <span class="panel__title">Điểm từng khái niệm</span>
+            <span id="chartMeta" style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);"></span>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-outer">
+              <div class="chart-yaxis" aria-hidden="true">
+                <span>1.0</span>
+                <span>0.5</span>
+                <span>0.0</span>
+              </div>
+              <div class="chart" id="barChart" role="img" aria-label="Biểu đồ điểm khái niệm trong phiên"></div>
+            </div>
+          </div>
+          <table class="concept-table" id="conceptTable" aria-label="Bảng điểm chi tiết">
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- AI Summary Panel -->
+        <div class="panel">
+          <div class="panel__head">
+            <span class="panel__title">Nhận xét AI</span>
+            <span class="ai-tag">AE-09</span>
+          </div>
+          <div class="panel__body" id="aiSummaryBody"></div>
+        </div>
+
+      </div>
+
+      <!-- ── Traceback Block (AE-08) ── -->
+      <div class="traceback-zone" id="tracebackZone">
+        <div class="section-head">
+          <span class="section-head__label">Đề xuất ôn lại (AE-08)</span>
+          <span class="section-head__line"></span>
+        </div>
+        <div id="tracebackList"></div>
+      </div>
+
+      <!-- ── CTA ── -->
+      <div class="cta-zone">
+        <div class="cta-card">
+          <h2 class="cta-card__title">Tiếp tục học hôm nay</h2>
+          <p class="cta-card__sub">Hệ thống đã cập nhật lịch ôn tập dựa trên kết quả vừa rồi. Phiên tiếp theo sẽ ưu tiên các khái niệm nền bạn còn yếu.</p>
+          <div class="cta-actions">
+            <button class="btn btn-primary" style="font-size:15px;padding:12px 24px;"
+              onclick="showToast('Đang khởi động phiên học tiếp theo...')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/>
+              </svg>
+              Bắt đầu phiên học tiếp theo
+            </button>
+            <a href="screen-dashboard.html" class="btn btn-secondary">Về Dashboard</a>
+            <button class="btn btn-ghost" style="font-size:13px;margin-left:auto;"
+              onclick="showToast('Đang xuất báo cáo PDF...')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>
+              </svg>
+              Xuất báo cáo PDF
+            </button>
+          </div>
+          <div class="cta-sched">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+            Phiên tiếp theo được đề xuất: <strong style="margin-left:4px;">Thứ Tư, 06/08/2026</strong>
+            <span style="opacity:.4;">·</span> dựa trên SRS spacing interval
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    //  DATA MOCK
+    // ═══════════════════════════════════════════════
+    const SESSION = {
+      id: 'ses_0802_01',
+      planName: 'Cấu trúc dữ liệu & Giải thuật',
+      date: '02/08/2026',
+      durationSeconds: 1740, // 29 phút
+      aiAvailable: true,     // ← toggle bằng nút "Mô phỏng AI lỗi" trên top bar
+      results: [
+        {
+          id: 'c3', name: 'Ngăn xếp', score: 0.42,
+          turns: [
+            { label: 'Lượt 1', score: 0.10, verdict: 'wrong'   },
+            { label: 'Lượt 2', score: 0.55, verdict: 'shallow' },
+            { label: 'Lượt 3', score: 0.42, verdict: 'shallow' },
+          ]
+        },
+        {
+          id: 'c4', name: 'Hàng đợi', score: 0.88,
+          turns: [
+            { label: 'Lượt 1', score: 0.90, verdict: 'deep' },
+          ]
+        },
+        {
+          id: 'c5', name: 'Duyệt đồ thị DFS', score: 0.71,
+          turns: [
+            { label: 'Lượt 1', score: 0.68, verdict: 'shallow' },
+            { label: 'Lượt 2', score: 0.80, verdict: 'deep'    },
+            { label: 'Lượt 3', score: 0.71, verdict: 'shallow' },
+          ]
+        },
+      ],
+      tracebacks: [
+        {
+          weak: { id: 'c3', name: 'Ngăn xếp', score: 0.42 },
+          prereqs: [
+            {
+              id: 'p1', name: 'Mảng & Con trỏ', score: 0.54,
+              reason: 'nền tảng truy cập bộ nhớ liên tiếp — ngăn xếp dựa trên vùng nhớ này',
+              state: 'pending',
+            },
+            {
+              id: 'p2', name: 'Danh sách liên kết', score: null,
+              reason: 'chưa từng kiểm tra — cần xác nhận nền tảng trước khi học cấu trúc cao hơn',
+              state: 'pending',
+            },
+          ]
+        }
+      ]
+    };
+
+    // ═══════════════════════════════════════════════
+    //  HELPERS
+    // ═══════════════════════════════════════════════
+    function verdictOf(score) {
+      if (score === null || score === undefined) return 'untested';
+      if (score >= 0.8) return 'strong';
+      if (score >= 0.6) return 'learning';
+      return 'weak';
+    }
+    function verdictLabel(v) {
+      return { strong: 'Vững', learning: 'Đang học', weak: 'Cần ôn', untested: 'Chưa kiểm tra' }[v] || v;
+    }
+    function verdictColor(v) {
+      return {
+        strong:   'var(--mastery-strong)',
+        learning: 'var(--mastery-learning)',
+        weak:     'var(--mastery-weak)',
+        untested: 'var(--muted-foreground)',
+      }[v] || 'var(--muted-foreground)';
+    }
+    function turnVerdictLabel(v) {
+      return { deep: 'Hiểu sâu', shallow: 'Nắm được', wrong: 'Cần ôn' }[v] || v;
+    }
+    function fmtDuration(sec) {
+      const m = Math.floor(sec / 60), s = sec % 60;
+      return m + ' phút' + (s > 0 ? ' ' + s + ' giây' : '');
+    }
+
+    // ═══════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════
+    function init() {
+      renderHeader();
+      renderScoreChips();
+      renderChart();
+      renderConceptTable();
+      renderAISummary();
+      renderTraceback();
+    }
+
+    // ─── Header ───────────────────────────────────
+    function renderHeader() {
+      document.getElementById('breadPlan').textContent = SESSION.planName;
+      document.getElementById('headerPlan').textContent = SESSION.planName;
+      document.getElementById('headerDate').textContent = SESSION.date;
+      document.getElementById('headerDuration').textContent = fmtDuration(SESSION.durationSeconds);
+      document.getElementById('sessionMeta').textContent =
+        SESSION.id + ' · ' + fmtDuration(SESSION.durationSeconds);
+    }
+
+    // ─── Score Chips ──────────────────────────────
+    function renderScoreChips() {
+      const r = SESSION.results;
+      const avg = r.reduce((s, c) => s + c.score, 0) / r.length;
+      const chips = [
+        { val: avg.toFixed(2), label: 'Điểm trung bình', color: verdictColor(verdictOf(avg)) },
+        { val: r.length,       label: 'Khái niệm đã kiểm tra', color: 'var(--foreground)' },
+        { val: r.filter(c => verdictOf(c.score) === 'strong').length,   label: 'Vững (≥ 0.80)', color: 'var(--mastery-strong)' },
+        { val: r.filter(c => verdictOf(c.score) === 'weak').length,     label: 'Cần ôn (< 0.60)', color: 'var(--mastery-weak)' },
+      ];
+      document.getElementById('scoreChips').innerHTML = chips.map(c => `
+        <div class="score-chip">
+          <span class="score-chip__val" style="color:${c.color}">${c.val}</span>
+          <span class="score-chip__label">${c.label}</span>
+        </div>`).join('');
+    }
+
+    // ─── Bar Chart ────────────────────────────────
+    function renderChart() {
+      const r = SESSION.results;
+      const avg = r.reduce((s, c) => s + c.score, 0) / r.length;
+      const chart = document.getElementById('barChart');
+
+      chart.innerHTML = r.map(c => {
+        const v = verdictOf(c.score);
+        const heightPct = Math.max(c.score * 100, 3);
+        const color = verdictColor(v);
+        const turnsHtml = c.turns.map(t =>
+          `${t.label}: <strong>${t.score.toFixed(2)}</strong> (${turnVerdictLabel(t.verdict)})`
+        ).join('<br>');
+
+        const barClass = v === 'strong' ? 'chart__bar--strong'
+                       : v === 'learning' ? 'chart__bar--learning'
+                       : 'chart__bar--weak';
+
+        return `
+          <div class="chart__col">
+            <div class="chart__bar-wrap">
+              <div class="chart__bar ${barClass}"
+                   style="height:${heightPct}%;"
+                   role="graphics-symbol"
+                   aria-label="${c.name}: ${c.score.toFixed(2)}">
+                <div class="chart__tooltip">
+                  <strong>${c.name}</strong><br>
+                  Tổng: <strong style="color:${color}">${c.score.toFixed(2)}</strong><br>
+                  ${turnsHtml}
+                </div>
+              </div>
+            </div>
+            <div class="chart__label" title="${c.name}">${c.name}</div>
+          </div>`;
+      }).join('');
+
+      // Average line — top% = (1 - avg) * 100, but offset for the 28px label area
+      // We work in the 132px bar area (160 - 28 for labels)
+      const barAreaH = 132;
+      const avgTopPx = (1 - avg) * barAreaH;
+      const avgLine = document.createElement('div');
+      avgLine.className = 'chart__avg-line';
+      avgLine.style.top = avgTopPx + 'px';
+      avgLine.title = 'Điểm trung bình phiên: ' + avg.toFixed(2);
+      chart.appendChild(avgLine);
+
+      document.getElementById('chartMeta').textContent = r.length + ' khái niệm · trung bình ' + avg.toFixed(2);
+    }
+
+    // ─── Concept Table ────────────────────────────
+    function renderConceptTable() {
+      const tbody = document.querySelector('#conceptTable tbody');
+      tbody.innerHTML = SESSION.results.map(c => {
+        const v = verdictOf(c.score);
+        const color = verdictColor(v);
+        return `<tr>
+          <td style="font-weight:500;">${c.name}</td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:10px;">
+              <span class="badge" style="background:oklch(from ${color} l c h / 0.14);color:${color};">${verdictLabel(v)}</span>
+              <span class="concept-score" style="color:${color}">${c.score.toFixed(2)}</span>
+            </span>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ─── AI Summary (AE-09) ───────────────────────
+    function renderAISummary() {
+      const body = document.getElementById('aiSummaryBody');
+      if (SESSION.aiAvailable) {
+        const r = SESSION.results;
+        const strongNames = r.filter(c => verdictOf(c.score) === 'strong').map(c => `<strong>${c.name}</strong>`).join(', ');
+        const weakNames   = r.filter(c => verdictOf(c.score) === 'weak').map(c => `<strong>${c.name}</strong>`).join(', ');
+        const totalTurns  = r.reduce((s, c) => s + c.turns.length, 0);
+
+        body.innerHTML = `
+          <div class="ai-block fade-in">
+            <div class="ai-block__head">
+              <span class="ai-tag">AE-09</span>
+              <span style="font-size:12px;color:var(--muted-foreground);">Nhận xét tự động</span>
+            </div>
+            <div class="ai-block__text">
+              Phiên hôm nay bạn hoàn thành <strong>${r.length} khái niệm</strong> với thời gian
+              <strong>${fmtDuration(SESSION.durationSeconds)}</strong>.
+              ${strongNames ? `Bạn nắm vững ${strongNames} — đây là nền tảng tốt để tiến vào các cấu trúc phức tạp hơn. ` : ''}
+              ${weakNames ? `Tuy nhiên, ${weakNames} vẫn còn dưới ngưỡng — nguyên nhân có thể đến từ các khái niệm tiên quyết chưa được củng cố đủ.` : ''}
+              Hệ thống đã phân tích biểu đồ tiên quyết và đề xuất lịch ôn lại ở phía dưới.
+            </div>
+            <div class="ai-block__foot">
+              Được tổng hợp từ ${totalTurns} lượt hỏi · rubric v2 · ${SESSION.date}
+            </div>
+          </div>`;
+      } else {
+        // Fallback state
+        body.innerHTML = `
+          <div class="warn-block fade-in">
+            <div class="warn-block__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <div class="warn-block__text">
+              <p><strong>Không thể tổng hợp nhận xét lúc này.</strong></p>
+              <small>AI chấm điểm tạm thời không phản hồi. Điểm số từng khái niệm đã được lưu đầy đủ — bạn có thể xem lại ở biểu đồ và bảng bên trái. Nhận xét tổng hợp sẽ được bổ sung khi kết nối phục hồi.</small>
+            </div>
+          </div>`;
+      }
+    }
+
+    // ─── Traceback (AE-08) ────────────────────────
+    function renderTraceback() {
+      if (!SESSION.tracebacks || SESSION.tracebacks.length === 0) {
+        document.getElementById('tracebackZone').style.display = 'none';
+        return;
+      }
+      const list = document.getElementById('tracebackList');
+      list.innerHTML = SESSION.tracebacks.map((tb, tbIdx) => `
+        <div class="traceback-card fade-in" id="tb-${tbIdx}">
+          <div class="traceback-card__head">
+            <span class="tb-tag">Engine lập lịch</span>
+            <div>
+              <div class="traceback-card__title">
+                Phát hiện bạn còn yếu ở <strong>${tb.weak.name}</strong>
+                <span class="weak-score">(${tb.weak.score.toFixed(2)} — dưới ngưỡng 0.60)</span>
+              </div>
+              <div class="traceback-card__sub">
+                Hệ thống đề xuất ôn lại
+                ${tb.prereqs.map(p => `<strong>${p.name}</strong>`).join(', ')}
+                vì đây là nền tảng của <strong>${tb.weak.name}</strong>.
+              </div>
+            </div>
+          </div>
+          <div class="prereq-list" id="prereqList-${tbIdx}">
+            ${tb.prereqs.map((p, pIdx) => buildPrereqRow(tbIdx, pIdx, p)).join('')}
+          </div>
+          <div class="traceback-card__footer">
+            <button class="btn btn-secondary" style="font-size:13px;padding:7px 14px;"
+              onclick="resolveAll(${tbIdx},'added')">Đồng ý tất cả</button>
+            <button class="btn btn-ghost" style="font-size:13px;padding:7px 14px;"
+              onclick="resolveAll(${tbIdx},'skipped')">Bỏ qua tất cả</button>
+            <span style="flex:1"></span>
+            <div class="resolved-notice" id="resolvedNotice-${tbIdx}">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,8 6,12 14,4"/></svg>
+              Lịch ôn tập đã được cập nhật.
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function buildPrereqRow(tbIdx, pIdx, p) {
+      const scoreText = p.score !== null ? p.score.toFixed(2) : 'chưa kiểm tra';
+      return `
+        <div class="prereq-row" id="prereq-${tbIdx}-${pIdx}">
+          <div class="prereq-info">
+            <div class="prereq-name" id="prereqName-${tbIdx}-${pIdx}">${p.name}</div>
+            <div class="prereq-meta">
+              <span style="font-family:var(--font-mono);font-size:11px;">${scoreText}</span>
+              <span class="dot">·</span>
+              <span>${p.reason}</span>
+            </div>
+          </div>
+          <div class="prereq-actions" id="prereqActions-${tbIdx}-${pIdx}">
+            <button class="act-add"
+              onclick="resolvePrereq(${tbIdx},${pIdx},'added')"
+              aria-label="Thêm ${p.name} vào lịch ôn">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,8 6,12 14,4"/></svg>
+              Thêm vào lịch
+            </button>
+            <button class="act-skip"
+              onclick="resolvePrereq(${tbIdx},${pIdx},'skipped')"
+              aria-label="Bỏ qua ${p.name}">Bỏ qua</button>
+          </div>
+        </div>`;
+    }
+
+    // ─── Resolve per-prereq ───────────────────────
+    function resolvePrereq(tbIdx, pIdx, action) {
+      const p = SESSION.tracebacks[tbIdx].prereqs[pIdx];
+      if (p.state !== 'pending') return;
+      p.state = action;
+
+      const row     = document.getElementById(`prereq-${tbIdx}-${pIdx}`);
+      const nameEl  = document.getElementById(`prereqName-${tbIdx}-${pIdx}`);
+      const actEl   = document.getElementById(`prereqActions-${tbIdx}-${pIdx}`);
+
+      if (action === 'added') {
+        row.classList.add('is-added');
+        actEl.innerHTML = `
+          <span class="prereq-resolved prereq-resolved--added">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,8 6,12 14,4"/></svg>
+            Đã thêm ✓
+          </span>`;
+        showToast('Đã thêm "' + p.name + '" vào lịch ôn tập.');
+      } else {
+        row.classList.add('is-skipped');
+        nameEl.classList.add('prereq-name--skipped');
+        actEl.innerHTML = `<span class="prereq-resolved prereq-resolved--skipped">Đã bỏ qua</span>`;
+        showToast('Đã bỏ qua "' + p.name + '".');
+      }
+      checkAllResolved(tbIdx);
+    }
+
+    function resolveAll(tbIdx, action) {
+      SESSION.tracebacks[tbIdx].prereqs.forEach((p, pIdx) => {
+        if (p.state === 'pending') resolvePrereq(tbIdx, pIdx, action);
+      });
+    }
+
+    function checkAllResolved(tbIdx) {
+      const allDone = SESSION.tracebacks[tbIdx].prereqs.every(p => p.state !== 'pending');
+      if (allDone) {
+        document.getElementById('resolvedNotice-' + tbIdx).classList.add('is-visible');
+      }
+    }
+
+    // ─── Demo: Toggle AI fallback ─────────────────
+    function toggleFallback() {
+      SESSION.aiAvailable = !SESSION.aiAvailable;
+      const btn = document.getElementById('demoFallbackBtn');
+      btn.classList.toggle('demo-btn--active', !SESSION.aiAvailable);
+      btn.title = SESSION.aiAvailable
+        ? 'Mô phỏng AI lỗi để xem fallback UI'
+        : 'AI đang được mô phỏng lỗi — nhấn để khôi phục';
+      renderAISummary();
+      showToast(SESSION.aiAvailable ? 'AI phục hồi — hiển thị nhận xét tổng hợp.' : 'Đang mô phỏng AI lỗi — fallback mode.');
+    }
+
+    // ─── Toast ────────────────────────────────────
+    let _toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('is-visible');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.remove('is-visible'), 3000);
+    }
+
+    // ─── Boot ─────────────────────────────────────
+    init();
+  </script>
+
+</body>
+</html>
