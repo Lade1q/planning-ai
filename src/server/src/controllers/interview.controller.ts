@@ -7,6 +7,7 @@ import {
   submitAnswer,
   submitSelfGrade,
 } from '../services/interview.service';
+import { getSessionSummary } from '../services/session-summary.service';
 import {
   createInterviewSchema,
   interviewIdParamSchema,
@@ -99,6 +100,26 @@ export async function pauseInterviewController(req: Request, res: Response): Pro
   const { id } = interviewIdParamSchema.parse(req.params);
 
   const result = await pauseInterview(id, req.userId);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+}
+
+/**
+ * GET /api/v1/interviews/:id/summary — AE-09. The end-of-session report: per-concept scores,
+ * an AI-written summary (generated once and cached — see `session-summary.service.ts`), and
+ * the traceback (AE-08) queued for the next session.
+ */
+export async function getSessionSummaryController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const { id } = interviewIdParamSchema.parse(req.params);
+
+  const result = await getSessionSummary(id, req.userId);
 
   res.status(200).json({
     success: true,

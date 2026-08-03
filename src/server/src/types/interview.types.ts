@@ -1,4 +1,11 @@
-import type { InterviewSessionStatus, QuestionType, TurnSource, TurnVerdict } from '@prisma/client';
+import type {
+  InterviewSessionStatus,
+  QuestionType,
+  ReviewItemStatus,
+  ReviewReason,
+  TurnSource,
+  TurnVerdict,
+} from '@prisma/client';
 import type { TracebackReason } from '../services/traceback.service';
 import type { TracebackSkipReason } from '../services/concept-result.service';
 
@@ -153,4 +160,64 @@ export interface ResumeInterviewResponse {
   session: InterviewSessionState;
   currentQuestion: InterviewQuestionResponse | null;
   fallback: InterviewFallbackResponse | null;
+}
+
+/**
+ * `GET /interviews/:id/summary` (I6.5 / AE-09) — the end-of-session screen (I6.7). Everything
+ * here is read-only history: the session must already be `completed` to reach this endpoint.
+ */
+
+/** One graded turn of a concept, stripped to what the summary screen charts. */
+export interface SessionSummaryTurnResponse {
+  turnIndex: number;
+  score: number | null;
+  verdict: TurnVerdict | null;
+}
+
+/** One concept's full result for the session, oldest turn first. */
+export interface SessionSummaryConceptResponse {
+  conceptId: string;
+  name: string;
+  /** `null` if the queue reached `completed` (e.g. via UC-12 E1) before this concept was ever asked. */
+  masteryScore: number | null;
+  turns: SessionSummaryTurnResponse[];
+}
+
+/**
+ * One `ReviewQueueItem` this session's traceback (I7.2) queued — AE-08's contribution to the
+ * summary screen, read as-is rather than recomputed (I7.2 already decided this, once).
+ */
+export interface SessionSummaryTracebackItemResponse {
+  conceptId: string;
+  name: string;
+  reason: ReviewReason;
+  depth: number | null;
+  /** The concept this prerequisite was traced back *from*; `null` if that concept was deleted since. */
+  sourceConceptName: string | null;
+  status: ReviewItemStatus;
+}
+
+/**
+ * `summarize_session`'s output, plus the flag AE-09's exception flow (UC-14 E1) needs: the
+ * request never fails just because the AI did — see `message`.
+ */
+export interface SessionSummaryReport {
+  /** `null` when `summarize_session` failed after retry — see `message`. */
+  text: string | null;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  /** `false` means only the structured score table below is real; `text` etc. are empty/null. */
+  generatedByAi: boolean;
+  /** Set only when `generatedByAi` is `false` — UC-14 E1's "Không thể tổng hợp nhận xét lúc này." */
+  message: string | null;
+}
+
+export interface SessionSummaryResponse {
+  sessionId: string;
+  status: InterviewSessionStatus;
+  durationMinutes: number;
+  concepts: SessionSummaryConceptResponse[];
+  summary: SessionSummaryReport;
+  traceback: SessionSummaryTracebackItemResponse[];
 }

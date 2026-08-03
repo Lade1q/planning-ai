@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import {
   createInterviewController,
   getInterviewController,
+  getSessionSummaryController,
   pauseInterviewController,
   resumeInterviewController,
   submitAnswerController,
@@ -16,5 +17,6 @@ interviewRouter.get('/:id', asyncHandler(getInterviewController));
 interviewRouter.post('/:id/answers', asyncHandler(submitAnswerController));
 interviewRouter.post('/:id/pause', asyncHandler(pauseInterviewController));
 interviewRouter.post('/:id/resume', asyncHandler(resumeInterviewController));
+interviewRouter.get('/:id/summary', asyncHandler(getSessionSummaryController));
 
 export { interviewRouter };
