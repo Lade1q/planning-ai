@@ -12,7 +12,7 @@ jest.mock('../config/prisma', () => ({
   __esModule: true,
   default: {
     concept: { findMany: jest.fn() },
-    questionCache: { groupBy: jest.fn(), create: jest.fn() },
+    questionCache: { groupBy: jest.fn(), create: jest.fn(), count: jest.fn() },
     studyPlan: { findUnique: jest.fn() },
   },
 }));
@@ -28,7 +28,7 @@ jest.mock('../services/interview.service', () => ({
 
 const mockedPrisma = prisma as unknown as {
   concept: { findMany: jest.Mock };
-  questionCache: { groupBy: jest.Mock; create: jest.Mock };
+  questionCache: { groupBy: jest.Mock; create: jest.Mock; count: jest.Mock };
   studyPlan: { findUnique: jest.Mock };
 };
 const mockedGenerateQuestion = generateQuestion as jest.Mock;
@@ -46,6 +46,9 @@ describe('pregenerateForPlan', () => {
     mockedLoadMaterial.mockResolvedValue(MATERIAL);
     mockedPrisma.studyPlan.findUnique.mockResolvedValue({ languageDetected: 'vi' });
     mockedPrisma.questionCache.create.mockResolvedValue({});
+    // Default: the re-check before each Gemini call always sees "not at the cap yet" — tests
+    // that care about the race-mitigation behavior override this per case.
+    mockedPrisma.questionCache.count.mockResolvedValue(0);
     mockedGenerateQuestion.mockImplementation(({ turnIndex }: { turnIndex: number }) =>
       Promise.resolve({ question_text: `Question ${turnIndex}`, question_type: 'recall' })
     );
@@ -179,6 +182,35 @@ describe('pregenerateForPlan', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(PLAN_ID), expect.any(Error));
 
     warnSpy.mockRestore();
+  });
+
+  // Regression tests for the race a code review found: two `pregenerateForPlan` runs for the
+  // same plan (e.g. two reanalyze requests close together) can both read the same initial
+  // count and each generate up to 2 questions, leaving up to 4 cached rows for one concept.
+  it('never calls generateQuestion when a concurrent run already filled the cache first', async () => {
+    mockedPrisma.concept.findMany.mockResolvedValue([{ id: 'c1', name: 'Loop' }]);
+    mockedPrisma.questionCache.groupBy.mockResolvedValue([]); // initial read: nothing cached yet
+    // Simulates another pregenerateForPlan run finishing both slots for this concept between
+    // the initial groupBy count above and this run reaching its first loop iteration.
+    mockedPrisma.questionCache.count.mockResolvedValue(2);
+
+    await pregenerateForPlan(PLAN_ID);
+
+    expect(mockedGenerateQuestion).not.toHaveBeenCalled();
+    expect(mockedPrisma.questionCache.create).not.toHaveBeenCalled();
+  });
+
+  it('stops after the first question if a concurrent run fills the cache mid-loop', async () => {
+    mockedPrisma.concept.findMany.mockResolvedValue([{ id: 'c1', name: 'Loop' }]);
+    mockedPrisma.questionCache.groupBy.mockResolvedValue([]);
+    // Re-check before turn 1: still 0 cached, proceed. Re-check before turn 2: a concurrent
+    // run has since filled both slots, so this run must not spend a second Gemini call.
+    mockedPrisma.questionCache.count.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
+
+    await pregenerateForPlan(PLAN_ID);
+
+    expect(mockedGenerateQuestion).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.questionCache.create).toHaveBeenCalledTimes(1);
   });
 
   it('every created row has answerHint: null (no hint field in generate_question today)', async () => {

@@ -233,6 +233,24 @@ describe('submitAnswerController — AE-05 self-grade routing', () => {
     expect(mockedSubmit).not.toHaveBeenCalled();
   });
 
+  // Regression test for a review nit: routing used to check `typeof selfGrade === 'string'`,
+  // so a non-string selfGrade (e.g. a number) fell through to submitAnswerSchema and reported
+  // a confusing "answerText required" error instead of the actual problem with `selfGrade`.
+  it('reports a selfGrade-specific error for a non-string selfGrade, not a missing-answerText one', async () => {
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { selfGrade: 123 },
+    } as unknown as Request;
+
+    const error = await submitAnswerController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ZodError);
+    expect((error as ZodError).issues[0]?.path).toEqual(['selfGrade']);
+    expect(mockedSubmitSelfGrade).not.toHaveBeenCalled();
+    expect(mockedSubmit).not.toHaveBeenCalled();
+  });
+
   it('rejects a body carrying both answerText and selfGrade (ambiguous, must pick one)', async () => {
     const req = {
       userId: USER_ID,

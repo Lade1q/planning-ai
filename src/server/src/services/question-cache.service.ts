@@ -1,5 +1,5 @@
 import prisma from '../config/prisma';
-import { generateQuestion, type PreviousTurn } from './gemini.service';
+import { generateQuestion, type AiMaterial, type PreviousTurn } from './gemini.service';
 import { loadMaterial } from './interview.service';
 import { MAX_CACHED_QUESTIONS_PER_CONCEPT } from '../utils/interview-state';
 
@@ -57,7 +57,7 @@ export async function pregenerateForPlan(planId: string): Promise<void> {
     select: { languageDetected: true },
   });
 
-  let material;
+  let material: AiMaterial;
   try {
     material = await loadMaterial(planId);
   } catch (error) {
@@ -85,6 +85,17 @@ export async function pregenerateForPlan(planId: string): Promise<void> {
         turnIndex <= MAX_CACHED_QUESTIONS_PER_CONCEPT;
         turnIndex++
       ) {
+        // Re-checked on every iteration rather than trusted from the count read at the top of
+        // this function: a concurrent `pregenerateForPlan` run for the same plan (e.g. two
+        // reanalyze requests close together) can fill this concept's cache while this run is
+        // still working through earlier concepts, especially on a plan with many concepts where
+        // the throttle stretches the whole run to tens of seconds. No DB-level lock or schema
+        // change — just don't spend a Gemini call once another run already finished this slot.
+        const currentCount = await prisma.questionCache.count({
+          where: { conceptId: concept.id },
+        });
+        if (currentCount >= MAX_CACHED_QUESTIONS_PER_CONCEPT) break;
+
         if (callsMade > 0) {
           await sleep(pregenDelayMs());
         }

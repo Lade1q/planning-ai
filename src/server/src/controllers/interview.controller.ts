@@ -74,7 +74,7 @@ export async function submitAnswerController(req: Request, res: Response): Promi
 
   const { id } = interviewIdParamSchema.parse(req.params);
 
-  if (typeof req.body?.selfGrade === 'string') {
+  if (req.body && 'selfGrade' in req.body) {
     const { selfGrade } = submitSelfGradeSchema.parse(req.body);
     const result = await submitSelfGrade(id, req.userId, selfGrade);
     res.status(200).json({ success: true, data: result });
