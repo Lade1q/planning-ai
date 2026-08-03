@@ -1,10 +1,15 @@
 import {
   DEFAULT_MAX_TURNS_PER_CONCEPT,
+  MAX_CACHED_QUESTIONS_PER_CONCEPT,
   MAX_TURNS_PER_CONCEPT,
+  SELF_GRADE_SCORE,
+  SELF_GRADE_VERDICT,
   decideNextStep,
   isTurnWithinLimit,
   questionModeForStep,
+  resolveFallbackStep,
   type NextStep,
+  type SelfGrade,
 } from '../utils/interview-state';
 import { TURN_WEIGHTS } from '../utils/mastery';
 import type { Verdict } from '../schemas/ai-interview.schema';
@@ -130,5 +135,134 @@ describe('turn limits', () => {
 
   it('clamps to the global maximum even if a session row claims a bigger limit', () => {
     expect(isTurnWithinLimit(MAX_TURNS_PER_CONCEPT + 1, 10)).toBe(false);
+  });
+});
+
+/**
+ * AE-05's flashcard-fallback stepping (UC-12) — pure, same C4/R05 charter as `decideNextStep`
+ * above. Deliberately never consults a verdict: fallback mode always asks every cached question
+ * it has, in order, then finishes (confirmed product decision), unlike the AI-mode state table.
+ */
+describe('resolveFallbackStep', () => {
+  it('is UC-12 E1 when the concept has never had a question served and none is cached', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 0,
+        cachedTurnsServed: 0,
+        totalTurnsServed: 0,
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'no_cache_available' });
+  });
+
+  it('asks the first cached question when none has been served yet', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 0,
+        totalTurnsServed: 0,
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
+  });
+
+  it('asks the second cached question after the first has been served', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 1,
+        totalTurnsServed: 1,
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 1 });
+  });
+
+  it('finishes the concept once every cached question has been served — not an error', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 2,
+        totalTurnsServed: 2,
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('finishes early when only one question was ever cached for this concept', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 1,
+        cachedTurnsServed: 1,
+        totalTurnsServed: 1,
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('honours C6: a lower session maxTurns stops the fallback path too', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 1,
+        totalTurnsServed: 1,
+        maxTurns: 1,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('never asks past MAX_CACHED_QUESTIONS_PER_CONCEPT even if more rows were somehow cached', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 5,
+        cachedTurnsServed: MAX_CACHED_QUESTIONS_PER_CONCEPT,
+        totalTurnsServed: MAX_CACHED_QUESTIONS_PER_CONCEPT,
+        maxTurns: 10,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  // Regression test for a real bug found via manual testing against live Gemini (2026-08-02):
+  // grading failure — the common real-world trigger for fallback (AE-02 E2) — always fires
+  // *after* a question was already asked by AI, so a concept typically enters fallback already
+  // holding `source: 'ai'` turns. Cache use must be tracked separately from total turns served,
+  // or a concept with two fresh, untouched cached questions finishes having served zero of them.
+  it('still serves fresh cache when fallback starts mid-concept, after AI turns already happened', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 0, // no cache used yet — the 2 prior turns were both AI-sourced
+        totalTurnsServed: 2, // ...but 2 turns of *some* kind already happened for this concept
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
+  });
+
+  it('still respects C6 in the mixed AI+cache scenario: no budget left, no more cache either', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 0,
+        totalTurnsServed: 3, // maxTurns already reached by prior AI turns alone
+        maxTurns: 3,
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+});
+
+describe('self-grade mapping (AE-05, UC-12 step 5 — hard-coded, no free-form score)', () => {
+  it.each<[SelfGrade, number]>([
+    ['correct', 1],
+    ['partial', 0.5],
+    ['wrong', 0],
+  ])('maps %s to score %s', (selfGrade, expectedScore) => {
+    expect(SELF_GRADE_SCORE[selfGrade]).toBe(expectedScore);
+  });
+
+  it.each<[SelfGrade, string]>([
+    ['correct', 'deep'],
+    ['partial', 'shallow'],
+    ['wrong', 'wrong'],
+  ])('maps %s to verdict %s', (selfGrade, expectedVerdict) => {
+    expect(SELF_GRADE_VERDICT[selfGrade]).toBe(expectedVerdict);
   });
 });

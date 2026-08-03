@@ -44,7 +44,7 @@ export interface InterviewQuestionResponse {
   turnIndex: number;
   questionText: string;
   questionType: QuestionType | null;
-  /** `ai` normally, `cache_fallback` once I6.4 serves a pre-generated question. */
+  /** `ai` normally, `cache_fallback` once the session is in flashcard fallback (AE-05). */
   source: TurnSource;
 }
 
@@ -94,7 +94,11 @@ export interface ConceptCompletedResponse {
  * grade of the answer just sent, or the next question. Both keep the session alive — an AI
  * outage must never kill a session (#115), and I6.4 plugs the flashcard flow in here.
  */
-export type InterviewFallbackReason = 'grading_unavailable' | 'question_unavailable';
+export type InterviewFallbackReason =
+  | 'grading_unavailable'
+  | 'question_unavailable'
+  /** UC-12 E1: fallback mode needs a cached question for this concept and none exists. */
+  | 'no_cached_questions';
 
 export interface InterviewFallbackResponse {
   reason: InterviewFallbackReason;
@@ -121,8 +125,11 @@ export interface GetInterviewResponse {
 
 export interface SubmitAnswerResponse {
   session: InterviewSessionState;
-  /** `null` when grading was unavailable — see `fallback`. */
-  grading: { score: number; feedback: string; verdict: TurnVerdict } | null;
+  /**
+   * `null` when grading was unavailable — see `fallback`. `feedback` is itself `null` for a
+   * self-graded flashcard turn (AE-05) — there is no AI feedback text to show for it.
+   */
+  grading: { score: number; feedback: string | null; verdict: TurnVerdict } | null;
   gradedTurnId: string;
   nextQuestion: InterviewQuestionResponse | null;
   /** Set only on the request that ended a concept. */

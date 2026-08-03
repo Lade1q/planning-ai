@@ -111,3 +111,81 @@ export function questionModeForStep(step: NextStep): QuestionMode | null {
 export function isTurnWithinLimit(turnIndex: number, maxTurns: number): boolean {
   return turnIndex >= 1 && turnIndex <= Math.min(maxTurns, MAX_TURNS_PER_CONCEPT);
 }
+
+// --- AE-05 / AE-06: Flashcard fallback stepping ------------------------------------------
+
+/** AE-06: at most 2 pre-generated flashcard questions per concept (R01 cost limit). */
+export const MAX_CACHED_QUESTIONS_PER_CONCEPT = 2;
+
+/** What the fallback flow does next for the current concept (UC-12). */
+export type FallbackStep =
+  | { type: 'ask_cached'; cacheIndex: number }
+  | { type: 'finish_concept' }
+  | { type: 'no_cache_available' };
+
+export interface FallbackStateInput {
+  /** How many `question_cache` rows exist for the current concept (capped upstream at 2). */
+  cachedQuestionCount: number;
+  /**
+   * Turns of this concept already served *from the cache* (`source: 'cache_fallback'`) —
+   * the 0-based index into the concept's cached rows. Deliberately NOT the same as "every turn
+   * of this concept": grading failure (the common trigger for fallback, AE-02 E2) always fires
+   * *after* a question was already asked by AI, so the concept typically already has one or more
+   * `source: 'ai'` turns before fallback ever touches its cache — those must not be mistaken for
+   * consumed cache slots, or a concept with two fresh, never-served cached questions finishes
+   * having served zero of them.
+   */
+  cachedTurnsServed: number;
+  /** Every turn of this concept in this session, whatever its `source` — for the E1 check and C6. */
+  totalTurnsServed: number;
+  /** The session's own C6 limit — the fallback path may not exceed it either. */
+  maxTurns: number;
+}
+
+/**
+ * AE-05's flashcard-fallback stepping (UC-12): linear and deterministic. Unlike `decideNextStep`,
+ * this never looks at a `deep`/`shallow`/`wrong` verdict — a concept in fallback mode always asks
+ * every cached question it has left, in order, then finishes, whatever the student self-graded.
+ *
+ * `cachedTurnsServed` doubles as the 0-based index into the concept's cached rows (ordered by
+ * `generatedAt`) — same "re-derive from what's stored" philosophy as `decideNextStep`, so a
+ * resumed session picks up the same cached question a crashed request was about to serve.
+ */
+export function resolveFallbackStep({
+  cachedQuestionCount,
+  cachedTurnsServed,
+  totalTurnsServed,
+  maxTurns,
+}: FallbackStateInput): FallbackStep {
+  // UC-12 E1: this concept has never had a question served (AI or cache) and there is nothing
+  // cached to fall back to either. Distinct from "cache ran out after one question" below.
+  if (totalTurnsServed === 0 && cachedQuestionCount === 0) {
+    return { type: 'no_cache_available' };
+  }
+
+  const cacheLimit = Math.min(cachedQuestionCount, MAX_CACHED_QUESTIONS_PER_CONCEPT);
+  // C6: whatever mix of ai/cache_fallback turns already happened, the concept may not exceed
+  // maxTurns in total — a cache with slots left over is not a licence to bypass that limit.
+  const turnBudgetLeft = maxTurns - totalTurnsServed;
+  if (cachedTurnsServed < cacheLimit && turnBudgetLeft > 0) {
+    return { type: 'ask_cached', cacheIndex: cachedTurnsServed };
+  }
+  return { type: 'finish_concept' };
+}
+
+/** AE-05: what the student picked when self-grading a flashcard. */
+export type SelfGrade = 'correct' | 'partial' | 'wrong';
+
+/** Hard-coded mapping (UC-04 UC-12 step 5) — no free-form score input is ever allowed. */
+export const SELF_GRADE_SCORE: Record<SelfGrade, number> = {
+  correct: 1,
+  partial: 0.5,
+  wrong: 0,
+};
+
+/** Keeps the transcript's verdict column populated for a self-graded turn. */
+export const SELF_GRADE_VERDICT: Record<SelfGrade, Verdict> = {
+  correct: 'deep',
+  partial: 'shallow',
+  wrong: 'wrong',
+};

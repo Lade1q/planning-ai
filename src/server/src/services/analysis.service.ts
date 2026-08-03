@@ -10,6 +10,7 @@ import { planConceptMerge, normalizeConceptKey } from '../utils/concept-merge';
 import { toSafeErrorMessage } from '../utils/error-message';
 import { UPLOAD_DIR, resolveMaterialSource } from '../utils/material';
 import { validateDAG } from './graph.service';
+import { pregenerateForPlan } from './question-cache.service';
 import { AiExtractResponse } from '../schemas/ai-extract.schema';
 
 const MAX_ATTEMPTS = 3; // 1 initial call + 2 retries, per I3.2 acceptance criteria
@@ -279,6 +280,15 @@ export async function processAnalysisJob(jobId: string): Promise<void> {
   // name, the edges actually persisted can differ from the set that was validated.
   // Re-check what landed in the DB, by concept id, and repair it if needed (I3.3).
   await validateDAG(planId);
+
+  // AE-06: pre-generate flashcard-fallback questions (R01). Fire-and-forget — this must never
+  // turn a successful analysis into a failed AnalysisJob, so it is never awaited by the caller
+  // and its own errors are only console.warn'd inside pregenerateForPlan, never thrown here.
+  // Hooked here rather than at each of triggerAnalysis's 4 controller call sites so create,
+  // retry, change-document, and reanalyze all get it for free.
+  void pregenerateForPlan(planId).catch((err) =>
+    console.warn(`[analysis] question cache pregeneration failed for plan ${planId}:`, err)
+  );
 }
 
 /** Looks up the pending job created alongside a plan and runs it. */

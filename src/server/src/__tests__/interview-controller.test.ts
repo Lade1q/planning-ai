@@ -13,6 +13,7 @@ import {
   resumeInterview,
   startInterview,
   submitAnswer,
+  submitSelfGrade,
 } from '../services/interview.service';
 import { AppError } from '../middleware/errorHandler';
 import { MAX_TURNS_PER_CONCEPT } from '../utils/interview-state';
@@ -24,6 +25,7 @@ jest.mock('../services/interview.service', () => ({
   startInterview: jest.fn(),
   getInterview: jest.fn(),
   submitAnswer: jest.fn(),
+  submitSelfGrade: jest.fn(),
   pauseInterview: jest.fn(),
   resumeInterview: jest.fn(),
 }));
@@ -31,6 +33,7 @@ jest.mock('../services/interview.service', () => ({
 const mockedStart = startInterview as jest.Mock;
 const mockedGet = getInterview as jest.Mock;
 const mockedSubmit = submitAnswer as jest.Mock;
+const mockedSubmitSelfGrade = submitSelfGrade as jest.Mock;
 const mockedPause = pauseInterview as jest.Mock;
 const mockedResume = resumeInterview as jest.Mock;
 
@@ -194,6 +197,89 @@ describe('submitAnswerController', () => {
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+});
+
+describe('submitAnswerController — AE-05 self-grade routing', () => {
+  it('routes a body with selfGrade to submitSelfGrade instead of submitAnswer', async () => {
+    const data = { grading: { score: 1 }, nextQuestion: null, sessionCompleted: false };
+    mockedSubmitSelfGrade.mockResolvedValue(data);
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { selfGrade: 'correct' },
+    } as unknown as Request;
+    const res = mockRes();
+
+    await submitAnswerController(req, res);
+
+    expect(mockedSubmitSelfGrade).toHaveBeenCalledWith(SESSION_ID, USER_ID, 'correct');
+    expect(mockedSubmit).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+
+  it('rejects a selfGrade value outside correct/partial/wrong before the service is reached', async () => {
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { selfGrade: 'nonsense' },
+    } as unknown as Request;
+
+    const error = await submitAnswerController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ZodError);
+    expect(mockedSubmitSelfGrade).not.toHaveBeenCalled();
+    expect(mockedSubmit).not.toHaveBeenCalled();
+  });
+
+  // Regression test for a review nit: routing used to check `typeof selfGrade === 'string'`,
+  // so a non-string selfGrade (e.g. a number) fell through to submitAnswerSchema and reported
+  // a confusing "answerText required" error instead of the actual problem with `selfGrade`.
+  it('reports a selfGrade-specific error for a non-string selfGrade, not a missing-answerText one', async () => {
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { selfGrade: 123 },
+    } as unknown as Request;
+
+    const error = await submitAnswerController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ZodError);
+    expect((error as ZodError).issues[0]?.path).toEqual(['selfGrade']);
+    expect(mockedSubmitSelfGrade).not.toHaveBeenCalled();
+    expect(mockedSubmit).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body carrying both answerText and selfGrade (ambiguous, must pick one)', async () => {
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { selfGrade: 'correct', answerText: 'also this' },
+    } as unknown as Request;
+
+    const error = await submitAnswerController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ZodError);
+    expect(mockedSubmitSelfGrade).not.toHaveBeenCalled();
+    expect(mockedSubmit).not.toHaveBeenCalled();
+  });
+
+  it('still routes a plain answerText body to submitAnswer, unchanged', async () => {
+    const data = { grading: { score: 0.5 }, nextQuestion: null, sessionCompleted: false };
+    mockedSubmit.mockResolvedValue(data);
+    const req = {
+      userId: USER_ID,
+      params: { id: SESSION_ID },
+      body: { answerText: 'câu trả lời bình thường' },
+    } as unknown as Request;
+    const res = mockRes();
+
+    await submitAnswerController(req, res);
+
+    expect(mockedSubmit).toHaveBeenCalledWith(SESSION_ID, USER_ID, 'câu trả lời bình thường');
+    expect(mockedSubmitSelfGrade).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
 
