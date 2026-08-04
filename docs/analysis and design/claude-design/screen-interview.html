@@ -2000,21 +2000,15 @@
               <span style="font-size:13px; font-weight:600;">Khái niệm <strong>Duyệt đồ thị DFS</strong> đạt 0.42 — dưới ngưỡng 0.60</span>
             </div>
             <p style="font-size:13.5px; line-height:1.6; margin:0 0 6px; color:var(--foreground);">
-              Truy ngược 2 tầng tiên quyết tìm được 2 khái niệm nền cần củng cố trước. Chúng sẽ được
+              Truy ngược 2 tầng tiên quyết tìm được 1 khái niệm nền cần củng cố trước. Nó sẽ được
               xếp lên đầu phiên kế tiếp, học trước khi quay lại DFS.
             </p>
             <p style="font-size:12px; color:var(--muted-foreground); margin:0 0 14px;">
-              Bỏ qua tầng 2 của <strong>Đệ quy</strong> vì khái niệm này đã đạt 0.71 — nhánh được cắt tại đó.
+              Nhánh <strong>Ngăn xếp</strong> bị cắt vì khái niệm này vừa đạt 0.78 ở khái niệm 3 của
+              chính phiên này — trên ngưỡng 0.60 thì dừng, không duyệt tiếp tầng 2 phía sau nó.
             </p>
 
             <div style="border-top:1px solid oklch(from var(--remediate) l c h / 0.25); padding-top:4px;">
-              <div class="prereq">
-                <span><strong style="font-weight:500;">Ngăn xếp</strong> — nền của DFS đệ quy</span>
-                <span style="display:flex; align-items:center; gap:14px;">
-                  <span class="prereq__meta">tầng 1 · 0.54</span>
-                  <button class="linkish" type="button">Bỏ khỏi lịch</button>
-                </span>
-              </div>
               <div class="prereq">
                 <span><strong style="font-weight:500;">Danh sách kề</strong> — chưa từng kiểm tra</span>
                 <span style="display:flex; align-items:center; gap:14px;">
@@ -2036,13 +2030,14 @@
       <article class="state">
         <div class="state__head">
           <h3 class="state__name">Hết hàng đợi — bàn giao sang màn Tổng hợp</h3>
-          <span class="state__ref">AE-02 · bước 12 · màn Tổng hợp cuối phiên chưa dựng</span>
+          <span class="state__ref">AE-02 · bước 12 · nối sang screen-interview-result.html</span>
         </div>
         <p class="state__desc">
           Bản cũ không vẽ đoạn kết: màn hình chạy hết 5 khái niệm rồi không có gì. Bước 12 nói
           rõ hệ thống thông báo kết thúc và <em>tự động chuyển</em> sang màn Tổng hợp cuối phiên,
-          nên ở đây chỉ cần khoảnh khắc bàn giao — điểm trung bình có trọng số, số khái niệm được
-          truy ngược, và một đường đi tiếp. Nội dung tổng hợp đầy đủ thuộc màn riêng, hiện chưa dựng.
+          nên ở đây chỉ cần khoảnh khắc bàn giao — điểm trung bình, số khái niệm được truy ngược,
+          và một đường đi tiếp. Nội dung đầy đủ thuộc màn Tổng hợp (AE-09), đã dựng riêng; các
+          con số dưới đây là cùng một phiên với màn đó nên phải khớp từng chữ số.
         </p>
         <div class="state__demo">
           <div class="sys" role="status" style="margin-bottom:14px;">
@@ -2051,14 +2046,14 @@
           </div>
           <div class="handoff">
             <div>
-              <p style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 6px;">Điểm phiên</p>
-              <p class="handoff__score" style="margin:0;">0.68</p>
+              <p style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 6px;">Điểm trung bình</p>
+              <p class="handoff__score" style="margin:0;">0.66</p>
             </div>
             <p style="font-size:13px; line-height:1.6; color:var(--muted-foreground); margin:0; flex:1; min-width:240px;">
-              3 khái niệm vững, 1 đang học, 1 dưới ngưỡng. Hai khái niệm tiên quyết đã được xếp vào
+              1 khái niệm vững, 2 đang học, 2 dưới ngưỡng. Hai khái niệm tiên quyết đã được xếp vào
               đầu phiên kế tiếp.
             </p>
-            <button class="btn btn-primary" type="button" style="font-size:13px;">Xem tổng hợp cuối phiên</button>
+            <a class="btn btn-primary" href="screen-interview-result.html" style="font-size:13px; text-decoration:none;">Xem tổng hợp cuối phiên</a>
           </div>
         </div>
       </article>
