@@ -28,6 +28,7 @@ jest.mock('../config/prisma', () => ({
       findUnique: jest.fn(),
     },
     concept: { findFirst: jest.fn() },
+    conceptSourceRef: { findMany: jest.fn() },
     questionCache: { findMany: jest.fn() },
   },
 }));
@@ -48,6 +49,7 @@ const mockedPrisma = prisma as unknown as {
     findUnique: jest.Mock;
   };
   concept: { findFirst: jest.Mock };
+  conceptSourceRef: { findMany: jest.Mock };
   questionCache: { findMany: jest.Mock };
 };
 const mockedGenerateQuestion = generateQuestion as jest.Mock;
@@ -156,6 +158,16 @@ describe('interview.service — AE-05 flashcard fallback', () => {
             : null
         )
     );
+    // The concept IS anchored to a document, so every `sourceCitation: null` asserted below
+    // is the cache_fallback rule firing (C5 / #239), not a concept that had no anchor anyway.
+    mockedPrisma.conceptSourceRef.findMany.mockResolvedValue([
+      {
+        conceptId: CONCEPT_ID,
+        pageFrom: 7,
+        pageTo: 7,
+        document: { id: 'doc-uuid', filename: 'giai-tich-1.pdf', kind: 'pdf' },
+      },
+    ]);
     mockedPrisma.interviewTurn.findMany.mockImplementation(
       ({ where }: { where: { sessionId: string; conceptId?: string } }) =>
         Promise.resolve(
@@ -304,6 +316,9 @@ describe('interview.service — AE-05 flashcard fallback', () => {
     expect(result.currentQuestion).toMatchObject({
       questionText: 'Cached question 1',
       source: 'cache_fallback',
+      // C5 (#239): a cached question is not traceable to the document it was generated from,
+      // so it cites nothing — even though this concept does have an anchor.
+      sourceCitation: null,
     });
     expect(mockedPrisma.interviewTurn.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -358,5 +373,38 @@ describe('interview.service — AE-05 flashcard fallback', () => {
       questionText: 'Cached question A',
       source: 'cache_fallback',
     });
+  });
+
+  /**
+   * C5 (#239) on the ordinary path. The pure rule lives in `utils/question-citation.ts` and is
+   * tested there; what this covers is the wiring the pure test cannot see — that `buildView`'s
+   * anchor query actually reaches both the pending question and the transcript.
+   */
+  it('cites the concept source document on an AI question and on the answered turns', async () => {
+    seedPendingTurn({ source: 'ai', questionText: 'AI question awaiting an answer' });
+
+    const result = await getInterview(SESSION_ID, USER_ID);
+
+    const citation = {
+      documentId: 'doc-uuid',
+      filename: 'giai-tich-1.pdf',
+      kind: 'pdf',
+      pageFrom: 7,
+      pageTo: 7,
+    };
+    expect(result.currentQuestion).toMatchObject({ sourceCitation: citation });
+    expect(result.turns).toEqual([expect.objectContaining({ sourceCitation: citation })]);
+    expect(mockedGenerateQuestion).not.toHaveBeenCalled();
+  });
+
+  it('leaves sourceCitation null for a concept the analysis never anchored', async () => {
+    // A concept added by hand (#172), or one extract_concepts gave neither page nor excerpt
+    // for: a valid state, not an error — the client just renders no citation block.
+    mockedPrisma.conceptSourceRef.findMany.mockResolvedValue([]);
+    seedPendingTurn({ source: 'ai', questionText: 'AI question awaiting an answer' });
+
+    const result = await getInterview(SESSION_ID, USER_ID);
+
+    expect(result.currentQuestion).toMatchObject({ sourceCitation: null });
   });
 });
