@@ -31,9 +31,9 @@ jobs:
 
       # --- PHẦN 1: FRONTEND ---
       - name: Install Frontend dependencies
-        run: npm ci --prefix src/client
+        run: npm ci --legacy-peer-deps --prefix src/client
       - name: Install root dependencies (prettier)
-        run: npm ci
+        run: npm ci --legacy-peer-deps
       - name: Check formatting
         run: npx prettier --check "src/**/*.{ts,tsx}"
       - name: Run Frontend Lint
