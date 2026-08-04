@@ -1118,6 +1118,7 @@ export function ConceptGraph({
                   planId={planId}
                   conceptId={selectedNode.id}
                   conceptName={selectedNode.data.label as string}
+                  prerequisiteNames={prerequisites.map((p) => p.sourceName)}
                 />
               </div>
               <div className="flex gap-4">

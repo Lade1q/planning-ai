@@ -2,32 +2,66 @@ import { useEffect, useState } from 'react';
 import { planApi } from '../api/plan.api';
 import { ConceptSourceExcerpt } from '../types/concept';
 
-/**
- * Tô đậm tên khái niệm ngay trong trích đoạn gốc — đây là chỗ ràng buộc C5 ("AI không bịa")
- * trở thành thứ nhìn thấy được: không chỉ nói "khái niệm này đến từ trang 118", mà chỉ đúng
- * chữ trên trang đó.
- */
-export function HighlightedExcerpt({ text, term }: { text: string; term: string }) {
-  const needle = term.trim();
-  if (!needle) return <>{text}</>;
+// Tên khái niệm là dữ liệu người dùng/AI sinh ra ("Mảng & Con trỏ", "Cây AVL (tự cân bằng)"),
+// không phải hằng số — phải escape trước khi nhét vào RegExp.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-  // Tên khái niệm là dữ liệu người dùng/AI sinh ra ("Mảng & Con trỏ", "Cây AVL (tự cân bằng)"),
-  // không phải hằng số — phải escape trước khi nhét vào RegExp.
-  const pattern = new RegExp(`(${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+/**
+ * Tô đậm hai loại tên trong trích đoạn gốc, mỗi loại chứng minh một điều khác nhau (Issue #210):
+ *
+ * - Khái niệm **tiên quyết** xuất hiện trong đoạn → mức nhấn chính, khớp mockup
+ *   `screen-concept-graph.html`: đây là bằng chứng đường truy ngược AE-07 (quan hệ tiên quyết
+ *   có căn cứ trong chính tài liệu, không phải suy luận của mô hình).
+ * - Khái niệm **đang xem** cũng xuất hiện trong đoạn → mức nhấn phụ (gạch chân, không nền):
+ *   đây là ràng buộc C5 ("AI không bịa") — vẫn phải thấy được, nhưng không được lấn mức nhấn
+ *   chính vì phần lớn trích đoạn thực tế không lặp lại tên khái niệm nó định nghĩa.
+ *
+ * Ghép mọi tên thành MỘT RegExp thay vì tô nhiều lượt, sắp xếp theo độ dài giảm dần trước khi
+ * ghép — tránh tô lồng nhau khi một tên chứa tên kia (vd. "Requirements" nằm trong "Functional
+ * Requirements").
+ */
+export function HighlightedExcerpt({
+  text,
+  conceptName,
+  prerequisiteNames = [],
+}: {
+  text: string;
+  conceptName: string;
+  prerequisiteNames?: string[];
+}) {
+  const prerequisiteSet = new Set(
+    prerequisiteNames.map((name) => name.trim().toLowerCase()).filter(Boolean)
+  );
+  const terms = Array.from(new Set([conceptName.trim(), ...prerequisiteNames.map((n) => n.trim())]))
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+
+  if (terms.length === 0) return <>{text}</>;
+
+  const pattern = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi');
   // Nhóm bắt trong `split` đẩy mọi đoạn KHỚP vào chỉ số lẻ, đoạn còn lại vào chỉ số chẵn.
   const parts = text.split(pattern);
 
   return (
     <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <mark key={i} className="bg-remediate/16 rounded-[2px] px-0.5 text-inherit">
+      {parts.map((part, i) => {
+        if (i % 2 === 0) return part;
+        const isPrerequisite = prerequisiteSet.has(part.toLowerCase());
+        return (
+          <mark
+            key={i}
+            className={
+              isPrerequisite
+                ? 'bg-remediate/16 rounded-[2px] px-0.5 text-inherit'
+                : 'decoration-muted-foreground/70 bg-transparent text-inherit underline decoration-dotted underline-offset-2'
+            }
+          >
             {part}
           </mark>
-        ) : (
-          part
-        )
-      )}
+        );
+      })}
     </>
   );
 }
@@ -43,9 +77,11 @@ export function HighlightedExcerpt({ text, term }: { text: string; term: string 
 export function ConceptSourceList({
   sources,
   conceptName,
+  prerequisiteNames,
 }: {
   sources: ConceptSourceExcerpt[];
   conceptName: string;
+  prerequisiteNames: string[];
 }) {
   if (sources.length === 0) {
     return <p className="text-muted-foreground text-[13px] italic">Không có trích đoạn gốc.</p>;
@@ -70,7 +106,11 @@ export function ConceptSourceList({
           </div>
           {source.excerpt ? (
             <blockquote className="text-muted-foreground border-border m-0 text-pretty border-l-2 pl-2.5 text-[12.5px] leading-[1.65]">
-              <HighlightedExcerpt text={source.excerpt} term={conceptName} />
+              <HighlightedExcerpt
+                text={source.excerpt}
+                conceptName={conceptName}
+                prerequisiteNames={prerequisiteNames}
+              />
             </blockquote>
           ) : (
             <p className="text-muted-foreground text-[12px] italic">Không có trích đoạn.</p>
@@ -101,10 +141,12 @@ export function ConceptSourcesSection({
   planId,
   conceptId,
   conceptName,
+  prerequisiteNames,
 }: {
   planId: string;
   conceptId: string;
   conceptName: string;
+  prerequisiteNames: string[];
 }) {
   const isPersisted = isPersistedConceptId(conceptId);
   const [sources, setSources] = useState<ConceptSourceExcerpt[] | null>(null);
@@ -154,5 +196,11 @@ export function ConceptSourcesSection({
     );
   }
 
-  return <ConceptSourceList sources={sources ?? []} conceptName={conceptName} />;
+  return (
+    <ConceptSourceList
+      sources={sources ?? []}
+      conceptName={conceptName}
+      prerequisiteNames={prerequisiteNames}
+    />
+  );
 }
