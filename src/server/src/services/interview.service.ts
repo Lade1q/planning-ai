@@ -28,6 +28,7 @@ import {
   type SelfGrade,
 } from '../utils/interview-state';
 import { UPLOAD_DIR, resolveMaterialSource } from '../utils/material';
+import { buildCitationMap, pickCitation } from '../utils/question-citation';
 import type {
   ConceptCompletedResponse,
   GetInterviewResponse,
@@ -36,6 +37,7 @@ import type {
   InterviewSessionState,
   InterviewTurnResponse,
   PauseInterviewResponse,
+  QuestionSourceResponse,
   ResumeInterviewResponse,
   StartInterviewResponse,
   SubmitAnswerResponse,
@@ -113,7 +115,7 @@ const turnSelect = {
 type TurnRow = Prisma.InterviewTurnGetPayload<{ select: typeof turnSelect }>;
 
 /**
- * Everything one request needs about a session, read in two queries. Snapshot only — any
+ * Everything one request needs about a session, read in three queries. Snapshot only — any
  * function that writes reloads it rather than patching this object, so no caller can read a
  * value that the database has since moved past.
  */
@@ -129,6 +131,8 @@ interface SessionView {
   conceptTurns: TurnRow[];
   /** The turn still waiting for a verdict, if any. */
   pending: TurnRow | null;
+  /** C5 source anchor per queued concept — read once per request, applied to every turn. */
+  citations: Map<string, QuestionSourceResponse>;
 }
 
 // --- Loading ----------------------------------------------------------------------------
@@ -203,11 +207,25 @@ async function buildView(session: SessionRow): Promise<SessionView> {
     });
   }
 
-  const turns = await prisma.interviewTurn.findMany({
-    where: { sessionId: session.id },
-    orderBy: [{ askedAt: 'asc' }, { turnIndex: 'asc' }],
-    select: turnSelect,
-  });
+  const [turns, sourceRefs] = await Promise.all([
+    prisma.interviewTurn.findMany({
+      where: { sessionId: session.id },
+      orderBy: [{ askedAt: 'asc' }, { turnIndex: 'asc' }],
+      select: turnSelect,
+    }),
+    // Every turn of a session belongs to a concept of its queue, so one query over the queue
+    // covers the pending question and the whole transcript at once (C5 / #239).
+    prisma.conceptSourceRef.findMany({
+      where: { conceptId: { in: queue } },
+      select: {
+        conceptId: true,
+        pageFrom: true,
+        pageTo: true,
+        document: { select: { id: true, filename: true, kind: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ]);
 
   const conceptTurns = concept
     ? turns
@@ -225,6 +243,7 @@ async function buildView(session: SessionRow): Promise<SessionView> {
     // A turn with no verdict is still open, whether or not an answer has been submitted for
     // it: an answer claimed but not yet graded is exactly the turn the student is waiting on.
     pending: conceptTurns.find((turn) => turn.verdict === null) ?? null,
+    citations: buildCitationMap(sourceRefs),
   };
 }
 
@@ -279,7 +298,15 @@ export async function loadMaterial(planId: string): Promise<AiMaterial> {
 
 // --- Mapping to responses ---------------------------------------------------------------
 
-function toQuestionResponse(turn: TurnRow): InterviewQuestionResponse {
+/**
+ * Both mappers take the view's citation map rather than reading anchors themselves: every
+ * entry point (`startInterview`, `getInterview`, `submitAnswer`) reaches the client through
+ * these two functions, so filling `sourceCitation` here is what makes C5 hold on all of them.
+ */
+function toQuestionResponse(
+  turn: TurnRow,
+  citations: Map<string, QuestionSourceResponse>
+): InterviewQuestionResponse {
   return {
     turnId: turn.id,
     conceptId: turn.conceptId,
@@ -288,10 +315,14 @@ function toQuestionResponse(turn: TurnRow): InterviewQuestionResponse {
     questionText: turn.questionText,
     questionType: turn.questionType,
     source: turn.source,
+    sourceCitation: pickCitation(citations, turn.conceptId, turn.source),
   };
 }
 
-function toTurnResponse(turn: TurnRow): InterviewTurnResponse {
+function toTurnResponse(
+  turn: TurnRow,
+  citations: Map<string, QuestionSourceResponse>
+): InterviewTurnResponse {
   return {
     id: turn.id,
     conceptId: turn.conceptId,
@@ -305,6 +336,7 @@ function toTurnResponse(turn: TurnRow): InterviewTurnResponse {
     verdict: turn.verdict,
     askedAt: turn.askedAt,
     answeredAt: turn.answeredAt,
+    sourceCitation: pickCitation(citations, turn.conceptId, turn.source),
   };
 }
 
@@ -532,7 +564,12 @@ async function advanceToNextQuestion(
   completed: ConceptCompletedResponse[] = []
 ): Promise<AdvanceResult> {
   if (view.pending) {
-    return { view, question: toQuestionResponse(view.pending), completed, fallback: null };
+    return {
+      view,
+      question: toQuestionResponse(view.pending, view.citations),
+      completed,
+      fallback: null,
+    };
   }
 
   const concept = view.concept;
@@ -573,7 +610,12 @@ async function advanceToNextQuestion(
   try {
     const turn = await askQuestion(view, concept, view.conceptTurns.length + 1, mode);
     const fresh = await reloadView(view.session.id, view.session.userId);
-    return { view: fresh, question: toQuestionResponse(turn), completed, fallback: null };
+    return {
+      view: fresh,
+      question: toQuestionResponse(turn, fresh.citations),
+      completed,
+      fallback: null,
+    };
   } catch (error) {
     if (!isAiFailure(error)) throw error;
 
@@ -644,7 +686,12 @@ async function advanceFallback(
 
   const turn = await askCachedQuestion(view, concept, view.conceptTurns.length + 1, cacheRow);
   const fresh = await reloadView(view.session.id, view.session.userId);
-  return { view: fresh, question: toQuestionResponse(turn), completed, fallback: null };
+  return {
+    view: fresh,
+    question: toQuestionResponse(turn, fresh.citations),
+    completed,
+    fallback: null,
+  };
 }
 
 /**
@@ -726,7 +773,7 @@ export async function startInterview(
     return {
       created: false,
       session: toSessionState(view),
-      question: view.pending ? toQuestionResponse(view.pending) : null,
+      question: view.pending ? toQuestionResponse(view.pending, view.citations) : null,
       message: RESUME_MESSAGE,
       fallback: null,
     };
@@ -811,8 +858,8 @@ export async function getInterview(
   if (session.status !== 'active') {
     return {
       session: toSessionState(view),
-      currentQuestion: view.pending ? toQuestionResponse(view.pending) : null,
-      turns: view.turns.map(toTurnResponse),
+      currentQuestion: view.pending ? toQuestionResponse(view.pending, view.citations) : null,
+      turns: view.turns.map((turn) => toTurnResponse(turn, view.citations)),
       fallback: null,
     };
   }
@@ -821,7 +868,7 @@ export async function getInterview(
   return {
     session: toSessionState(advance.view),
     currentQuestion: advance.question,
-    turns: advance.view.turns.map(toTurnResponse),
+    turns: advance.view.turns.map((turn) => toTurnResponse(turn, advance.view.citations)),
     fallback: advance.fallback,
   };
 }
@@ -970,7 +1017,7 @@ async function replayAnswer(
         ? { score: turn.score, feedback: turn.feedback, verdict: turn.verdict }
         : null,
     gradedTurnId: turn.id,
-    nextQuestion: view.pending ? toQuestionResponse(view.pending) : null,
+    nextQuestion: view.pending ? toQuestionResponse(view.pending, view.citations) : null,
     // What the first request reported about the concept it may have finished is not
     // reconstructed here — GET /interviews/:id and the end-of-session summary (I6.5) carry it.
     conceptCompleted: null,
@@ -1002,7 +1049,7 @@ async function gradingUnavailable(
     session: toSessionState({ ...view, session }),
     grading: null,
     gradedTurnId: pending.id,
-    nextQuestion: toQuestionResponse(pending),
+    nextQuestion: toQuestionResponse(pending, view.citations),
     conceptCompleted: null,
     sessionCompleted: false,
     replayed: false,
