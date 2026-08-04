@@ -49,6 +49,10 @@ export interface InterviewSessionState {
  * it to. This is constraint C5 ("AI không bịa") inside the interview screen — the student can
  * see which page the thing they are being asked about actually came from.
  *
+ * Read back from what the turn itself recorded when it was asked, not from where the concept is
+ * anchored now (#240): a plan's document can be swapped or re-analysed mid-session, and a
+ * re-derived citation would quietly renumber old questions onto the new file.
+ *
  * Narrower than `ConceptSourceItemResponse` on purpose: no `excerpt`. A transcript holds up to
  * 5 concepts × 3 turns, and a 2000-character excerpt on each would be ~30KB nobody reads; the
  * citation block under a question is a single line. Verbatim passages belong to the concept
@@ -73,8 +77,8 @@ export interface InterviewQuestionResponse {
   questionType: QuestionType | null;
   /** `ai` normally, `cache_fallback` once the session is in flashcard fallback (AE-05). */
   source: TurnSource;
-  /** `null` when the concept has no anchor, or when the question came from the cache — see
-   * `utils/question-citation.ts` for why a cached question can never be cited. */
+  /** `null` when the question recorded no anchor, or when the document it recorded is gone or
+   * has been replaced since — see `utils/question-citation.ts` for each case. */
   sourceCitation: QuestionSourceResponse | null;
 }
 
