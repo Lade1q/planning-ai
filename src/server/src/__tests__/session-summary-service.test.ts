@@ -286,4 +286,32 @@ describe('getSessionSummary', () => {
 
     expect(result.durationMinutes).toBe(0);
   });
+
+  it('still returns the AI result when the cache write fails (best-effort, R01 quota)', async () => {
+    mockedLoadSession.mockResolvedValue(baseSession());
+    mockedSummarizeSession.mockResolvedValue({
+      summary_text: 'Great work.',
+      strengths: ['Stack'],
+      weaknesses: ['Recursion'],
+      recommendations: ['Practice more.'],
+    });
+    mockedPrisma.interviewSession.update.mockRejectedValue(new Error('DB connection lost'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+    expect(result.summary).toEqual({
+      text: 'Great work.',
+      strengths: ['Stack'],
+      weaknesses: ['Recursion'],
+      recommendations: ['Practice more.'],
+      generatedByAi: true,
+      message: null,
+    });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[session-summary] failed to cache summary to DB:',
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
+  });
 });

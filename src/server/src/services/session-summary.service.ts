@@ -234,12 +234,16 @@ export async function getSessionSummary(
         weaknesses: result.weaknesses,
         recommendations: result.recommendations,
       };
-      // Cached once, here — every later GET for this session takes the `cached` branch above
-      // and never spends another Gemini call (R01, DoD: 2 calls in → 1 Gemini call out).
-      await prisma.interviewSession.update({
-        where: { id: sessionId },
-        data: { summaryText: JSON.stringify(toCache) },
-      });
+      // Best-effort cache: if the write fails the AI result is already paid for (quota),
+      // so we still return it rather than throwing 500 and re-calling Gemini next time.
+      try {
+        await prisma.interviewSession.update({
+          where: { id: sessionId },
+          data: { summaryText: JSON.stringify(toCache) },
+        });
+      } catch (dbError) {
+        console.error('[session-summary] failed to cache summary to DB:', dbError);
+      }
       summary = reportFromCache(toCache);
     } catch (error) {
       if (!isAiFailure(error)) throw error;
@@ -247,6 +251,8 @@ export async function getSessionSummary(
     }
   }
 
+  // Wall-clock elapsed time — includes any pause intervals (AE-03) since the model only
+  // stores `startedAt` / `endedAt`, not accumulated active study time.
   const durationMinutes = session.endedAt
     ? Math.round((session.endedAt.getTime() - session.startedAt.getTime()) / MS_PER_MINUTE)
     : 0;
