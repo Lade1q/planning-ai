@@ -1,5 +1,6 @@
 import { render, screen } from '@/utils/test-utils';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect } from 'vitest';
 import { ConceptGraph } from './ConceptGraph';
 import { Concept, ConceptEdge } from '../types/concept';
 
