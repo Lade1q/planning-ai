@@ -28,7 +28,8 @@ jest.mock('../config/prisma', () => ({
       findUnique: jest.fn(),
     },
     concept: { findFirst: jest.fn() },
-    conceptSourceRef: { findMany: jest.fn() },
+    conceptSourceRef: { findFirst: jest.fn() },
+    document: { findMany: jest.fn() },
     questionCache: { findMany: jest.fn() },
   },
 }));
@@ -49,7 +50,8 @@ const mockedPrisma = prisma as unknown as {
     findUnique: jest.Mock;
   };
   concept: { findFirst: jest.Mock };
-  conceptSourceRef: { findMany: jest.Mock };
+  conceptSourceRef: { findFirst: jest.Mock };
+  document: { findMany: jest.Mock };
   questionCache: { findMany: jest.Mock };
 };
 const mockedGenerateQuestion = generateQuestion as jest.Mock;
@@ -60,6 +62,32 @@ const SESSION_ID = 'session-uuid';
 const PLAN_ID = 'plan-uuid';
 const CONCEPT_ID = 'concept-uuid';
 const CONCEPT_NAME = 'Recursion';
+const DOCUMENT_ID = 'doc-uuid';
+
+/**
+ * The concept's C5 anchor and the document behind it (#239, #240). Both are dated well before
+ * any turn or cache row this file creates, so a citation coming back `null` below is always the
+ * rule under test firing — never an anchor that happened to be too new to snapshot.
+ */
+const CONCEPT_ANCHOR = {
+  documentId: DOCUMENT_ID,
+  pageFrom: 7,
+  pageTo: 7,
+  createdAt: new Date(2023, 0, 1),
+};
+const DOCUMENT_ROW = {
+  id: DOCUMENT_ID,
+  filename: 'giai-tich-1.pdf',
+  kind: 'pdf',
+  updatedAt: new Date(2023, 0, 1),
+};
+const EXPECTED_CITATION = {
+  documentId: DOCUMENT_ID,
+  filename: 'giai-tich-1.pdf',
+  kind: 'pdf',
+  pageFrom: 7,
+  pageTo: 7,
+};
 
 interface FakeTurn {
   id: string;
@@ -73,6 +101,9 @@ interface FakeTurn {
   feedback: string | null;
   verdict: string | null;
   source: string;
+  sourceDocumentId: string | null;
+  sourcePageFrom: number | null;
+  sourcePageTo: number | null;
   askedAt: Date;
   answeredAt: Date | null;
 }
@@ -110,6 +141,10 @@ function seedPendingTurn(overrides: Partial<FakeTurn> = {}): FakeTurn {
     feedback: null,
     verdict: null,
     source: 'ai',
+    // Seeded turns bypass `askQuestion`, so they carry the snapshot it would have written.
+    sourceDocumentId: DOCUMENT_ID,
+    sourcePageFrom: 7,
+    sourcePageTo: 7,
     askedAt: new Date(),
     answeredAt: null,
     ...overrides,
@@ -158,16 +193,13 @@ describe('interview.service — AE-05 flashcard fallback', () => {
             : null
         )
     );
-    // The concept IS anchored to a document, so every `sourceCitation: null` asserted below
-    // is the cache_fallback rule firing (C5 / #239), not a concept that had no anchor anyway.
-    mockedPrisma.conceptSourceRef.findMany.mockResolvedValue([
-      {
-        conceptId: CONCEPT_ID,
-        pageFrom: 7,
-        pageTo: 7,
-        document: { id: 'doc-uuid', filename: 'giai-tich-1.pdf', kind: 'pdf' },
-      },
-    ]);
+    // Write side: the anchor `askQuestion` / `askCachedQuestion` freeze onto a new turn.
+    mockedPrisma.conceptSourceRef.findFirst.mockResolvedValue({ ...CONCEPT_ANCHOR });
+    // Read side: the document a turn's snapshot points at, looked up by id (#240).
+    mockedPrisma.document.findMany.mockImplementation(
+      ({ where }: { where: { id: { in: string[] } } }) =>
+        Promise.resolve(where.id.in.includes(DOCUMENT_ID) ? [{ ...DOCUMENT_ROW }] : [])
+    );
     mockedPrisma.interviewTurn.findMany.mockImplementation(
       ({ where }: { where: { sessionId: string; conceptId?: string } }) =>
         Promise.resolve(
@@ -188,6 +220,9 @@ describe('interview.service — AE-05 flashcard fallback', () => {
           questionText: string;
           questionType: string | null;
           source?: string;
+          sourceDocumentId?: string | null;
+          sourcePageFrom?: number | null;
+          sourcePageTo?: number | null;
         };
       }) => {
         const turn: FakeTurn = {
@@ -202,6 +237,9 @@ describe('interview.service — AE-05 flashcard fallback', () => {
           feedback: null,
           verdict: null,
           source: data.source ?? 'ai',
+          sourceDocumentId: data.sourceDocumentId ?? null,
+          sourcePageFrom: data.sourcePageFrom ?? null,
+          sourcePageTo: data.sourcePageTo ?? null,
           askedAt: new Date(),
           answeredAt: null,
         };
@@ -316,9 +354,9 @@ describe('interview.service — AE-05 flashcard fallback', () => {
     expect(result.currentQuestion).toMatchObject({
       questionText: 'Cached question 1',
       source: 'cache_fallback',
-      // C5 (#239): a cached question is not traceable to the document it was generated from,
-      // so it cites nothing — even though this concept does have an anchor.
-      sourceCitation: null,
+      // C5 (#240): the anchor predates the cache row, so the cached question still describes
+      // the document it was generated from and gets to cite it. #239 hid this arm outright.
+      sourceCitation: EXPECTED_CITATION,
     });
     expect(mockedPrisma.interviewTurn.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -376,32 +414,101 @@ describe('interview.service — AE-05 flashcard fallback', () => {
   });
 
   /**
-   * C5 (#239) on the ordinary path. The pure rule lives in `utils/question-citation.ts` and is
-   * tested there; what this covers is the wiring the pure test cannot see — that `buildView`'s
-   * anchor query actually reaches both the pending question and the transcript.
+   * C5 (#239, #240). The choose-or-withhold rules live in `utils/question-citation.ts` and are
+   * proven there; what these cover is the wiring the pure tests cannot see — that the anchor is
+   * actually frozen onto the row at ask time, and that the read path resolves the snapshot for
+   * both the pending question and the transcript.
    */
-  it('cites the concept source document on an AI question and on the answered turns', async () => {
+  it('cites the source document on an AI question and on the answered turns', async () => {
     seedPendingTurn({ source: 'ai', questionText: 'AI question awaiting an answer' });
 
     const result = await getInterview(SESSION_ID, USER_ID);
 
-    const citation = {
-      documentId: 'doc-uuid',
-      filename: 'giai-tich-1.pdf',
-      kind: 'pdf',
-      pageFrom: 7,
-      pageTo: 7,
-    };
-    expect(result.currentQuestion).toMatchObject({ sourceCitation: citation });
-    expect(result.turns).toEqual([expect.objectContaining({ sourceCitation: citation })]);
+    expect(result.currentQuestion).toMatchObject({ sourceCitation: EXPECTED_CITATION });
+    expect(result.turns).toEqual([expect.objectContaining({ sourceCitation: EXPECTED_CITATION })]);
     expect(mockedGenerateQuestion).not.toHaveBeenCalled();
+  });
+
+  it('freezes the concept anchor onto the turn when a cached question is asked', async () => {
+    // The snapshot is the whole point of #240: what the row records at ask time is what the
+    // transcript will cite forever, whatever happens to the concept's anchors afterwards.
+    sessionRow.fallbackMode = true;
+    mockedPrisma.questionCache.findMany.mockResolvedValue([
+      {
+        questionText: 'Cached question 1',
+        questionType: 'recall',
+        generatedAt: new Date(2024, 0, 1),
+      },
+    ]);
+
+    await getInterview(SESSION_ID, USER_ID);
+
+    expect(mockedPrisma.interviewTurn.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceDocumentId: DOCUMENT_ID,
+          sourcePageFrom: 7,
+          sourcePageTo: 7,
+        }),
+      })
+    );
+  });
+
+  it('records no anchor on a cached question whose concept was re-analysed since', async () => {
+    // Lỗ hổng A's dangerous half: the cache row is from document v1, the anchor now on the
+    // concept was rewritten by a later re-analysis and describes v2. The turn cites nothing
+    // rather than lending a v1 question a v2 page number.
+    sessionRow.fallbackMode = true;
+    mockedPrisma.conceptSourceRef.findFirst.mockResolvedValue({
+      ...CONCEPT_ANCHOR,
+      createdAt: new Date(2025, 0, 1),
+    });
+    mockedPrisma.questionCache.findMany.mockResolvedValue([
+      {
+        questionText: 'Cached question 1',
+        questionType: 'recall',
+        generatedAt: new Date(2024, 0, 1),
+      },
+    ]);
+
+    const result = await getInterview(SESSION_ID, USER_ID);
+
+    expect(result.currentQuestion).toMatchObject({ sourceCitation: null });
+    expect(mockedPrisma.interviewTurn.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sourceDocumentId: null }) })
+    );
   });
 
   it('leaves sourceCitation null for a concept the analysis never anchored', async () => {
     // A concept added by hand (#172), or one extract_concepts gave neither page nor excerpt
     // for: a valid state, not an error — the client just renders no citation block.
-    mockedPrisma.conceptSourceRef.findMany.mockResolvedValue([]);
-    seedPendingTurn({ source: 'ai', questionText: 'AI question awaiting an answer' });
+    seedPendingTurn({
+      source: 'ai',
+      questionText: 'AI question awaiting an answer',
+      sourceDocumentId: null,
+      sourcePageFrom: null,
+      sourcePageTo: null,
+    });
+
+    const result = await getInterview(SESSION_ID, USER_ID);
+
+    expect(result.currentQuestion).toMatchObject({ sourceCitation: null });
+    // Nothing to resolve, so the read path does not go looking for documents at all.
+    expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+  });
+
+  it('hides the citation once the document has been swapped out from under the turn', async () => {
+    // Lỗ hổng B (#240): SP-04 change-document updates the row in place, so the id on the turn
+    // still resolves — to a different file. Re-deriving anchors would have renumbered every
+    // earlier turn onto the new document without a trace.
+    seedPendingTurn({ source: 'ai', questionText: 'Asked before the document was replaced' });
+    mockedPrisma.document.findMany.mockResolvedValue([
+      {
+        ...DOCUMENT_ROW,
+        filename: 'dai-so-tuyen-tinh.pdf',
+        updatedAt: new Date(Date.now() + 60_000),
+      },
+    ]);
 
     const result = await getInterview(SESSION_ID, USER_ID);
 
