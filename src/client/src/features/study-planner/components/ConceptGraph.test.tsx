@@ -6,7 +6,7 @@ import { Concept, ConceptEdge } from '../types/concept';
 
 const mockEdges: ConceptEdge[] = [];
 
-describe('ConceptGraph Regression Tests (DB-05)', () => {
+describe('ConceptGraph Regression Tests (Bug #205)', () => {
   const renderGraph = (concepts: Concept[]) => {
     return render(
       <ConceptGraph
