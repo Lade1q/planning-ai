@@ -18,7 +18,11 @@ interface AnswerInputProps {
  * Ô trả lời dạng gõ (mặc định Sprint 4). Ctrl/Cmd + Enter để gửi nhanh vì cả phiên có
  * thể làm mà không rời tay khỏi bàn phím.
  */
-export function AnswerInput({ onSubmit, disabled = false, isSubmitting = false }: AnswerInputProps) {
+export function AnswerInput({
+  onSubmit,
+  disabled = false,
+  isSubmitting = false,
+}: AnswerInputProps) {
   const [text, setText] = useState('');
   const isBlocked = disabled || isSubmitting;
 
@@ -52,9 +56,9 @@ export function AnswerInput({ onSubmit, disabled = false, isSubmitting = false }
         disabled={isBlocked}
         spellCheck={false}
         placeholder="Nhập câu trả lời của bạn…"
-        className="block max-h-50 min-h-23 w-full resize-y rounded-md border border-border bg-background px-3.5 py-3 text-sm leading-[1.62] text-foreground outline-none transition-colors focus-visible:border-transparent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60"
+        className="max-h-50 min-h-23 border-border bg-background text-foreground focus-visible:outline-ring block w-full resize-y rounded-md border px-3.5 py-3 text-sm leading-[1.62] outline-none transition-colors focus-visible:border-transparent focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-60"
       />
-      <div className="mt-2.5 flex items-center gap-3.5 text-xs text-muted-foreground">
+      <div className="text-muted-foreground mt-2.5 flex items-center gap-3.5 text-xs">
         <span>
           <Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd> để gửi
         </span>

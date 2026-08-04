@@ -21,9 +21,7 @@ export type TurnVerdict = 'deep' | 'shallow' | 'wrong';
 
 /** Vì sao một lệnh gọi AI không khả dụng — quyết định client fallback *từ* đâu. */
 export type InterviewFallbackReason =
-  | 'grading_unavailable'
-  | 'question_unavailable'
-  | 'no_cached_questions';
+  'grading_unavailable' | 'question_unavailable' | 'no_cached_questions';
 
 /** Điểm tự chấm ở chế độ flashcard fallback (AE-05). */
 export type SelfGrade = 'correct' | 'partial' | 'wrong';

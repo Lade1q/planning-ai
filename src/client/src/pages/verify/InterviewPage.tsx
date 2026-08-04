@@ -147,8 +147,8 @@ export default function InterviewPage() {
           Kiểm tra vấn đáp
         </h1>
         <p className="text-muted-foreground mt-1.5 text-sm">
-          Chọn kế hoạch và các khái niệm bạn muốn AI Examiner kiểm tra, hoặc để hệ thống gợi ý
-          những khái niệm cần ôn hôm nay.
+          Chọn kế hoạch và các khái niệm bạn muốn AI Examiner kiểm tra, hoặc để hệ thống gợi ý những
+          khái niệm cần ôn hôm nay.
         </p>
       </header>
 
@@ -161,14 +161,15 @@ export default function InterviewPage() {
       ) : plans.length === 0 ? (
         <div className="border-border bg-background rounded-xl border px-7 py-6 text-center">
           <p className="text-muted-foreground text-[13.5px] leading-[1.7]">
-            Chưa có kế hoạch nào đang hoạt động để kiểm tra. Hãy tạo và phân tích một kế hoạch trước.
+            Chưa có kế hoạch nào đang hoạt động để kiểm tra. Hãy tạo và phân tích một kế hoạch
+            trước.
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
           {/* Bước 1: chọn kế hoạch */}
           <section>
-            <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+            <h2 className="text-muted-foreground mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em]">
               Kế hoạch ôn tập
             </h2>
             <div className="flex flex-col gap-2">
@@ -195,12 +196,12 @@ export default function InterviewPage() {
           {/* Bước 2: chọn khái niệm */}
           {selectedPlanId && (
             <section>
-              <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+              <h2 className="text-muted-foreground mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em]">
                 Khái niệm cần kiểm tra
               </h2>
 
               {conceptsLoading ? (
-                <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
                   <Loader2 className="size-4 animate-spin" />
                   Đang tải khái niệm…
                 </div>
@@ -225,7 +226,7 @@ export default function InterviewPage() {
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleConcept(concept.id)}
-                          className="size-4 shrink-0 accent-foreground"
+                          className="accent-foreground size-4 shrink-0"
                         />
                         <span className="min-w-0 truncate">{concept.name}</span>
                       </label>
@@ -238,12 +239,11 @@ export default function InterviewPage() {
 
           {/* Bước 3: bắt đầu */}
           {selectedPlanId && (
-            <section className="flex flex-col gap-3 border-t border-border pt-5">
+            <section className="border-border flex flex-col gap-3 border-t pt-5">
               {selectedCount > 0 && (
                 <p className="text-muted-foreground text-[13px]">
-                  Sẽ kiểm tra{' '}
-                  <strong className="text-foreground">{selectedCount} khái niệm</strong> × tối đa{' '}
-                  {MAX_TURNS_PER_CONCEPT} lượt.
+                  Sẽ kiểm tra <strong className="text-foreground">{selectedCount} khái niệm</strong>{' '}
+                  × tối đa {MAX_TURNS_PER_CONCEPT} lượt.
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-3">

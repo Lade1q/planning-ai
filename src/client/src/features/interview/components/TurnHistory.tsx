@@ -24,12 +24,12 @@ export function TurnHistory({ turns }: TurnHistoryProps) {
         return (
           <Fragment key={turn.id}>
             {isNewConcept && (
-              <h3 className="font-heading text-lg tracking-[-0.01em] text-foreground">
+              <h3 className="font-heading text-foreground text-lg tracking-[-0.01em]">
                 {turn.conceptName}
               </h3>
             )}
             <section className="flex flex-col gap-3" aria-label={`Lượt ${turn.turnIndex}`}>
-              <div className="flex items-baseline justify-between border-b border-border pb-1.5 text-xs font-medium text-muted-foreground">
+              <div className="border-border text-muted-foreground flex items-baseline justify-between border-b pb-1.5 text-xs font-medium">
                 <span>Lượt {turn.turnIndex}</span>
               </div>
 
@@ -80,15 +80,15 @@ function GradeCard({ verdict, score, feedback, turnIndex }: GradeCardProps) {
         : 'border-l-mastery-weak';
 
   return (
-    <div className={`rounded-md border border-border border-l-2 bg-card px-4 py-3.5 ${borderColor}`}>
+    <div
+      className={`border-border bg-card rounded-md border border-l-2 px-4 py-3.5 ${borderColor}`}
+    >
       <div className="mb-2 flex flex-wrap items-center gap-2.5">
         <VerdictBadge verdict={verdict} />
         {score !== null && <MetaMono className="text-[13px]">{score.toFixed(2)}</MetaMono>}
-        <span className="ml-auto text-[11px] text-muted-foreground">Lượt {turnIndex}</span>
+        <span className="text-muted-foreground ml-auto text-[11px]">Lượt {turnIndex}</span>
       </div>
-      {feedback && (
-        <p className="text-[13.5px] leading-[1.6] text-foreground">{feedback}</p>
-      )}
+      {feedback && <p className="text-foreground text-[13.5px] leading-[1.6]">{feedback}</p>}
     </div>
   );
 }
