@@ -230,7 +230,11 @@ export function ConceptDetailPanel({
             <h4 className="text-muted-foreground mb-2.5 text-[11px] font-semibold uppercase tracking-[0.06em]">
               Trích từ tài liệu
             </h4>
-            <ConceptSourceList sources={detail?.sources ?? []} conceptName={conceptName} />
+            <ConceptSourceList
+              sources={detail?.sources ?? []}
+              conceptName={conceptName}
+              prerequisiteNames={prerequisites.map((p) => p.name)}
+            />
           </div>
 
           <div>
