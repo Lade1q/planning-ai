@@ -64,6 +64,20 @@
       outline-offset: 2px;
     }
 
+    /* Header là sticky, nên anchor nhảy tới phải chừa chỗ kẻo tiêu đề bị che. */
+    html {
+      scroll-behavior: smooth;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+    .sec__title,
+    .sec {
+      scroll-margin-top: 88px;
+    }
+
     .linkish {
       border: 0;
       background: none;
@@ -229,6 +243,24 @@
       max-width: 60ch;
       margin: 0 0 34px;
       color: var(--foreground);
+      text-wrap: pretty;
+    }
+
+    /* ── Lối tắt xuống khối lịch ôn ────────────────────────────────────────
+       Viewport đầu vốn đã kể được SỰ VIỆC ("đã truy ngược, tìm thấy hai khái
+       niệm nền") nhưng không hề báo là có VIỆC ĐỂ LÀM ở dưới. Người rời màn
+       sau 5 giây không mất gì — lịch đã áp — nhưng cũng không biết mình bỏ
+       qua quyền sửa. Một dòng chữ nhạt là đủ; không cần thêm nút, vì màn này
+       chỉ nên có đúng một hành động chính là "Bắt đầu phiên học tiếp theo". */
+    .hero__lead:has(+ .hero__act) {
+      margin-bottom: 12px;
+    }
+    .hero__act {
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 60ch;
+      margin: 0 0 34px;
+      color: var(--muted-foreground);
       text-wrap: pretty;
     }
 
@@ -1114,6 +1146,10 @@
         nên hệ thống đã truy ngược và tìm thấy hai khái niệm nền cần học trước khi
         quay lại chúng.
       </p>
+      <p class="hero__act">
+        Lịch ôn đã cập nhật theo kết quả này —
+        <a class="linkish" href="#tt-lich">xem hai khái niệm vừa được chèn</a>
+      </p>
 
       <!-- 5 đoạn = 5 khái niệm theo đúng thứ tự hàng đợi của phiên vừa xong. -->
       <div class="meter" role="img" aria-label="Kết quả 5 khái niệm: 1 vững, 2 đang học, 2 dưới ngưỡng">
@@ -1521,9 +1557,19 @@
     <section class="sec" aria-labelledby="tt-lich">
       <p class="sec__eyebrow">Hệ quả</p>
       <h2 class="sec__title" id="tt-lich">Hệ thống đã xếp lại lịch ôn</h2>
+      <!--
+        Lịch được áp NGAY, không chờ xác nhận. Bản trước để tiêu đề "đã xếp lại"
+        cạnh câu "chỉ được lưu khi bạn đồng ý" và một nút "Đồng ý, giữ lịch này"
+        — ba thứ nói ba điều khác nhau. Chọn vế "đã áp" vì mặc định do truy ngược
+        tính ra là mặc định đúng, và vì biến màn này thành cửa-phải-qua thì người
+        vừa vấn đáp 32 phút sẽ bấm cho xong chứ không đọc. Hành động thật còn lại
+        chỉ là bỏ bớt, và nó không mất đi khi rời màn: sửa tiếp được trong Kế
+        hoạch ôn tập. Không có quyết định nào bị bỏ lỡ, nên không cần chặn lối ra.
+      -->
       <p class="sec__lead">
-        Hai khái niệm dưới 0.60 được truy ngược tìm khái niệm nền. Bạn có quyền bỏ bất kỳ
-        đề xuất nào — lịch chỉ được lưu khi bạn đồng ý.
+        Hai khái niệm dưới 0.60 được truy ngược tìm khái niệm nền. Lịch đã cập nhật
+        theo kết quả đó — bạn bỏ bớt được ngay tại đây, hoặc sau này trong Kế hoạch
+        ôn tập.
       </p>
 
       <div class="tb">
@@ -1600,9 +1646,8 @@
         </div>
 
         <div class="tb__actions">
-          <button class="btn btn-primary" type="button">Đồng ý, giữ lịch này</button>
           <a class="btn btn-outline" href="screen-concept-graph.html">Xem trên đồ thị khái niệm</a>
-          <span class="tb__undo">Đổi ý lúc nào cũng được trong Kế hoạch ôn tập.</span>
+          <span class="tb__undo">Đã áp vào Kế hoạch ôn tập · sửa lại bất cứ lúc nào</span>
         </div>
       </div>
     </section>
