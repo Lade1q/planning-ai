@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import {
   createInterviewController,
   getInterviewController,
+  getSessionSummaryController,
   pauseInterviewController,
   resumeInterviewController,
   submitAnswerController,
@@ -15,6 +16,7 @@ import {
   submitAnswer,
   submitSelfGrade,
 } from '../services/interview.service';
+import { getSessionSummary } from '../services/session-summary.service';
 import { AppError } from '../middleware/errorHandler';
 import { MAX_TURNS_PER_CONCEPT } from '../utils/interview-state';
 
@@ -29,6 +31,10 @@ jest.mock('../services/interview.service', () => ({
   pauseInterview: jest.fn(),
   resumeInterview: jest.fn(),
 }));
+jest.mock('../services/session-summary.service', () => ({
+  __esModule: true,
+  getSessionSummary: jest.fn(),
+}));
 
 const mockedStart = startInterview as jest.Mock;
 const mockedGet = getInterview as jest.Mock;
@@ -36,6 +42,7 @@ const mockedSubmit = submitAnswer as jest.Mock;
 const mockedSubmitSelfGrade = submitSelfGrade as jest.Mock;
 const mockedPause = pauseInterview as jest.Mock;
 const mockedResume = resumeInterview as jest.Mock;
+const mockedGetSessionSummary = getSessionSummary as jest.Mock;
 
 const USER_ID = 'user-owner-uuid';
 const PLAN_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
@@ -320,5 +327,63 @@ describe('pauseInterviewController / resumeInterviewController', () => {
 
     expect(mockedResume).toHaveBeenCalledWith(SESSION_ID, USER_ID);
     expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+});
+
+describe('getSessionSummaryController', () => {
+  it('throws 401 UNAUTHORIZED when req.userId is missing', async () => {
+    const req = { params: { id: SESSION_ID } } as unknown as Request;
+
+    const error = await getSessionSummaryController(req, mockRes()).catch((e) => e);
+
+    expect(error).toMatchObject({ statusCode: 401, code: 'UNAUTHORIZED' });
+    expect(mockedGetSessionSummary).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-UUID id before the service is reached', async () => {
+    const req = { userId: USER_ID, params: { id: 'not-a-uuid' } } as unknown as Request;
+
+    const error = await getSessionSummaryController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ZodError);
+    expect(mockedGetSessionSummary).not.toHaveBeenCalled();
+  });
+
+  it('responds 200 with the session summary', async () => {
+    const data = {
+      sessionId: SESSION_ID,
+      status: 'completed',
+      durationMinutes: 12,
+      concepts: [],
+      summary: {
+        text: 'Great job.',
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+        generatedByAi: true,
+        message: null,
+      },
+      traceback: [],
+    };
+    mockedGetSessionSummary.mockResolvedValue(data);
+    const req = { userId: USER_ID, params: { id: SESSION_ID } } as unknown as Request;
+    const res = mockRes();
+
+    await getSessionSummaryController(req, res);
+
+    expect(mockedGetSessionSummary).toHaveBeenCalledWith(SESSION_ID, USER_ID);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data });
+  });
+
+  it('propagates a 409 from the service when the session has not finished', async () => {
+    mockedGetSessionSummary.mockRejectedValue(
+      new AppError('This interview session has not finished yet', 409, 'SESSION_NOT_COMPLETED')
+    );
+    const req = { userId: USER_ID, params: { id: SESSION_ID } } as unknown as Request;
+
+    const error = await getSessionSummaryController(req, mockRes()).catch((e) => e);
+
+    expect(error).toMatchObject({ statusCode: 409, code: 'SESSION_NOT_COMPLETED' });
   });
 });

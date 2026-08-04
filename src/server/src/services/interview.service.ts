@@ -84,6 +84,9 @@ const sessionSelect = {
   currentConceptIdx: true,
   maxTurnsPerConcept: true,
   fallbackMode: true,
+  // Only read by session-summary.service.ts (AE-09) — the cache of the one-time
+  // `summarize_session` call, serialized as JSON (see that file for why).
+  summaryText: true,
   startedAt: true,
   endedAt: true,
   plan: { select: { languageDetected: true } },
@@ -130,8 +133,12 @@ interface SessionView {
 
 // --- Loading ----------------------------------------------------------------------------
 
-/** `conceptQueue` is a JSON column, so its contents are validated rather than trusted. */
-function parseConceptQueue(value: Prisma.JsonValue): string[] {
+/**
+ * `conceptQueue` is a JSON column, so its contents are validated rather than trusted. Exported
+ * for `session-summary.service.ts` (AE-09), which needs the same queue order to list a
+ * session's concepts.
+ */
+export function parseConceptQueue(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
 }
 
@@ -139,8 +146,12 @@ function parseConceptQueue(value: Prisma.JsonValue): string[] {
  * Ownership is reported as 404, not 403 (#115): a session that exists but belongs to somebody
  * else must be indistinguishable from one that does not exist, or the endpoint leaks which
  * ids are real.
+ *
+ * Exported for `session-summary.service.ts` (AE-09/I6.5): the summary endpoint needs the exact
+ * same ownership check and row shape as every other interview endpoint, so it reuses this
+ * rather than re-implementing the 404-not-403 rule a second time.
  */
-async function loadSession(sessionId: string, userId: string): Promise<SessionRow> {
+export async function loadSession(sessionId: string, userId: string): Promise<SessionRow> {
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
     select: sessionSelect,
