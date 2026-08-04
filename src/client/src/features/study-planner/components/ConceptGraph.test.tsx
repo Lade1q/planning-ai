@@ -1,41 +1,19 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/utils/test-utils';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
-import { ReactFlowProvider } from '@xyflow/react';
-import { describe, it, expect, vi } from 'vitest';
 import { ConceptGraph } from './ConceptGraph';
 import { Concept, ConceptEdge } from '../types/concept';
-
-// Mock matchMedia since jsdom doesn't support it (needed by some UI components potentially)
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // Deprecated
-    removeListener: vi.fn(), // Deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
 
 const mockEdges: ConceptEdge[] = [];
 
 describe('ConceptGraph Regression Tests (DB-05)', () => {
   const renderGraph = (concepts: Concept[]) => {
     return render(
-      <BrowserRouter>
-        <ReactFlowProvider>
-          <ConceptGraph
-            planId="plan-1"
-            initialConcepts={concepts}
-            initialEdges={mockEdges}
-            mode="view"
-          />
-        </ReactFlowProvider>
-      </BrowserRouter>
+      <ConceptGraph
+        planId="plan-1"
+        initialConcepts={concepts}
+        initialEdges={mockEdges}
+        mode="view"
+      />
     );
   };
 
