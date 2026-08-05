@@ -196,20 +196,20 @@ model ConceptEdge {
 /// Job phân tích tài liệu bất đồng bộ (SP-06)
 /// Lưu ý: planDraftId không có FK constraint vì plan draft có thể chưa tồn tại (async flow)
 model AnalysisJob {
-  id          String            @id @default(uuid()) @db.Uuid
-  planDraftId String?           @map("plan_draft_id") @db.Uuid
-  fileKey     String?           @map("file_key")
-  status      AnalysisJobStatus @default(pending)
+  id           String            @id @default(uuid()) @db.Uuid
+  planDraftId  String?           @map("plan_draft_id") @db.Uuid
+  fileKey      String?           @map("file_key")
+  status       AnalysisJobStatus @default(pending)
   /// Null until the job starts `processing`; not reset on completion or failure — a caller
   /// only reads it while status is `processing` (Issue #186).
-  phase       AnalysisJobPhase?
-  retryCount  Int               @default(0) @map("retry_count")
+  phase        AnalysisJobPhase?
+  retryCount   Int               @default(0) @map("retry_count")
   /// Truncated, safe reason for the last `failed` transition (Issue #183) — set only by
   /// `markFailed()`'s real-error path, never by the stale-job sweep or the retry/reanalyze
   /// force-fail paths, which have no underlying error to report.
-  errorMessage String?          @map("error_message")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  completedAt DateTime?         @map("completed_at")
+  errorMessage String?           @map("error_message")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  completedAt  DateTime?         @map("completed_at")
 
   @@index([planDraftId])
   @@index([status])
@@ -293,14 +293,18 @@ model InterviewTurn {
 
 /// Phiên học Pomodoro (FS-01, FS-03)
 model FocusSession {
-  id              String             @id @default(uuid()) @db.Uuid
-  userId          String             @map("user_id") @db.Uuid
-  planId          String?            @map("plan_id") @db.Uuid
-  conceptIds      Json               @map("concept_ids") // string[]
-  status          FocusSessionStatus @default(running)
-  durationMinutes Int                @default(0) @map("duration_minutes") // thời gian HỌC thực tế, không tính pause
-  startedAt       DateTime           @default(now()) @map("started_at")
-  endedAt         DateTime?          @map("ended_at")
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  planId             String?            @map("plan_id") @db.Uuid
+  conceptIds         Json               @map("concept_ids") // string[]
+  status             FocusSessionStatus @default(running)
+  durationMinutes    Int                @default(0) @map("duration_minutes") // thời gian HỌC thực tế, không tính pause — cột dẫn xuất từ focusedSeconds
+  focusedSeconds     Int                @default(0) @map("focused_seconds") // thời gian tập trung thực tế, do client đo và gửi lên
+  awayCount          Int                @default(0) @map("away_count") // số lần rời tab (Page Visibility API)
+  pomodorosCompleted Int                @default(0) @map("pomodoros_completed") // số lượt work đã hoàn thành
+  strictMode         Boolean            @default(false) @map("strict_mode") // phiên này có bật chế độ nghiêm ngặt không
+  startedAt          DateTime           @default(now()) @map("started_at")
+  endedAt            DateTime?          @map("ended_at")
 
   user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan StudyPlan? @relation(fields: [planId], references: [id], onDelete: Cascade)
