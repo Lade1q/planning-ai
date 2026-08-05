@@ -196,6 +196,26 @@
       gap: 6px;
     }
 
+    .canvas__actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 12px;
+      font-family: var(--font-sans);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 0.6);
+      background: var(--card);
+      color: var(--foreground);
+      cursor: pointer;
+    }
+    .btn-sm:hover {
+      background: var(--muted);
+    }
+
     .canvas__plot {
       position: relative;
       height: 300px;
@@ -966,7 +986,10 @@
               </svg>
               Kéo từ node này sang node kia để thêm quan hệ tiên quyết · nhấp vào cạnh để xóa
             </span>
-            <span class="meta-mono">5 khái niệm · 4 cạnh</span>
+            <div class="canvas__actions">
+              <button class="btn-sm" type="button">+ Thêm khái niệm</button>
+              <button class="btn-sm" type="button">Auto Layout</button>
+            </div>
           </div>
 
           <div class="canvas__plot">
@@ -1092,13 +1115,21 @@
       </section>
 
       <div class="commit">
+        <!--
+          Copy nút Xác nhận (UX-04):
+          - Draft mode: "Xác nhận & tạo lịch ôn tập"
+          - Active/edit mode: "Lưu thay đổi" (hoặc label phù hợp ngữ cảnh)
+        -->
         <button class="btn btn-primary" type="button">Xác nhận &amp; tạo lịch ôn tập</button>
+        <!--
+          Hành vi nút Hủy:
+          - Draft mode: điều hướng về /plans (giữ nguyên draft, không xóa)
+          - Active/edit mode: điều hướng về /graph không lưu
+        -->
         <a href="#huy" class="link">Hủy</a>
+        <!-- UX-05: Microcopy thân thiện, không dùng từ ngữ kỹ thuật -->
         <p class="commit__note">
-          Khi xác nhận: kế hoạch chuyển <code>draft → active</code>,
-          SRE dựng lịch từ đồ thị và deadline. Toàn bộ khái niệm giữ
-          <code>mastery_score = null</code> —
-          điểm thành thạo chỉ ghi sau phiên AI Examiner đầu tiên, không phải ở đây.
+          Khi xác nhận, kế hoạch bắt đầu và hệ thống tự sắp lịch ôn cho bạn. Điểm thành thạo sẽ được tính sau buổi kiểm tra đầu tiên.
         </p>
       </div>
     </main>
@@ -1415,6 +1446,26 @@ lần 3  14:02:20  schema_error   thiếu trường "edges"</pre>
                 sửa theo mã: dữ liệu nháp <em>có</em> được lưu, và bị dọn khi Sinh viên hủy.
                 SPEC_SP-01 Alt flow 5 (“xóa các dữ liệu tạm thời chưa lưu”) đã đúng, chỉ UC-02 còn cũ.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 6 · Cảnh báo chưa lưu ─────────────────────────────────────────── -->
+      <section id="unsaved">
+        <div class="state__head">
+          <span class="state__name">Cảnh báo chưa lưu (Unsaved changes)</span>
+        </div>
+        <p class="state__desc">
+          Xuất hiện khi người dùng đã thực hiện thao tác sửa đồ thị (thêm/xóa node/cạnh) rồi bấm Hủy.
+        </p>
+        <div class="state__demo" style="background:var(--muted);">
+          <div class="dialog" role="alertdialog" aria-labelledby="dlg-unsaved-t">
+            <h3 class="dialog__t" id="dlg-unsaved-t">Bỏ các thay đổi?</h3>
+            <p class="dialog__d">Đồ thị đã được chỉnh sửa. Nếu rời trang, các thay đổi chưa lưu sẽ bị mất.</p>
+            <div class="dialog__actions" style="margin-top: 16px;">
+              <button class="btn btn-ghost" type="button" style="color:var(--mastery-weak);">Tiếp tục rời</button>
+              <button class="btn btn-secondary" type="button" autofocus>Ở lại chỉnh sửa</button>
             </div>
           </div>
         </div>
