@@ -224,6 +224,19 @@ describe('abandonInterview — scoring what was actually answered', () => {
     expect(sessionRow.currentConceptIdx).toBe(1);
   });
 
+  it('reports no current concept once ended, while still counting the scored one', async () => {
+    // The index bump advances `currentConcept` to the *next, never-asked* concept; reporting
+    // that would tell the client the session stopped somewhere it never went. Asserting the
+    // count stays 1 alongside the null is what distinguishes nulling the field from dropping
+    // the bump — the latter would break `completedConcepts`.
+    seedTurn({ score: 0.9, verdict: 'deep' });
+
+    const result = await abandonInterview(SESSION_ID, USER_ID);
+
+    expect(result.session.currentConcept).toBeNull();
+    expect(result.session.progress.completedConcepts).toBe(1);
+  });
+
   it('abandons a paused session too, not only an active one', async () => {
     sessionRow.status = 'paused';
     seedTurn({ score: 0.5, verdict: 'shallow' });

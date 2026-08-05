@@ -358,6 +358,7 @@ function toTurnResponse(
 
 function toSessionState(view: SessionView): InterviewSessionState {
   const { session } = view;
+  const isEnded = session.status === 'completed' || session.status === 'abandoned';
 
   return {
     id: session.id,
@@ -366,7 +367,15 @@ function toSessionState(view: SessionView): InterviewSessionState {
     fallbackMode: session.fallbackMode,
     startedAt: session.startedAt,
     endedAt: session.endedAt,
-    currentConcept: view.concept,
+    // A finished session has no concept "currently" being asked. Most `completed` sessions
+    // already report `null` because the queue ran out (`view.concept` is null past its end),
+    // but two paths finish with a concept still in hand: `abandon` bumps the index past the
+    // concept it just scored, so `view.concept` is the *next, never-asked* one; and UC-12 E1
+    // completes a session while still pointing at a concept that had no question to serve.
+    // Reporting either as `currentConcept` would tell the client the session stopped somewhere
+    // it did not. `completedConcepts` still needs the bumped index, so only this field is
+    // nulled — see the bump in `abandonInterview`.
+    currentConcept: isEnded ? null : view.concept,
     progress: {
       conceptIndex: view.conceptIndex,
       conceptTotal: view.queue.length,
