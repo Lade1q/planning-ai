@@ -33,7 +33,9 @@ import {
   buildTurnCitation,
   type CitedDocumentRow,
 } from '../utils/question-citation';
+import { gradedTurnScores } from '../utils/mastery';
 import type {
+  AbandonInterviewResponse,
   ConceptCompletedResponse,
   GetInterviewResponse,
   InterviewFallbackResponse,
@@ -566,9 +568,7 @@ async function finishConcept(
     orderBy: { turnIndex: 'asc' },
     select: { score: true },
   });
-  const turnScores = turns
-    .map((turn) => turn.score)
-    .filter((score): score is number => score !== null);
+  const turnScores = gradedTurnScores(turns);
 
   const result = await finalizeConceptResult({
     sessionId: view.session.id,
@@ -1228,4 +1228,92 @@ export async function resumeInterview(
     currentQuestion: advance.question,
     fallback: advance.fallback,
   };
+}
+
+/**
+ * POST /interviews/:id/abandon — SPEC_DB-03 AF2, "Kết thúc và chấm phần đã làm" (#243).
+ *
+ * Closes an unfinished session and **scores** the concept it was in the middle of instead of
+ * throwing that work away: a student who answered two of three turns keeps those two in
+ * `mastery_score`, weighted over the turns that happened (`[0.2, 0.3] → [0.4, 0.6]`). That is
+ * the whole difference from "start a new one" — the wording the design uses everywhere, and the
+ * reason this is not simply a delete.
+ *
+ * Its own endpoint rather than a `force` flag on `POST /interviews`: the session history screen
+ * (DB-03) ends a session *without* opening a new one, while AE-01's dialog calls this and then
+ * creates. One flag serving both would tie the two together and DB-03 could not reuse it.
+ *
+ * `summarize_session` is deliberately **not** called (SPEC_DB-03 AF3): an abandoned session keeps
+ * `summary_text = NULL` and the history screen drops the commentary block rather than rendering
+ * an empty frame — so ending early costs no extra AI call (C4).
+ */
+export async function abandonInterview(
+  sessionId: string,
+  userId: string
+): Promise<AbandonInterviewResponse> {
+  const session = await loadSession(sessionId, userId);
+
+  // Idempotent, the same way `pauseInterview` is for an already-paused session: a retried or
+  // double-clicked request reports the state back, it does not score the concept twice.
+  if (session.status === 'abandoned') {
+    return { session: toSessionState(await buildView(session)), conceptCompleted: null };
+  }
+  if (session.status !== 'active' && session.status !== 'paused') {
+    throw new AppError('This interview session has already ended', 409, 'SESSION_ENDED');
+  }
+
+  const view = await buildView(session);
+  const conceptCompleted = view.concept ? await scoreConceptSoFar(view, view.concept) : null;
+
+  const abandoned = await prisma.interviewSession.update({
+    where: { id: session.id },
+    data: {
+      status: 'abandoned',
+      endedAt: new Date(),
+      // Only when something was actually scored: the queue has genuinely moved past that
+      // concept, and leaving the index behind would report `completedConcepts` one short of
+      // what was written to the graph.
+      ...(conceptCompleted ? { currentConceptIdx: view.conceptIndex + 1 } : {}),
+    },
+    select: sessionSelect,
+  });
+
+  return { session: toSessionState(await buildView(abandoned)), conceptCompleted };
+}
+
+/**
+ * Finalises the concept a session is stopping in the middle of, through the same I7.2 seam a
+ * concept that ran to the end goes through — mastery score, review schedule, traceback.
+ *
+ * `null` when no turn of the concept could be graded: there is nothing for the weighted average
+ * to average, and a spaced-repetition row for a concept the student never answered would claim
+ * an assessment that never happened. `finalizeConceptResult` already leaves the stored score
+ * alone in that case; not calling it at all keeps the review queue clean as well.
+ *
+ * Traceback (AE-07) still runs for a concept that *was* graded. The turns the student answered
+ * are real evidence, and a weak foundation found through them is worth queueing whether or not
+ * the session ran to the end — a deliberate decision, not a side effect of reusing I7.2.
+ */
+async function scoreConceptSoFar(
+  view: SessionView,
+  concept: { id: string; name: string }
+): Promise<ConceptCompletedResponse | null> {
+  const turns = await prisma.interviewTurn.findMany({
+    where: { sessionId: view.session.id, conceptId: concept.id },
+    orderBy: { turnIndex: 'asc' },
+    select: { score: true },
+  });
+
+  const turnScores = gradedTurnScores(turns);
+  if (turnScores.length === 0) {
+    return null;
+  }
+
+  const result = await finalizeConceptResult({
+    sessionId: view.session.id,
+    conceptId: concept.id,
+    turnScores,
+  });
+
+  return toConceptCompleted(result, concept.name);
 }

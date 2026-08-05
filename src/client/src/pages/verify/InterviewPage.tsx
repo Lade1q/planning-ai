@@ -41,8 +41,14 @@ export default function InterviewPage() {
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
 
   const [isStarting, setIsStarting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
   // Phiên đang dở server trả về khi created === false — chờ người dùng xác nhận (AE-03).
-  const [pendingSession, setPendingSession] = useState<StartInterviewResponse | null>(null);
+  // Giữ kèm lựa chọn khái niệm của chính lần bấm đó: nếu người dùng chọn kết thúc phiên cũ,
+  // phiên mới phải mở lại đúng yêu cầu ban đầu chứ không phải state hiện tại của form.
+  const [pending, setPending] = useState<{
+    response: StartInterviewResponse;
+    conceptIds: string[] | undefined;
+  } | null>(null);
 
   // Tải danh sách kế hoạch đang hoạt động.
   useEffect(() => {
@@ -118,7 +124,7 @@ export default function InterviewPage() {
         ...(conceptIds && conceptIds.length > 0 ? { conceptIds } : {}),
       });
       if (!response.created) {
-        setPendingSession(response);
+        setPending({ response, conceptIds });
         return;
       }
       navigate(`/interview/${response.session.id}`);
@@ -129,7 +135,34 @@ export default function InterviewPage() {
     }
   };
 
+  /**
+   * AE-03 — "Kết thúc và chấm phần đã làm" (SPEC_DB-03 AF2). Đóng phiên cũ bằng
+   * `POST /abandon` (khái niệm đang dở vẫn được chấm trên số lượt đã trả lời) rồi mở phiên
+   * mới. Hai lượt gọi là cố ý: endpoint kết thúc phiên còn dùng lại cho màn Lịch sử phiên,
+   * nơi kết thúc phiên mà *không* mở phiên mới.
+   */
+  const endAndStartNew = async (): Promise<void> => {
+    if (!pending || isEnding) return;
+    const { response, conceptIds } = pending;
+    setIsEnding(true);
+    try {
+      const { conceptCompleted } = await interviewApi.abandonInterview(response.session.id);
+      if (conceptCompleted) {
+        toast.success(`Đã chấm xong "${conceptCompleted.conceptName}" trên phần bạn đã trả lời.`);
+      }
+      setPending(null);
+      // `startSession` tự bắt lỗi và tự bật cờ loading của riêng nó.
+      await startSession(conceptIds);
+    } catch (error) {
+      toast.error(getInterviewErrorMessage(error));
+    } finally {
+      setIsEnding(false);
+    }
+  };
+
   const selectedCount = selectedConceptIds.size;
+  /** Khái niệm phiên cũ đang dừng ở — nêu đích danh thì hệ quả đọc cụ thể hơn hẳn. */
+  const pendingConceptName = pending?.response.session.currentConcept?.name;
 
   // ---------- Loading danh sách kế hoạch ----------
   if (plans === null && !loadError) {
@@ -270,27 +303,42 @@ export default function InterviewPage() {
         </div>
       )}
 
-      {/* AE-03 — có phiên đang dở. Bắt đầu mới không được API hỗ trợ (cần endpoint riêng),
-          nên chỉ mời tiếp tục phiên hiện có cho gọn. */}
+      {/* AE-03 — có phiên đang dở. Ba lối ra, xếp dọc theo mức độ ưu tiên: tiếp tục (không
+          mất gì), kết thúc và chấm phần đã làm, hoặc để sau. Xếp dọc vì nhãn của lựa chọn
+          giữa dài hơn nửa chiều ngang hộp thoại — nhét cả ba vào một hàng thì tràn. */}
       <Dialog
-        open={pendingSession !== null}
-        onOpenChange={(open) => !open && setPendingSession(null)}
+        open={pending !== null}
+        onOpenChange={(open) => !open && !isEnding && setPending(null)}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Bạn có một phiên đang dở</DialogTitle>
             <DialogDescription>
-              Kế hoạch này đã có một phiên kiểm tra chưa hoàn tất. Bạn có thể tiếp tục phiên đó ngay
-              từ chỗ đang dừng.
+              Kế hoạch này đã có một phiên kiểm tra chưa hoàn tất. Tiếp tục thì phiên chạy tiếp từ
+              chỗ đang dừng và {pendingConceptName ?? 'khái niệm đang dở'} vẫn được chấm trên đủ ba
+              lượt.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+
+          {/* Hệ quả phải đọc được TRƯỚC khi bấm — screen-history.html:1559. */}
+          <p className="text-muted-foreground text-[12.5px] leading-[1.65]">
+            Kết thúc sớm thì {pendingConceptName ?? 'khái niệm đang dở'} chỉ được chấm trên số lượt
+            bạn đã trả lời — điểm sẽ kém tin cậy hơn và khái niệm dễ bị xếp lại vào lịch ôn.
+          </p>
+
+          <DialogFooter className="sm:flex-col-reverse">
             <DialogClose asChild>
-              <Button variant="outline">Để sau</Button>
+              <Button variant="ghost" disabled={isEnding}>
+                Để sau
+              </Button>
             </DialogClose>
+            <Button variant="outline" loading={isEnding} onClick={() => void endAndStartNew()}>
+              Kết thúc và chấm phần đã làm
+            </Button>
             <Button
+              disabled={isEnding}
               onClick={() => {
-                if (pendingSession) navigate(`/interview/${pendingSession.session.id}`);
+                if (pending) navigate(`/interview/${pending.response.session.id}`);
               }}
             >
               Tiếp tục phiên

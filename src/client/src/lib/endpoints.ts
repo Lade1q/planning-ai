@@ -24,5 +24,6 @@ export const ENDPOINTS = {
     ANSWERS: (id: string) => `/api/v1/interviews/${id}/answers`,
     PAUSE: (id: string) => `/api/v1/interviews/${id}/pause`,
     RESUME: (id: string) => `/api/v1/interviews/${id}/resume`,
+    ABANDON: (id: string) => `/api/v1/interviews/${id}/abandon`,
   },
 } as const;

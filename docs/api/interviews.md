@@ -3,10 +3,11 @@
 Tất cả các API dưới đây có tiền tố `/api/v1/interviews` và yêu cầu xác thực người dùng qua
 Header `Authorization: Bearer <TOKEN>`.
 
-> Tài liệu này hiện mô tả endpoint **AE-09 (I6.5) — Kết quả tổng hợp cuối phiên** (§1) và
-> trường **`sourceCitation`** dùng chung cho các endpoint hỏi–đáp (§2). Bản đặc tả đầy đủ của
-> các endpoint còn lại (`POST /`, `GET /:id`, `POST /:id/answers`, `.../pause`, `.../resume` —
-> I6.3/#115, AE-05/#116) sẽ được bổ sung khi I9.2 (#128) tổng hợp toàn bộ API spec.
+> Tài liệu này hiện mô tả endpoint **AE-09 (I6.5) — Kết quả tổng hợp cuối phiên** (§1), trường
+> **`sourceCitation`** dùng chung cho các endpoint hỏi–đáp (§2), và endpoint **kết thúc phiên
+> sớm** (§3). Bản đặc tả đầy đủ của các endpoint còn lại (`POST /`, `GET /:id`,
+> `POST /:id/answers`, `.../pause`, `.../resume` — I6.3/#115, AE-05/#116) sẽ được bổ sung khi
+> I9.2 (#128) tổng hợp toàn bộ API spec.
 
 ---
 
@@ -173,3 +174,102 @@ Header `Authorization: Bearer <TOKEN>`.
   - [`src/server/src/utils/question-citation.ts`](../../src/server/src/utils/question-citation.ts) — quy tắc chụp/ẩn neo nguồn (pure, không đụng DB).
   - [`src/server/src/services/interview.service.ts`](../../src/server/src/services/interview.service.ts) — `askQuestion()` / `askCachedQuestion()` chụp neo lúc hỏi, `buildView()` tra `documents` theo ảnh chụp của các lượt.
   - [`src/server/src/utils/concept-source.ts`](../../src/server/src/utils/concept-source.ts) — nơi neo nguồn được ghi ra lúc phân tích tài liệu.
+
+---
+
+### 3. Kết thúc phiên sớm và chấm phần đã làm (Abandon Session)
+
+- **Endpoint:** `POST /api/v1/interviews/:id/abandon`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Path params:**
+  - `id` (string, UUID, required): id của `InterviewSession`.
+- **Body:** _không có._ Việc phải làm gì với khái niệm đang dở là quy tắc của endpoint, không
+  phải lựa chọn của client.
+
+- **Dùng để:** đóng một phiên `active` / `paused` mà **vẫn tính** phần sinh viên đã trả lời —
+  `SPEC_DB-03` AF2 gọi hành động này là _"Kết thúc và chấm phần đã làm"_. Hai nơi gọi:
+  - Dialog AE-01 khi `POST /interviews` trả `created = false` (đã có phiên dở trên plan đó):
+    FE gọi abandon rồi gọi lại `POST /interviews` để mở phiên mới.
+  - Màn Lịch sử phiên (DB-03, Sprint 5): kết thúc phiên **mà không** mở phiên mới.
+
+- **Ràng buộc quan trọng:**
+  - **Chấm, không vứt.** Khái niệm đang dở đi qua đúng `finalizeConceptResult` (I7.2) như một
+    khái niệm kết thúc bình thường: ghi `mastery_score`, xếp lịch ôn, và **vẫn chạy truy ngược
+    AE-07**. Lượt sinh viên đã trả lời là bằng chứng thật.
+  - **Trọng số chuẩn hoá lại** trên số lượt thực có (`SPEC_DB-03` AF3): hai lượt dùng
+    `[0.2, 0.3] → [0.4, 0.6]`, một lượt dùng `[1.0]`. Kết thúc sớm không bị phạt oan.
+  - **Khái niệm không có lượt nào chấm được** ⇒ `conceptCompleted = null`, `mastery_score` và
+    `last_tested_at` cũ **giữ nguyên**, và không có hàng `ReviewQueueItem` nào được ghi — chưa
+    có bằng chứng gì để hành động.
+  - **Không gọi `summarize_session`** (`SPEC_DB-03` AF3): phiên `abandoned` giữ
+    `summary_text = NULL`, màn lịch sử bỏ hẳn khối nhận xét thay vì hiện khung trống ⇒ kết thúc
+    sớm **không tốn thêm lời gọi AI** (C4).
+  - **Idempotent:** gọi lại trên phiên đã `abandoned` trả về trạng thái hiện tại với
+    `conceptCompleted = null`, **không** chấm lần hai.
+  - Phiên đã `completed` ⇒ `409`, không được lật ngược về `abandoned`.
+
+- **Response thành công (HTTP 200 OK):**
+
+  ```jsonc
+  {
+    "success": true,
+    "data": {
+      "session": {
+        "id": "7c9e6679-...-uuid",
+        "planId": "3fa85f64-...-uuid",
+        "status": "abandoned",
+        "fallbackMode": false,
+        "startedAt": "2026-08-05T14:02:11.000Z",
+        "endedAt": "2026-08-05T14:10:48.000Z",
+        "currentConcept": null,
+        "progress": {
+          "conceptIndex": 1,
+          "conceptTotal": 3,
+          "completedConcepts": 1,
+          "turnIndex": null,
+          "maxTurnsPerConcept": 3,
+        },
+      },
+      // Cùng shape `conceptCompleted` của POST /:id/answers — null nếu không chấm được gì.
+      "conceptCompleted": {
+        "conceptId": "b2d3e4f5-...-uuid",
+        "conceptName": "Danh sách liên kết",
+        "masteryScore": 0.8,
+        "reviewInDays": 5,
+        "scheduledFor": "2026-08-10T14:10:48.000Z",
+        "prerequisites": [],
+        "tracebackSkipReason": "mastered",
+      },
+    },
+  }
+  ```
+
+  Khái niệm vừa chấm được tính là **đã hoàn thành**: `progress.completedConcepts` cộng thêm 1 và
+  `currentConcept` chuyển sang `null` / khái niệm kế trong hàng đợi. Phiên đã kết thúc nên client
+  không hiển thị "đang kiểm tra" nữa.
+
+- **Response lỗi:**
+
+  ```jsonc
+  // 404 — phiên không tồn tại hoặc không thuộc user hiện tại (không phân biệt 2 trường hợp)
+  { "success": false, "error": { "code": "NOT_FOUND", "message": "Interview session not found" } }
+
+  // 409 — phiên đã completed
+  {
+    "success": false,
+    "error": {
+      "code": "SESSION_ENDED",
+      "message": "This interview session has already ended"
+    }
+  }
+  ```
+
+- **Vì sao là endpoint riêng, không phải `force: true` trên `POST /interviews`:** DB-03 cần kết
+  thúc phiên mà **không** mở phiên mới. Gộp vào cờ của `POST /interviews` sẽ trói hai việc vào
+  nhau và DB-03 không dùng lại được. FE ở AE-01 gọi 2 lượt (abandon → create) là chấp nhận được.
+
+- **Liên quan:**
+  - [`src/server/src/services/interview.service.ts`](../../src/server/src/services/interview.service.ts) — `abandonInterview()`.
+  - [`src/server/src/services/concept-result.service.ts`](../../src/server/src/services/concept-result.service.ts) (I7.2) — nơi ghi `mastery_score` / `ReviewQueueItem` và chạy truy ngược.
+  - [`src/server/src/utils/mastery.ts`](../../src/server/src/utils/mastery.ts) — `gradedTurnScores()` + `calculateMasteryScore()` (chuẩn hoá trọng số).
+  - `docs/requirements/use-case_specification/SPEC_DB-03_LichSuPhongVan.md` AF2 + AF3.
