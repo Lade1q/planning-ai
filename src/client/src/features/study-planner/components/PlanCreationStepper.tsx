@@ -51,14 +51,14 @@ export function PlanCreationStepper({ step, analysisStatus = 'idle' }: PlanCreat
         <span
           className={cn(
             'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-            step === 1
+            step === 1 || analysisStatus === 'idle'
               ? 'border-border font-mono text-[11px]'
               : analysisStatus === 'failed'
                 ? 'border-destructive/40 bg-destructive/10 text-destructive'
                 : 'border-primary/40 bg-primary/10 text-primary'
           )}
         >
-          {step === 1 ? (
+          {step === 1 || analysisStatus === 'idle' ? (
             '2'
           ) : analysisStatus === 'failed' ? (
             <svg

@@ -111,21 +111,30 @@ export function AnalysisProgressPanel({
   const currentIndex = complete ? PHASE_ORDER.length : phase ? PHASE_ORDER.indexOf(phase) : 0;
   const skipsSendPhase = documentKind === 'text';
 
+  // Upload phase is 'done' only once the server has written the document record and
+  // returned pageCount. Until then, keep it as 'now' so the spinner matches reality.
+  const uploadState: SubPhaseState = pageCount != null ? 'done' : 'now';
+
+  // Block all downstream phases while upload hasn't finished yet (pageCount not returned).
+  // Without this, server's `phase` can advance to 'sending_to_ai' before pageCount is written,
+  // causing two simultaneous spinners which is logically impossible.
+  const effectiveIndex = uploadState === 'done' ? currentIndex : -1;
+
   const phases: { label: string; state: SubPhaseState }[] = [
     {
       label: `Tải tệp lên kho lưu trữ · lưu bản ghi documents${
-        pageCount ? ` (${pageCount} trang)` : ''
+        pageCount != null ? ` (${pageCount} trang)` : ''
       }`,
-      state: 'done',
+      state: uploadState,
     },
     ...(skipsSendPhase
       ? []
-      : [{ label: 'Gửi tài liệu tới AI Service', state: subPhaseState(0, currentIndex) }]),
+      : [{ label: 'Gửi tài liệu tới AI Service', state: subPhaseState(0, effectiveIndex) }]),
     {
       label: 'Trích xuất khái niệm, độ khó và quan hệ tiên quyết',
-      state: subPhaseState(1, currentIndex),
+      state: subPhaseState(1, effectiveIndex),
     },
-    { label: 'Kiểm tra chu trình (DAG) và dựng đồ thị', state: subPhaseState(2, currentIndex) },
+    { label: 'Kiểm tra chu trình (DAG) và dựng đồ thị', state: subPhaseState(2, effectiveIndex) },
   ];
 
   const elapsed = startedAt ? formatElapsed(startedAt, now) : null;
