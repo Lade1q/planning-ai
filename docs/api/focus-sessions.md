@@ -106,8 +106,19 @@ Tất cả các API dưới đây yêu cầu xác thực người dùng qua Head
   }
   ```
 
-- **Lỗi focusedSeconds phi lý (HTTP 400 Bad Request):** âm, > 28800, hoặc vượt quá thời gian
-  thực tế đã trôi qua kể từ `startedAt`.
+- **Lỗi `focusedSeconds` âm hoặc > 28800 (HTTP 400 Bad Request):** bị Zod chặn ở tầng schema,
+  cùng mã lỗi validate chung của toàn hệ thống — không phải mã riêng bên dưới.
+
+  ```json
+  {
+    "success": false,
+    "error": { "code": "VALIDATION_ERROR", "message": "Invalid input data", "details": [...] }
+  }
+  ```
+
+- **Lỗi `focusedSeconds` vượt quá thời gian thực tế đã trôi qua kể từ `startedAt` (HTTP 400 Bad
+  Request):** riêng ca này mới ra mã lỗi chuyên biệt, vì cần biết `startedAt` của session (Zod
+  không kiểm được, chỉ service mới có).
 
   ```json
   {

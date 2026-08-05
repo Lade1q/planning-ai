@@ -178,9 +178,12 @@ export async function listFocusSessions(
     }
   }
 
+  // Scope theo plan.userId: một phiên tự do (không planId) không validate conceptIds ở
+  // createFocusSession, nên nếu không lọc theo user ở đây, id khái niệm của người khác nhét
+  // vào body sẽ resolve ra được tên thật của họ — rò rỉ dữ liệu chéo user.
   const concepts = conceptIdSet.size
     ? await prisma.concept.findMany({
-        where: { id: { in: [...conceptIdSet] } },
+        where: { id: { in: [...conceptIdSet] }, plan: { userId } },
         select: { id: true, name: true },
       })
     : [];

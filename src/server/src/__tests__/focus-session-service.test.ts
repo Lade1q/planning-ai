@@ -1,4 +1,8 @@
-import { createFocusSession, endFocusSession } from '../services/focus-session.service';
+import {
+  createFocusSession,
+  endFocusSession,
+  listFocusSessions,
+} from '../services/focus-session.service';
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 
@@ -19,8 +23,13 @@ jest.mock('../config/prisma', () => ({
 
 const mockedPrisma = prisma as unknown as {
   studyPlan: { findUnique: jest.Mock };
-  concept: { count: jest.Mock };
-  focusSession: { create: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  concept: { count: jest.Mock; findMany: jest.Mock };
+  focusSession: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+    findMany: jest.Mock;
+  };
   $executeRaw: jest.Mock;
 };
 
@@ -222,5 +231,68 @@ describe('endFocusSession', () => {
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ statusCode: 409, code: 'ALREADY_ENDED' });
     expect(mockedPrisma.focusSession.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('listFocusSessions', () => {
+  const OTHER_CONCEPT_ID = '55555555-5555-5555-5555-555555555555';
+
+  function listedSession(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: SESSION_ID,
+      userId: USER_ID,
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID, OTHER_CONCEPT_ID],
+      status: 'completed',
+      durationMinutes: 47,
+      focusedSeconds: 2832,
+      awayCount: 2,
+      pomodorosCompleted: 2,
+      strictMode: true,
+      startedAt: new Date('2026-08-05T08:00:00.000Z'),
+      endedAt: new Date('2026-08-05T08:47:12.000Z'),
+      ...overrides,
+    };
+  }
+
+  it('reaps stale sessions before reading the list back', async () => {
+    mockedPrisma.focusSession.findMany.mockResolvedValue([]);
+
+    await listFocusSessions(USER_ID, {});
+
+    expect(mockedPrisma.$executeRaw).toHaveBeenCalled();
+    expect(mockedPrisma.focusSession.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      skip: 0,
+    });
+  });
+
+  // Lỗ hổng đã vá: conceptIds của một phiên tự do (không planId) không được validate lúc tạo,
+  // nên resolve tên khái niệm PHẢI lọc theo plan.userId — nếu không, id khái niệm của user khác
+  // nhét vào body sẽ trả về tên thật của họ (rò rỉ dữ liệu chéo user).
+  it('scopes the concept-name lookup to the caller (plan.userId), not just the raw ids', async () => {
+    mockedPrisma.focusSession.findMany.mockResolvedValue([listedSession()]);
+    mockedPrisma.concept.findMany.mockResolvedValue([{ id: CONCEPT_ID, name: 'Ngăn xếp (Stack)' }]);
+
+    const result = await listFocusSessions(USER_ID, {});
+
+    expect(mockedPrisma.concept.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [CONCEPT_ID, OTHER_CONCEPT_ID] }, plan: { userId: USER_ID } },
+      select: { id: true, name: true },
+    });
+    expect(result[0]?.concepts).toEqual([
+      { id: CONCEPT_ID, name: 'Ngăn xếp (Stack)' },
+      { id: OTHER_CONCEPT_ID, name: 'Không xác định' },
+    ]);
+  });
+
+  it('skips the concept lookup entirely when no session references any concept', async () => {
+    mockedPrisma.focusSession.findMany.mockResolvedValue([listedSession({ conceptIds: [] })]);
+
+    await listFocusSessions(USER_ID, {});
+
+    expect(mockedPrisma.concept.findMany).not.toHaveBeenCalled();
   });
 });
