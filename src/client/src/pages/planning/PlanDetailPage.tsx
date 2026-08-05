@@ -306,10 +306,12 @@ export default function PlanDetailPage() {
             : 'Thêm hoặc bỏ khái niệm, nối lại quan hệ tiên quyết cho đồ thị của kế hoạch này. Lưu thay đổi để cập nhật; nhấn tên kế hoạch ở trên để quay lại mà không lưu.'}
         </p>
 
-        <PlanCreationStepper
-          step={analysisDone ? 3 : 2}
-          analysisStatus={analysisFailed ? 'failed' : analysisRunning ? 'running' : 'done'}
-        />
+        {isDraft && (
+          <PlanCreationStepper
+            step={analysisDone ? 3 : 2}
+            analysisStatus={analysisFailed ? 'failed' : analysisRunning ? 'running' : 'done'}
+          />
+        )}
 
         <div className="h-150 flex flex-col gap-4">
           {plan?.dagAutoFixed && mode === 'edit' && (
