@@ -1,0 +1,226 @@
+import { createFocusSession, endFocusSession } from '../services/focus-session.service';
+import prisma from '../config/prisma';
+import { AppError } from '../middleware/errorHandler';
+
+jest.mock('../config/prisma', () => ({
+  __esModule: true,
+  default: {
+    studyPlan: { findUnique: jest.fn() },
+    concept: { count: jest.fn(), findMany: jest.fn() },
+    focusSession: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+    $executeRaw: jest.fn(),
+  },
+}));
+
+const mockedPrisma = prisma as unknown as {
+  studyPlan: { findUnique: jest.Mock };
+  concept: { count: jest.Mock };
+  focusSession: { create: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  $executeRaw: jest.Mock;
+};
+
+const USER_ID = '11111111-1111-1111-1111-111111111111';
+const PLAN_ID = '22222222-2222-2222-2222-222222222222';
+const CONCEPT_ID = '33333333-3333-3333-3333-333333333333';
+const SESSION_ID = '44444444-4444-4444-4444-444444444444';
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockedPrisma.$executeRaw.mockResolvedValue(0);
+});
+
+describe('createFocusSession', () => {
+  it('throws 404 when planId does not belong to the user', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({ id: PLAN_ID, userId: 'someone-else' });
+
+    const error = await createFocusSession(USER_ID, {
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+    expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
+  });
+
+  it('throws 400 INVALID_CONCEPT_IDS when a concept does not belong to the plan', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({ id: PLAN_ID, userId: USER_ID });
+    mockedPrisma.concept.count.mockResolvedValue(0);
+
+    const error = await createFocusSession(USER_ID, {
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 400, code: 'INVALID_CONCEPT_IDS' });
+    expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
+  });
+
+  // conceptIds trùng lặp trong body không được tạo ra thêm hàng nào trong DB — count không
+  // bao giờ khớp input.length nếu không dedupe trước khi đối chiếu (xem comment trong service).
+  it('dedupes conceptIds before comparing against the matched count', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({ id: PLAN_ID, userId: USER_ID });
+    mockedPrisma.concept.count.mockResolvedValue(1);
+    mockedPrisma.focusSession.create.mockResolvedValue({
+      id: SESSION_ID,
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+      status: 'running',
+      strictMode: false,
+      startedAt: new Date(),
+    });
+
+    const result = await createFocusSession(USER_ID, {
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID, CONCEPT_ID],
+    });
+
+    expect(mockedPrisma.concept.count).toHaveBeenCalledWith({
+      where: { planId: PLAN_ID, id: { in: [CONCEPT_ID] } },
+    });
+    expect(mockedPrisma.focusSession.create).toHaveBeenCalledWith({
+      data: { userId: USER_ID, planId: PLAN_ID, conceptIds: [CONCEPT_ID], strictMode: false },
+    });
+    expect(result.conceptIds).toEqual([CONCEPT_ID]);
+  });
+
+  it('skips the plan/concept ownership check entirely when planId is omitted', async () => {
+    mockedPrisma.focusSession.create.mockResolvedValue({
+      id: SESSION_ID,
+      planId: null,
+      conceptIds: [CONCEPT_ID],
+      status: 'running',
+      strictMode: true,
+      startedAt: new Date(),
+    });
+
+    await createFocusSession(USER_ID, { conceptIds: [CONCEPT_ID], strictMode: true });
+
+    expect(mockedPrisma.studyPlan.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.concept.count).not.toHaveBeenCalled();
+  });
+});
+
+describe('endFocusSession', () => {
+  function runningSession(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: SESSION_ID,
+      userId: USER_ID,
+      planId: null,
+      conceptIds: [],
+      status: 'running',
+      durationMinutes: 0,
+      focusedSeconds: 0,
+      awayCount: 0,
+      pomodorosCompleted: 0,
+      strictMode: false,
+      startedAt: new Date(Date.now() - 5 * 60 * 1000),
+      endedAt: null,
+      ...overrides,
+    };
+  }
+
+  it('throws 404 when the session does not belong to the user', async () => {
+    mockedPrisma.focusSession.findUnique.mockResolvedValue(
+      runningSession({ userId: 'someone-else' })
+    );
+
+    const error = await endFocusSession(USER_ID, SESSION_ID, {
+      status: 'completed',
+      focusedSeconds: 60,
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+  });
+
+  it('throws 400 when focusedSeconds exceeds the elapsed session time', async () => {
+    mockedPrisma.focusSession.findUnique.mockResolvedValue(
+      runningSession({ startedAt: new Date(Date.now() - 10 * 1000) })
+    );
+
+    const error = await endFocusSession(USER_ID, SESSION_ID, {
+      status: 'completed',
+      focusedSeconds: 3600,
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 400, code: 'FOCUSED_SECONDS_EXCEEDS_ELAPSED' });
+    expect(mockedPrisma.focusSession.update).not.toHaveBeenCalled();
+  });
+
+  it('forces durationMinutes to 0 when cancelling, even with a non-zero focusedSeconds', async () => {
+    mockedPrisma.focusSession.findUnique.mockResolvedValue(runningSession());
+    mockedPrisma.focusSession.update.mockResolvedValue(
+      runningSession({
+        status: 'cancelled',
+        durationMinutes: 0,
+        focusedSeconds: 120,
+        endedAt: new Date(),
+      })
+    );
+
+    await endFocusSession(USER_ID, SESSION_ID, { status: 'cancelled', focusedSeconds: 120 });
+
+    expect(mockedPrisma.focusSession.update).toHaveBeenCalledWith({
+      where: { id: SESSION_ID },
+      data: {
+        status: 'cancelled',
+        endedAt: expect.any(Date),
+        durationMinutes: 0,
+        focusedSeconds: 120,
+        awayCount: 0,
+        pomodorosCompleted: 0,
+      },
+    });
+  });
+
+  it('derives durationMinutes = floor(focusedSeconds / 60) when completing', async () => {
+    mockedPrisma.focusSession.findUnique.mockResolvedValue(
+      runningSession({ startedAt: new Date(Date.now() - 60 * 60 * 1000) })
+    );
+    mockedPrisma.focusSession.update.mockResolvedValue(
+      runningSession({
+        status: 'completed',
+        durationMinutes: 47,
+        focusedSeconds: 2832,
+        endedAt: new Date(),
+      })
+    );
+
+    await endFocusSession(USER_ID, SESSION_ID, { status: 'completed', focusedSeconds: 2832 });
+
+    expect(mockedPrisma.focusSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ durationMinutes: 47 }) })
+    );
+  });
+
+  // Lỗ hổng đã vá: một phiên running quá 8 giờ không có endedAt phải bị lazy-reap thành
+  // cancelled TRƯỚC khi PATCH được xử lý — không được "hoàn thành" ngược lại với giờ ảo.
+  it('rejects a stale (already-reaped) session as ALREADY_ENDED instead of completing it', async () => {
+    mockedPrisma.focusSession.findUnique.mockResolvedValue(
+      runningSession({
+        status: 'cancelled',
+        durationMinutes: 0,
+        startedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
+        endedAt: new Date(),
+      })
+    );
+
+    const error = await endFocusSession(USER_ID, SESSION_ID, {
+      status: 'completed',
+      focusedSeconds: 28800,
+    }).catch((e) => e);
+
+    expect(mockedPrisma.$executeRaw).toHaveBeenCalled();
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 409, code: 'ALREADY_ENDED' });
+    expect(mockedPrisma.focusSession.update).not.toHaveBeenCalled();
+  });
+});
