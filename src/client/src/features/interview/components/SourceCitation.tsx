@@ -12,8 +12,13 @@ interface SourceCitationProps {
 export function SourceCitation({ citation }: SourceCitationProps) {
   if (!citation) return null;
 
-  const { filename, pageFrom } = citation;
-  const displayText = pageFrom !== null ? `${filename} · tr. ${pageFrom}` : filename;
+  const { filename, pageFrom, pageTo } = citation;
+  let pageText = '';
+  if (pageFrom !== null) {
+    pageText =
+      pageTo !== null && pageTo !== pageFrom ? `tr. ${pageFrom}–${pageTo}` : `tr. ${pageFrom}`;
+  }
+  const displayText = pageText ? `${filename} · ${pageText}` : filename;
 
   return (
     <div className="text-muted-foreground mt-2.5 inline-flex items-center gap-1.5 font-mono text-[11px]">

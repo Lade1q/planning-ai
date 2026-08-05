@@ -11,7 +11,7 @@
 export type InterviewSessionStatus = 'active' | 'paused' | 'completed' | 'abandoned';
 
 /** Loại tài liệu (khớp với DocumentKind từ backend). */
-export type DocumentKind = 'pdf' | 'docx' | 'txt' | 'image';
+export type DocumentKind = 'pdf' | 'image' | 'text';
 
 /** Loại câu hỏi — enum `QuestionType` phía server. */
 export type QuestionType = 'recall' | 'application' | 'why';
