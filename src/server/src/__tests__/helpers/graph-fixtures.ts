@@ -77,3 +77,9 @@ export function makeGraph(spec: string): MockGraph {
     dagEdges,
   };
 }
+
+describe('graph-fixtures', () => {
+  it('is a helper file', () => {
+    expect(true).toBe(true);
+  });
+});
