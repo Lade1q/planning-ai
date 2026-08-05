@@ -28,6 +28,11 @@ import {
   type SelfGrade,
 } from '../utils/interview-state';
 import { UPLOAD_DIR, resolveMaterialSource } from '../utils/material';
+import {
+  anchorMatchesCachedQuestion,
+  buildTurnCitation,
+  type CitedDocumentRow,
+} from '../utils/question-citation';
 import type {
   ConceptCompletedResponse,
   GetInterviewResponse,
@@ -105,6 +110,10 @@ const turnSelect = {
   feedback: true,
   verdict: true,
   source: true,
+  // The C5 anchor frozen when this turn was asked (#240) — read back as-is, never re-derived.
+  sourceDocumentId: true,
+  sourcePageFrom: true,
+  sourcePageTo: true,
   askedAt: true,
   answeredAt: true,
   concept: { select: { name: true } },
@@ -113,7 +122,7 @@ const turnSelect = {
 type TurnRow = Prisma.InterviewTurnGetPayload<{ select: typeof turnSelect }>;
 
 /**
- * Everything one request needs about a session, read in two queries. Snapshot only — any
+ * Everything one request needs about a session, read in three queries. Snapshot only — any
  * function that writes reloads it rather than patching this object, so no caller can read a
  * value that the database has since moved past.
  */
@@ -129,6 +138,11 @@ interface SessionView {
   conceptTurns: TurnRow[];
   /** The turn still waiting for a verdict, if any. */
   pending: TurnRow | null;
+  /**
+   * The documents this session's turns froze a C5 anchor onto, by id — enough to name the file
+   * and to tell whether it has been replaced since. Empty when no turn carries a snapshot.
+   */
+  documents: Map<string, CitedDocumentRow>;
 }
 
 // --- Loading ----------------------------------------------------------------------------
@@ -209,6 +223,24 @@ async function buildView(session: SessionRow): Promise<SessionView> {
     select: turnSelect,
   });
 
+  // The turns already carry their own anchors (#240), so the read path only has to name the
+  // documents they point at — no lookup of what the concepts are anchored to *now*. Skipped
+  // entirely for a session whose turns all predate snapshotting, or whose concepts had no
+  // anchor to freeze.
+  const documentIds = [
+    ...new Set(
+      turns
+        .map((turn) => turn.sourceDocumentId)
+        .filter((documentId): documentId is string => documentId !== null)
+    ),
+  ];
+  const documents = documentIds.length
+    ? await prisma.document.findMany({
+        where: { id: { in: documentIds } },
+        select: { id: true, filename: true, kind: true, updatedAt: true },
+      })
+    : [];
+
   const conceptTurns = concept
     ? turns
         .filter((turn) => turn.conceptId === concept.id)
@@ -225,6 +257,7 @@ async function buildView(session: SessionRow): Promise<SessionView> {
     // A turn with no verdict is still open, whether or not an answer has been submitted for
     // it: an answer claimed but not yet graded is exactly the turn the student is waiting on.
     pending: conceptTurns.find((turn) => turn.verdict === null) ?? null,
+    documents: new Map(documents.map((document) => [document.id, document])),
   };
 }
 
@@ -279,7 +312,15 @@ export async function loadMaterial(planId: string): Promise<AiMaterial> {
 
 // --- Mapping to responses ---------------------------------------------------------------
 
-function toQuestionResponse(turn: TurnRow): InterviewQuestionResponse {
+/**
+ * Both mappers take the view's document map rather than reading anchors themselves: every
+ * entry point (`startInterview`, `getInterview`, `submitAnswer`) reaches the client through
+ * these two functions, so filling `sourceCitation` here is what makes C5 hold on all of them.
+ */
+function toQuestionResponse(
+  turn: TurnRow,
+  documents: Map<string, CitedDocumentRow>
+): InterviewQuestionResponse {
   return {
     turnId: turn.id,
     conceptId: turn.conceptId,
@@ -288,10 +329,14 @@ function toQuestionResponse(turn: TurnRow): InterviewQuestionResponse {
     questionText: turn.questionText,
     questionType: turn.questionType,
     source: turn.source,
+    sourceCitation: buildTurnCitation(turn, documents),
   };
 }
 
-function toTurnResponse(turn: TurnRow): InterviewTurnResponse {
+function toTurnResponse(
+  turn: TurnRow,
+  documents: Map<string, CitedDocumentRow>
+): InterviewTurnResponse {
   return {
     id: turn.id,
     conceptId: turn.conceptId,
@@ -305,6 +350,7 @@ function toTurnResponse(turn: TurnRow): InterviewTurnResponse {
     verdict: turn.verdict,
     askedAt: turn.askedAt,
     answeredAt: turn.answeredAt,
+    sourceCitation: buildTurnCitation(turn, documents),
   };
 }
 
@@ -381,6 +427,39 @@ function toPreviousTurns(conceptTurns: TurnRow[]): PreviousTurn[] {
   }));
 }
 
+// --- The C5 anchor, frozen at ask time ---------------------------------------------------
+
+/** The concept's current anchor, as both ask paths read it. */
+type ConceptAnchorRow = {
+  documentId: string;
+  pageFrom: number | null;
+  pageTo: number | null;
+  createdAt: Date;
+} | null;
+
+/**
+ * The anchor a question asked *right now* would cite: the concept's oldest `concept_sources`
+ * row, the same one `getConceptDetail` (DB-06) lists first, so one concept reads as one
+ * citation everywhere. `null` for a concept with no anchor at all — a manual concept (#172) is
+ * a valid state, not an error.
+ */
+async function loadConceptAnchor(conceptId: string): Promise<ConceptAnchorRow> {
+  return prisma.conceptSourceRef.findFirst({
+    where: { conceptId },
+    orderBy: { createdAt: 'asc' },
+    select: { documentId: true, pageFrom: true, pageTo: true, createdAt: true },
+  });
+}
+
+/** The three snapshot columns of an `InterviewTurn`, all `null` when there is no anchor. */
+function toAnchorSnapshot(anchor: ConceptAnchorRow) {
+  return {
+    sourceDocumentId: anchor?.documentId ?? null,
+    sourcePageFrom: anchor?.pageFrom ?? null,
+    sourcePageTo: anchor?.pageTo ?? null,
+  };
+}
+
 /**
  * Generates one question and stores it as the session's next turn.
  *
@@ -416,6 +495,9 @@ async function askQuestion(
   });
 
   const identity = { sessionId: session.id, conceptId: concept.id, turnIndex };
+  // Read after `generateQuestion` resolved, not before: the anchor recorded has to be the one
+  // in force when the turn is written, and a question can wait 10–20s on Gemini (#115).
+  const anchor = await loadConceptAnchor(concept.id);
 
   try {
     return await prisma.interviewTurn.create({
@@ -423,6 +505,7 @@ async function askQuestion(
         ...identity,
         questionText: question.question_text,
         questionType: question.question_type,
+        ...toAnchorSnapshot(anchor),
       },
       select: turnSelect,
     });
@@ -532,7 +615,12 @@ async function advanceToNextQuestion(
   completed: ConceptCompletedResponse[] = []
 ): Promise<AdvanceResult> {
   if (view.pending) {
-    return { view, question: toQuestionResponse(view.pending), completed, fallback: null };
+    return {
+      view,
+      question: toQuestionResponse(view.pending, view.documents),
+      completed,
+      fallback: null,
+    };
   }
 
   const concept = view.concept;
@@ -573,7 +661,12 @@ async function advanceToNextQuestion(
   try {
     const turn = await askQuestion(view, concept, view.conceptTurns.length + 1, mode);
     const fresh = await reloadView(view.session.id, view.session.userId);
-    return { view: fresh, question: toQuestionResponse(turn), completed, fallback: null };
+    return {
+      view: fresh,
+      question: toQuestionResponse(turn, fresh.documents),
+      completed,
+      fallback: null,
+    };
   } catch (error) {
     if (!isAiFailure(error)) throw error;
 
@@ -644,7 +737,12 @@ async function advanceFallback(
 
   const turn = await askCachedQuestion(view, concept, view.conceptTurns.length + 1, cacheRow);
   const fresh = await reloadView(view.session.id, view.session.userId);
-  return { view: fresh, question: toQuestionResponse(turn), completed, fallback: null };
+  return {
+    view: fresh,
+    question: toQuestionResponse(turn, fresh.documents),
+    completed,
+    fallback: null,
+  };
 }
 
 /**
@@ -656,7 +754,7 @@ async function askCachedQuestion(
   view: SessionView,
   concept: { id: string; name: string },
   turnIndex: number,
-  cacheRow: { questionText: string; questionType: string | null }
+  cacheRow: { questionText: string; questionType: string | null; generatedAt: Date }
 ): Promise<TurnRow> {
   const { session } = view;
 
@@ -669,6 +767,13 @@ async function askCachedQuestion(
   }
 
   const identity = { sessionId: session.id, conceptId: concept.id, turnIndex };
+  // A cached question is older than the turn serving it, so the concept's anchor is only this
+  // question's anchor if it was already in place when the question was generated — see
+  // `anchorMatchesCachedQuestion`. A re-analysis in between makes the current anchor somebody
+  // else's, and the turn cites nothing rather than the wrong page.
+  const anchor = await loadConceptAnchor(concept.id);
+  const questionAnchor =
+    anchor && anchorMatchesCachedQuestion(anchor.createdAt, cacheRow.generatedAt) ? anchor : null;
 
   try {
     return await prisma.interviewTurn.create({
@@ -677,6 +782,7 @@ async function askCachedQuestion(
         questionText: cacheRow.questionText,
         questionType: toQuestionType(cacheRow.questionType),
         source: 'cache_fallback',
+        ...toAnchorSnapshot(questionAnchor),
       },
       select: turnSelect,
     });
@@ -726,7 +832,7 @@ export async function startInterview(
     return {
       created: false,
       session: toSessionState(view),
-      question: view.pending ? toQuestionResponse(view.pending) : null,
+      question: view.pending ? toQuestionResponse(view.pending, view.documents) : null,
       message: RESUME_MESSAGE,
       fallback: null,
     };
@@ -811,8 +917,8 @@ export async function getInterview(
   if (session.status !== 'active') {
     return {
       session: toSessionState(view),
-      currentQuestion: view.pending ? toQuestionResponse(view.pending) : null,
-      turns: view.turns.map(toTurnResponse),
+      currentQuestion: view.pending ? toQuestionResponse(view.pending, view.documents) : null,
+      turns: view.turns.map((turn) => toTurnResponse(turn, view.documents)),
       fallback: null,
     };
   }
@@ -821,7 +927,7 @@ export async function getInterview(
   return {
     session: toSessionState(advance.view),
     currentQuestion: advance.question,
-    turns: advance.view.turns.map(toTurnResponse),
+    turns: advance.view.turns.map((turn) => toTurnResponse(turn, advance.view.documents)),
     fallback: advance.fallback,
   };
 }
@@ -970,7 +1076,7 @@ async function replayAnswer(
         ? { score: turn.score, feedback: turn.feedback, verdict: turn.verdict }
         : null,
     gradedTurnId: turn.id,
-    nextQuestion: view.pending ? toQuestionResponse(view.pending) : null,
+    nextQuestion: view.pending ? toQuestionResponse(view.pending, view.documents) : null,
     // What the first request reported about the concept it may have finished is not
     // reconstructed here — GET /interviews/:id and the end-of-session summary (I6.5) carry it.
     conceptCompleted: null,
@@ -1002,7 +1108,7 @@ async function gradingUnavailable(
     session: toSessionState({ ...view, session }),
     grading: null,
     gradedTurnId: pending.id,
-    nextQuestion: toQuestionResponse(pending),
+    nextQuestion: toQuestionResponse(pending, view.documents),
     conceptCompleted: null,
     sessionCompleted: false,
     replayed: false,

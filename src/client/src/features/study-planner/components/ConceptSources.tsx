@@ -21,6 +21,13 @@ function escapeRegExp(value: string): string {
  * Ghép mọi tên thành MỘT RegExp thay vì tô nhiều lượt, sắp xếp theo độ dài giảm dần trước khi
  * ghép — tránh tô lồng nhau khi một tên chứa tên kia (vd. "Requirements" nằm trong "Functional
  * Requirements").
+ *
+ * KHÔNG thêm tầng thứ ba cho khái niệm **hậu kế (downstream)**: đoạn trích neo vào một khái niệm
+ * chính là đoạn *định nghĩa* nó — vốn tựa trên **tiên quyết** (cái có trước), không nhắc tới cái
+ * xây trên nó → tên hậu kế gần như không bao giờ xuất hiện trong đoạn, thêm tầng ba chỉ tái lập
+ * đúng căn bệnh component này vừa chữa. Hậu kế đã có chỗ riêng: mục "Khái niệm phụ thuộc" trong
+ * `ConceptDetailPanel` (mảng `dependents`) — không mất thông tin, chỉ là không nằm trong trích
+ * đoạn. Xem quyết định đầy đủ + điều kiện lật lại ở Issue #210 trước khi định thêm tầng này.
  */
 export function HighlightedExcerpt({
   text,
