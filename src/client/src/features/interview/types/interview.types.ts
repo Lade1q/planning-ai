@@ -144,3 +144,13 @@ export interface ResumeInterviewResponse {
   currentQuestion: InterviewQuestionResponse | null;
   fallback: InterviewFallbackResponse | null;
 }
+
+/**
+ * `POST /interviews/:id/abandon` (#243) — "Kết thúc và chấm phần đã làm" (SPEC_DB-03 AF2).
+ * `conceptCompleted` là khái niệm đang dở vừa được chấm trên số lượt đã trả lời, `null` nếu
+ * không có lượt nào chấm được.
+ */
+export interface AbandonInterviewResponse {
+  session: InterviewSessionState;
+  conceptCompleted: ConceptCompletedResponse | null;
+}

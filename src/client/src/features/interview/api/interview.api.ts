@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import apiClient from '@/lib/apiClient';
 import { ENDPOINTS } from '@/lib/endpoints';
 import type {
+  AbandonInterviewResponse,
   GetInterviewResponse,
   PauseInterviewResponse,
   ResumeInterviewResponse,
@@ -111,6 +112,17 @@ export const interviewApi = {
       ENDPOINTS.INTERVIEWS.RESUME(id),
       undefined,
       { timeout: AI_WAIT_TIMEOUT_MS }
+    );
+    return response.data.data;
+  },
+
+  /**
+   * SPEC_DB-03 AF2 — kết thúc phiên đang dở và chấm khái niệm dở dang trên số lượt đã trả lời.
+   * Không gọi AI (phiên `abandoned` không có nhận xét tổng hợp) nên giữ timeout mặc định.
+   */
+  abandonInterview: async (id: string): Promise<AbandonInterviewResponse> => {
+    const response = await apiClient.post<ApiEnvelope<AbandonInterviewResponse>>(
+      ENDPOINTS.INTERVIEWS.ABANDON(id)
     );
     return response.data.data;
   },

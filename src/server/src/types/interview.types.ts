@@ -192,6 +192,18 @@ export interface ResumeInterviewResponse {
 }
 
 /**
+ * `POST /interviews/:id/abandon` (#243) — SPEC_DB-03 AF2, "Kết thúc và chấm phần đã làm".
+ *
+ * Same `conceptCompleted` shape `POST /answers` returns when a concept ends normally, so a
+ * client can show "đã chấm xong khái niệm X" from either. `null` when nothing was scored: no
+ * turn of the concept the session stopped on could be graded, or the queue had already run out.
+ */
+export interface AbandonInterviewResponse {
+  session: InterviewSessionState;
+  conceptCompleted: ConceptCompletedResponse | null;
+}
+
+/**
  * `GET /interviews/:id/summary` (I6.5 / AE-09) — the end-of-session screen (I6.7). Everything
  * here is read-only history: the session must already be `completed` to reach this endpoint.
  */
