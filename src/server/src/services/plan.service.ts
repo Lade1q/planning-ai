@@ -241,12 +241,37 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
 }
 
 /**
+ * Whether an analysis is still running for a plan, i.e. its latest job is claimed or queued
+ * and has not passed STALE_JOB_THRESHOLD_MS — the same reading of job state that
+ * `retryPlanAnalysis` and `changePlanDocument` guard on.
+ *
+ * Kept as a pure decision separate from the query (SDP risk R05), so the archive rule below
+ * is testable without a database. `null` (no job at all) counts as not running: every plan
+ * gets a job at creation, so this only happens to data that predates the pipeline.
+ */
+export function isAnalysisInProgress(
+  job: { status: string; createdAt: Date } | null,
+  now: number = Date.now()
+): boolean {
+  if (!job) return false;
+  if (job.status !== 'pending' && job.status !== 'processing') return false;
+  return now - job.createdAt.getTime() <= STALE_JOB_THRESHOLD_MS;
+}
+
+/**
  * Archives a plan or pulls it back into circulation (SP-04, Issue #171).
  *
- * A `draft` plan is refused: archiving is how a user retires material they have finished
- * with, and a draft has no analysed material yet — the actions that apply to it are retry
- * (#106) and delete (#107). Setting the status a plan already has is a no-op that still
- * returns 200, so a double-click on "Lưu trữ" does not surface an error.
+ * `draft` covers two very different situations since Issue #265, and only one of them is a
+ * reason to refuse:
+ *  - analysis still running — there is nothing to retire yet, and the job would finish onto
+ *    an archived plan. Refused.
+ *  - analysed but not yet confirmed — the user walked away from the verification step. That
+ *    is precisely who needs to archive, and refusing left them with no way out.
+ * Going the other way (`draft` → `active`) stays closed: a plan earns `active` by having its
+ * concept graph confirmed (`PUT /plans/:id/graph`), which is the step SP-01 exists for.
+ *
+ * Setting the status a plan already has is a no-op that still returns 200, so a double-click
+ * on "Lưu trữ" does not surface an error.
  */
 export async function updatePlanStatus(
   planId: string,
@@ -267,11 +292,27 @@ export async function updatePlanStatus(
   }
 
   if (plan.status === 'draft') {
-    throw new AppError(
-      'A plan that is still being analysed cannot be archived',
-      409,
-      'STATUS_TRANSITION_NOT_ALLOWED'
-    );
+    if (status === 'active') {
+      throw new AppError(
+        'A draft plan becomes active by confirming its concept graph',
+        409,
+        'STATUS_TRANSITION_NOT_ALLOWED'
+      );
+    }
+
+    const latestJob = await prisma.analysisJob.findFirst({
+      where: { planDraftId: planId },
+      orderBy: { createdAt: 'desc' },
+      select: { status: true, createdAt: true },
+    });
+
+    if (isAnalysisInProgress(latestJob)) {
+      throw new AppError(
+        'A plan that is still being analysed cannot be archived',
+        409,
+        'STATUS_TRANSITION_NOT_ALLOWED'
+      );
+    }
   }
 
   const updated = await prisma.studyPlan.update({
