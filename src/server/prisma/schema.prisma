@@ -86,6 +86,22 @@ enum ReviewReason {
   manual
 }
 
+/// Trạng thái của một mục trong hàng đợi ôn — ngữ nghĩa chốt lại ngày 04/08/2026 (#224).
+/// Truy ngược **áp thẳng** khái niệm nền vào lịch ngay khi chấm xong; không còn cổng xác nhận,
+/// nên các nhãn dưới đây mô tả *mục đang ở đâu trên lịch*, không phải *ai đã duyệt nó*.
+///
+/// - `pending`  — ĐÃ ÁP VÀO LỊCH. Trạng thái bình thường của một mục đang có hiệu lực, không
+///                chờ ai duyệt. Tên gọi lệch nghĩa nhưng giữ nguyên trong Sprint 4: đổi giá trị
+///                enum kéo theo migration phá huỷ và chạm mọi chỗ đọc (nợ kỹ thuật ghi ở #220).
+/// - `accepted` — ⛔ NGỪNG DÙNG (deprecated 04/08/2026). Di tích của mô hình cũ "sinh viên bấm
+///                Đồng ý ôn lại". Không code path nào ghi giá trị này nữa; dữ liệu cũ đã được
+///                backfill về `pending` (migration `..._review_item_status_applied_by_default`).
+///                Nhãn vẫn nằm trong enum vì gỡ một giá trị khỏi enum Postgres là thao tác phá
+///                huỷ (phải dựng lại type) — xoá hẳn để Sprint 5.
+/// - `skipped`  — NGƯỜI DÙNG ĐÃ GỠ KHỎI LỊCH. Hàng không bị xoá: cái sinh viên chọn bỏ là dữ
+///                liệu đáng giữ (ràng buộc gốc #124), và màn Kế hoạch ôn tập (#225) đọc lại
+///                nhóm này để đưa mục trở về lịch.
+/// - `done`     — chưa dùng, chưa code path nào ghi. Giữ chỗ cho "đã ôn xong mục này".
 enum ReviewItemStatus {
   pending
   accepted
@@ -323,6 +339,12 @@ model ReviewQueueItem {
   sourceConceptId String?          @map("source_concept_id") @db.Uuid // khái niệm C đã kích hoạt traceback (không FK — chỉ tham chiếu)
   sourceSessionId String?          @map("source_session_id") @db.Uuid // audit A1: phiên Interview kích hoạt (I7.2 chống trùng, I6.5 lọc theo phiên)
   depth           Int? // 1 hoặc 2 (max_depth = 2)
+  /// `@default(pending)` = **đã áp vào lịch ngay lúc chấm xong**, không phải "chờ sinh viên
+  /// duyệt" (#224, 04/08/2026). `finalizeConceptResult()` cố ý không set `status` ở nhánh
+  /// `create` nên hàng rơi vào default này ngay trong transaction chấm điểm; nhánh `update`
+  /// cũng không đụng tới, để một lần gỡ của sinh viên không bị phiên sau ghi đè.
+  /// Chỉ `PATCH /review-queue/:itemId` đổi được giá trị này, và chỉ giữa `skipped` ↔ `pending`.
+  /// Xem doc của `enum ReviewItemStatus` cho nghĩa từng nhãn.
   status          ReviewItemStatus @default(pending)
   scheduledFor    DateTime?        @map("scheduled_for")
   createdAt       DateTime         @default(now()) @map("created_at")
