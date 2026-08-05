@@ -64,6 +64,18 @@ export function getVnWeekStartUtc(now: Date): Date {
 }
 
 /**
+ * Streak không thể dài hơn số ngày này — giới hạn cửa sổ quét lịch sử hoạt động để chi phí
+ * không tăng tuyến tính theo tuổi tài khoản (mỗi lần vào Dashboard đều quét lại). Đủ lớn (>1
+ * năm) để không bao giờ cắt cụt một streak thật.
+ */
+export const STREAK_LOOKBACK_DAYS = 400;
+
+/** Cận dưới `startedAt` dùng khi truy vấn hoạt động cho streak — xem `STREAK_LOOKBACK_DAYS`. */
+export function getStreakLookbackStartUtc(now: Date): Date {
+  return new Date(now.getTime() - STREAK_LOOKBACK_DAYS * MS_PER_DAY);
+}
+
+/**
  * Chuỗi ngày liên tiếp gần nhất có hoạt động, tính tới `now` (giờ VN).
  *
  * Mốc là hôm nay: có hoạt động hôm nay → đếm lùi liên tục từ hôm nay. Chưa có hoạt động hôm nay

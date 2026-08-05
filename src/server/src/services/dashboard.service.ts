@@ -1,6 +1,11 @@
 import prisma from '../config/prisma';
 import { MASTERY_STRONG_THRESHOLD } from '../utils/mastery';
-import { computeStreakDays, getVnWeekStartUtc, toVnDateKey } from '../utils/dashboard-stats';
+import {
+  computeStreakDays,
+  getStreakLookbackStartUtc,
+  getVnWeekStartUtc,
+  toVnDateKey,
+} from '../utils/dashboard-stats';
 import { DashboardStatsResponse } from '../types/dashboard.types';
 
 /**
@@ -11,10 +16,19 @@ import { DashboardStatsResponse } from '../types/dashboard.types';
 export async function getDashboardStats(userId: string): Promise<DashboardStatsResponse> {
   const now = new Date();
   const weekStartUtc = getVnWeekStartUtc(now);
+  // Streak chỉ cần các ngày liên tiếp gần nhất — quét toàn bộ lịch sử phiên mỗi lần vào
+  // Dashboard sẽ tăng chi phí tuyến tính theo tuổi tài khoản mà không đổi kết quả streak.
+  const streakLookbackStart = getStreakLookbackStartUtc(now);
 
   const [interviewSessions, focusSessions, weeklyAgg, activePlans] = await Promise.all([
-    prisma.interviewSession.findMany({ where: { userId }, select: { startedAt: true } }),
-    prisma.focusSession.findMany({ where: { userId }, select: { startedAt: true } }),
+    prisma.interviewSession.findMany({
+      where: { userId, startedAt: { gte: streakLookbackStart } },
+      select: { startedAt: true },
+    }),
+    prisma.focusSession.findMany({
+      where: { userId, startedAt: { gte: streakLookbackStart } },
+      select: { startedAt: true },
+    }),
     prisma.focusSession.aggregate({
       where: { userId, status: 'completed', startedAt: { gte: weekStartUtc } },
       _sum: { durationMinutes: true },

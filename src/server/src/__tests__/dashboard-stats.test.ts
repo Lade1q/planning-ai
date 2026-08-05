@@ -1,7 +1,9 @@
 import {
   computeStreakDays,
+  getStreakLookbackStartUtc,
   getVnWeekStartUtc,
   shiftVnDateKey,
+  STREAK_LOOKBACK_DAYS,
   toVnDateKey,
 } from '../utils/dashboard-stats';
 
@@ -48,6 +50,14 @@ describe('getVnWeekStartUtc', () => {
     const mondayVn = new Date('2026-08-02T17:00:01.000Z');
     const weekStart = getVnWeekStartUtc(mondayVn);
     expect(weekStart.toISOString()).toBe('2026-08-02T17:00:00.000Z');
+  });
+});
+
+describe('getStreakLookbackStartUtc', () => {
+  it('returns a timestamp exactly STREAK_LOOKBACK_DAYS before now', () => {
+    const now = new Date('2026-08-05T03:00:00.000Z');
+    const start = getStreakLookbackStartUtc(now);
+    expect(now.getTime() - start.getTime()).toBe(STREAK_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   });
 });
 

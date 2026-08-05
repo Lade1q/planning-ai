@@ -100,7 +100,22 @@ describe('getDashboardStats', () => {
 
     expect(stats.studyStreakDays).toBe(1);
     expect(mockedPrisma.focusSession.findMany).toHaveBeenCalledWith({
-      where: { userId: USER_ID },
+      where: { userId: USER_ID, startedAt: { gte: expect.any(Date) } },
+      select: { startedAt: true },
+    });
+  });
+
+  // Streak chỉ cần các ngày liên tiếp gần nhất — không nên quét toàn bộ lịch sử phiên (cost
+  // tăng tuyến tính theo tuổi tài khoản). Cả hai nguồn hoạt động phải cùng bị bound.
+  it('bounds both activity queries to the streak lookback window instead of scanning full history', async () => {
+    await getDashboardStats(USER_ID);
+
+    expect(mockedPrisma.interviewSession.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID, startedAt: { gte: expect.any(Date) } },
+      select: { startedAt: true },
+    });
+    expect(mockedPrisma.focusSession.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID, startedAt: { gte: expect.any(Date) } },
       select: { startedAt: true },
     });
   });
