@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { ChatBubble } from '@/components/ui/chat-bubble';
 import { MetaMono } from '@/components/ui/kbd';
 import { VerdictBadge } from './VerdictBadge';
+import { SourceCitation } from './SourceCitation';
 import type { InterviewTurnResponse } from '../types/interview.types';
 
 interface TurnHistoryProps {
@@ -35,6 +36,7 @@ export function TurnHistory({ turns }: TurnHistoryProps) {
 
               <ChatBubble role="ai" className="max-w-full">
                 <p className="text-sm leading-[1.62]">{turn.questionText}</p>
+                <SourceCitation citation={turn.sourceCitation} />
               </ChatBubble>
 
               {turn.answerText && (

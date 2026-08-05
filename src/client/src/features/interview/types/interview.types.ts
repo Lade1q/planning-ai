@@ -10,6 +10,9 @@
 /** Trạng thái một phiên phỏng vấn — enum `InterviewSessionStatus` phía server. */
 export type InterviewSessionStatus = 'active' | 'paused' | 'completed' | 'abandoned';
 
+/** Loại tài liệu (khớp với DocumentKind từ backend). */
+export type DocumentKind = 'pdf' | 'docx' | 'txt' | 'image';
+
 /** Loại câu hỏi — enum `QuestionType` phía server. */
 export type QuestionType = 'recall' | 'application' | 'why';
 
@@ -47,6 +50,18 @@ export interface InterviewSessionState {
   progress: InterviewProgress;
 }
 
+/**
+ * Neo nguồn C5 của một câu hỏi: tài liệu + trang mà khái niệm được trích ra.
+ */
+export interface QuestionSourceResponse {
+  documentId: string;
+  filename: string;
+  kind: DocumentKind;
+  /** `null` for material that has no pages — plain text, or an image. */
+  pageFrom: number | null;
+  pageTo: number | null;
+}
+
 /** Câu hỏi đang chờ trả lời. `turnId` là bản ghi mà `POST /answers` sẽ ghi vào. */
 export interface InterviewQuestionResponse {
   turnId: string;
@@ -56,6 +71,7 @@ export interface InterviewQuestionResponse {
   questionText: string;
   questionType: QuestionType | null;
   source: TurnSource;
+  sourceCitation: QuestionSourceResponse | null;
 }
 
 /** Một dòng transcript. Lượt đã trả lời mang theo điểm AI đã chấm. */
@@ -72,6 +88,7 @@ export interface InterviewTurnResponse {
   verdict: TurnVerdict | null;
   askedAt: string;
   answeredAt: string | null;
+  sourceCitation: QuestionSourceResponse | null;
 }
 
 export interface InterviewFallbackResponse {

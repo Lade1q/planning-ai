@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MetaMono } from '@/components/ui/kbd';
+import { ChatBubble } from '@/components/ui/chat-bubble';
 import { QuestionCard } from '@/features/interview/components/QuestionCard';
 import { AnswerInput } from '@/features/interview/components/AnswerInput';
 import { TurnHistory } from '@/features/interview/components/TurnHistory';
@@ -218,7 +219,7 @@ export default function InterviewSessionPage() {
  */
 function WaitingForAi() {
   return (
-    <div className="chat-bubble-ai px-4.5 max-w-full self-start py-3.5">
+    <ChatBubble role="ai" className="max-w-full">
       <div className="flex flex-col gap-2.5" aria-hidden="true">
         <div className="bg-ai-accent/16 h-2.5 w-full animate-pulse rounded" />
         <div className="bg-ai-accent/16 h-2.5 w-11/12 animate-pulse rounded" />
@@ -228,7 +229,7 @@ function WaitingForAi() {
         <Loader2 className="size-3.5 animate-spin" />
         AI đang chấm câu trả lời của bạn…
       </p>
-    </div>
+    </ChatBubble>
   );
 }
 

@@ -138,14 +138,48 @@ export function useInterviewSession(
     };
   }, [sessionId, applyServerState]);
 
-  /** Chạy sau khi gửi: lấy lại transcript authoritative rồi báo hoàn tất nếu phiên đã xong. */
+  /** Chạy sau khi gửi: cập nhật cục bộ (delta update) trước, sau đó lấy transcript chuẩn và soft-fail nếu rớt mạng. */
   const finishSubmit = useCallback(
-    async (result: SubmitAnswerResponse): Promise<void> => {
+    async (result: SubmitAnswerResponse, answerText?: string): Promise<void> => {
       if (!sessionId) return;
-      const fresh = await interviewApi.getInterview(sessionId);
-      applyServerState(fresh);
-      if (result.sessionCompleted || fresh.session.status === 'completed') {
-        onCompletedRef.current?.(result);
+
+      // 1. Delta update cục bộ để giữ thành quả submit nếu rớt mạng lúc refetch
+      setSession(result.session);
+      setCurrentQuestion(result.nextQuestion);
+      setFallback(result.fallback);
+
+      setTurns((prev) => {
+        const turnIndex = prev.findIndex((t) => t.id === result.gradedTurnId);
+        if (turnIndex === -1) return prev;
+
+        const newTurns = [...prev];
+        newTurns[turnIndex] = {
+          ...newTurns[turnIndex],
+          ...(answerText !== undefined && { answerText }),
+          ...(result.grading && {
+            score: result.grading.score,
+            feedback: result.grading.feedback,
+            verdict: result.grading.verdict,
+          }),
+        };
+        return newTurns;
+      });
+
+      // 2. Refetch để đồng bộ state chuẩn từ server
+      try {
+        const fresh = await interviewApi.getInterview(sessionId);
+        applyServerState(fresh);
+        if (result.sessionCompleted || fresh.session.status === 'completed') {
+          onCompletedRef.current?.(result);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải dữ liệu mới:', err);
+        toast.warning(
+          'Đã lưu câu trả lời nhưng tải dữ liệu mới thất bại. Vui lòng F5 tải lại trang.'
+        );
+        if (result.sessionCompleted) {
+          onCompletedRef.current?.(result);
+        }
       }
     },
     [sessionId, applyServerState]
@@ -158,7 +192,7 @@ export function useInterviewSession(
       setIsSubmitting(true);
       try {
         const result = await interviewApi.submitAnswer(sessionId, answerText);
-        await finishSubmit(result);
+        await finishSubmit(result, answerText);
         return true;
       } catch (err) {
         toast.error(getInterviewErrorMessage(err));

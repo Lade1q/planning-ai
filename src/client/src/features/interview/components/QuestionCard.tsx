@@ -1,5 +1,6 @@
 import { ChatBubble } from '@/components/ui/chat-bubble';
 import { Badge } from '@/components/ui/badge';
+import { SourceCitation } from './SourceCitation';
 import type { InterviewQuestionResponse, QuestionType } from '../types/interview.types';
 
 interface QuestionCardProps {
@@ -26,6 +27,7 @@ export function QuestionCard({ question }: QuestionCardProps) {
         </Badge>
       )}
       <p className="text-sm leading-[1.62]">{question.questionText}</p>
+      <SourceCitation citation={question.sourceCitation} />
     </ChatBubble>
   );
 }
