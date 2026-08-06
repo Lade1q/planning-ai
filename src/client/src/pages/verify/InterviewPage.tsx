@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,13 @@ import type { StartInterviewResponse } from '@/features/interview/types/intervie
  * Chọn một kế hoạch đang hoạt động rồi tick các khái niệm muốn kiểm tra, hoặc bấm
  * "Dùng gợi ý hôm nay" để server tự chọn hàng đợi ôn (bỏ trống `conceptIds`). Nếu đã có
  * một phiên đang dở (server trả `created === false`, AE-03), hỏi lại trước khi rời trang.
+ *
+ * Theo quyết định 05/08 của issue #118: màn này không phải lối vào chính. Lối vào thật là
+ * Dashboard "Gợi ý hôm nay" và panel đồ thị "Học lại khái niệm này" (DB-06), cả hai điều
+ * hướng tới đây kèm `planId` + `conceptId`/`conceptIds` trên query string và mong phiên bắt
+ * đầu ngay — không phải chọn lại từ đầu. Khi có `planId` trên URL, trang này bỏ qua bộ chọn
+ * và tự gọi `startInterview`; bộ chọn thủ công chỉ còn là lối vào dev / lối thoát khi việc
+ * tự động thất bại (planId sai, kế hoạch chưa có tài liệu, v.v.).
  */
 
 /** Trần lượt/khái niệm mặc định của server (C6). Chỉ để hiển thị, không gửi kèm. */
@@ -31,17 +38,28 @@ const MAX_TURNS_PER_CONCEPT = 3;
 
 export default function InterviewPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Lối vào deep-link (DB-06 / Dashboard "Gợi ý hôm nay"): `conceptId` số ít khi kiểm tra
+  // MỘT khái niệm, `conceptIds` số nhiều (phẩy) khi kiểm tra nhiều khái niệm gốc cùng lúc.
+  const deepLinkPlanId = searchParams.get('planId');
+  const deepLinkConceptId = searchParams.get('conceptId');
+  const deepLinkConceptIds = searchParams.get('conceptIds');
 
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(() => deepLinkPlanId);
   const [concepts, setConcepts] = useState<Concept[] | null>(null);
   const [conceptsLoading, setConceptsLoading] = useState(false);
   const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
 
   const [isStarting, setIsStarting] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  // Autostart deep-link thất bại (planId sai, chưa có tài liệu, …) → rơi về bộ chọn thủ công
+  // thay vì kẹt ở màn loading mãi mãi.
+  const [autoStartFailed, setAutoStartFailed] = useState(false);
+  const autoStartTriggeredRef = useRef(false);
   // Phiên đang dở server trả về khi created === false — chờ người dùng xác nhận (AE-03).
   // Giữ kèm lựa chọn khái niệm của chính lần bấm đó: nếu người dùng chọn kết thúc phiên cũ,
   // phiên mới phải mở lại đúng yêu cầu ban đầu chứ không phải state hiện tại của form.
@@ -114,9 +132,12 @@ export default function InterviewPage() {
     });
   };
 
-  /** Gọi startInterview; nếu có phiên dở thì mở hộp thoại, ngược lại vào thẳng phiên. */
-  const startSession = async (conceptIds?: string[]): Promise<void> => {
-    if (!selectedPlanId || isStarting) return;
+  /**
+   * Gọi startInterview; nếu có phiên dở thì mở hộp thoại, ngược lại vào thẳng phiên.
+   * Trả `false` khi gọi lỗi để lối vào deep-link biết cần rơi về bộ chọn thủ công.
+   */
+  const startSession = async (conceptIds?: string[]): Promise<boolean> => {
+    if (!selectedPlanId || isStarting) return false;
     setIsStarting(true);
     try {
       const response = await interviewApi.startInterview({
@@ -125,15 +146,37 @@ export default function InterviewPage() {
       });
       if (!response.created) {
         setPending({ response, conceptIds });
-        return;
+        return true;
       }
       navigate(`/interview/${response.session.id}`);
+      return true;
     } catch (error) {
       toast.error(getInterviewErrorMessage(error));
+      return false;
     } finally {
       setIsStarting(false);
     }
   };
+
+  // Lối vào deep-link: bỏ qua bộ chọn, tự bắt đầu phiên ngay khi mount. Chỉ chạy đúng một
+  // lần (ref guard) — searchParams không đổi trong vòng đời trang này. Nếu thất bại, xoá
+  // `selectedPlanId` để bộ chọn thủ công hiện ra sạch, không dính theo một planId đã lỗi.
+  useEffect(() => {
+    if (!deepLinkPlanId || autoStartTriggeredRef.current) return;
+    autoStartTriggeredRef.current = true;
+    const conceptIds = deepLinkConceptId
+      ? [deepLinkConceptId]
+      : deepLinkConceptIds
+        ? deepLinkConceptIds.split(',').filter(Boolean)
+        : undefined;
+    void startSession(conceptIds).then((ok) => {
+      if (!ok) {
+        setSelectedPlanId(null);
+        setAutoStartFailed(true);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy một lần lúc mount, tự canh bằng ref
+  }, []);
 
   /**
    * AE-03 — "Kết thúc và chấm phần đã làm" (SPEC_DB-03 AF2). Đóng phiên cũ bằng
@@ -164,6 +207,18 @@ export default function InterviewPage() {
   /** Khái niệm phiên cũ đang dừng ở — nêu đích danh thì hệ quả đọc cụ thể hơn hẳn. */
   const pendingConceptName = pending?.response.session.currentConcept?.name;
 
+  // ---------- Lối vào deep-link đang tự khởi động phiên: không hiện bộ chọn ----------
+  // `pending !== null` nghĩa là startInterview đã trả lời (AE-03, phiên đang dở) — phải
+  // thoát khỏi màn loading để hộp thoại xác nhận bên dưới render ra được.
+  if (deepLinkPlanId && !autoStartFailed && pending === null) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+        <Loader2 className="text-muted-foreground size-6 animate-spin" />
+        <p className="text-muted-foreground text-sm">Đang mở phiên kiểm tra…</p>
+      </div>
+    );
+  }
+
   // ---------- Loading danh sách kế hoạch ----------
   if (plans === null && !loadError) {
     return (
@@ -183,6 +238,12 @@ export default function InterviewPage() {
           Chọn kế hoạch và các khái niệm bạn muốn AI Examiner kiểm tra, hoặc để hệ thống gợi ý những
           khái niệm cần ôn hôm nay.
         </p>
+        {autoStartFailed && (
+          <p className="border-border bg-muted text-muted-foreground mt-3 rounded-md border px-3.5 py-2.5 text-[13px] leading-[1.6]">
+            Không thể tự mở phiên kiểm tra từ liên kết vừa rồi. Hãy chọn lại kế hoạch và khái niệm
+            bên dưới.
+          </p>
+        )}
       </header>
 
       {loadError || plans === null ? (
@@ -308,7 +369,18 @@ export default function InterviewPage() {
           giữa dài hơn nửa chiều ngang hộp thoại — nhét cả ba vào một hàng thì tràn. */}
       <Dialog
         open={pending !== null}
-        onOpenChange={(open) => !open && !isEnding && setPending(null)}
+        onOpenChange={(open) => {
+          if (open || isEnding) return;
+          setPending(null);
+          // Đóng hộp thoại mà không chọn "Tiếp tục" hay "Kết thúc" (Để sau / Esc / bấm ra
+          // ngoài). Ở lối vào deep-link, `autoStartTriggeredRef` đã bật nên hiệu ứng tự khởi
+          // động sẽ không chạy lại — nếu không hạ cờ này, guard spinner phía trên vẫn đúng
+          // (`pending === null` trở lại true) và trang kẹt mãi ở "Đang mở phiên kiểm tra…".
+          // Coi việc "để sau" như một lần tự khởi động thất bại để rơi về bộ chọn thủ công.
+          // Chỉ áp dụng khi có deep-link — ở lối thủ công cờ này chỉ để hiện băng lỗi deep-link
+          // nên bấm "Để sau" ở đó không cần bật nó.
+          if (deepLinkPlanId) setAutoStartFailed(true);
+        }}
       >
         <DialogContent>
           <DialogHeader>

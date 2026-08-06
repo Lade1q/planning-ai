@@ -25,6 +25,7 @@ export function AnswerInput({
 }: AnswerInputProps) {
   const [text, setText] = useState('');
   const isBlocked = disabled || isSubmitting;
+  const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
 
   const handleSubmit = async (): Promise<void> => {
     const trimmed = text.trim();
@@ -62,15 +63,15 @@ export function AnswerInput({
         <span>
           <Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd> để gửi
         </span>
+        <span className="ml-auto text-[11px] tabular-nums">{wordCount} từ</span>
         <Button
           type="button"
           size="sm"
-          className="ml-auto"
           onClick={() => void handleSubmit()}
           loading={isSubmitting}
           disabled={isBlocked || text.trim().length === 0}
         >
-          Gửi
+          Gửi câu trả lời
         </Button>
       </div>
     </div>

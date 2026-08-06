@@ -48,6 +48,8 @@ export function getInterviewErrorMessage(error: unknown): string {
       return 'Phiên đang tạm dừng — đang mở lại, vui lòng thử lại.';
     case 'NO_ACTIVE_CONCEPTS':
       return 'Không có khái niệm nào để kiểm tra. Hãy chọn khái niệm khác.';
+    case 'NO_MATERIAL':
+      return 'Kế hoạch này chưa có tài liệu để tạo câu hỏi. Hãy tải tài liệu lên trước khi bắt đầu kiểm tra.';
     case 'VALIDATION_ERROR':
       return 'Thông tin gửi lên chưa hợp lệ.';
     default:
@@ -70,10 +72,16 @@ export const interviewApi = {
     return response.data.data;
   },
 
-  /** Khôi phục toàn bộ trạng thái phiên khi tải lại — server là nguồn chân lý. */
+  /**
+   * Khôi phục toàn bộ trạng thái phiên khi tải lại — server là nguồn chân lý. Gọi ở mọi lần
+   * mount VÀ sau mỗi lần gửi câu trả lời (`fetchAuthoritativeState`/`finishSubmit` trong
+   * `useInterviewSession`), có thể phải chờ Gemini sinh câu hỏi khi resume nên cần timeout
+   * dài như các lệnh chờ AI khác, không phải timeout mặc định 10s.
+   */
   getInterview: async (id: string): Promise<GetInterviewResponse> => {
     const response = await apiClient.get<ApiEnvelope<GetInterviewResponse>>(
-      ENDPOINTS.INTERVIEWS.DETAIL(id)
+      ENDPOINTS.INTERVIEWS.DETAIL(id),
+      { timeout: AI_WAIT_TIMEOUT_MS }
     );
     return response.data.data;
   },

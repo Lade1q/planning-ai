@@ -18,6 +18,10 @@ interface TurnHistoryProps {
 export function TurnHistory({ turns }: TurnHistoryProps) {
   if (turns.length === 0) return null;
 
+  // Chỉ lượt vừa chấm gần nhất mới còn "mới" theo nghĩa live-region — các lượt cũ hơn là
+  // nội dung tĩnh, không nên được trình đọc màn hình đọc lại như thể vừa xảy ra.
+  const latestGradedId = [...turns].reverse().find((t) => t.verdict !== null)?.id;
+
   return (
     <div className="flex flex-col gap-5">
       {turns.map((turn, index) => {
@@ -46,12 +50,15 @@ export function TurnHistory({ turns }: TurnHistoryProps) {
               )}
 
               {turn.verdict && (
-                <GradeCard
-                  verdict={turn.verdict}
-                  score={turn.score}
-                  feedback={turn.feedback}
-                  turnIndex={turn.turnIndex}
-                />
+                <>
+                  <GradeCard
+                    verdict={turn.verdict}
+                    score={turn.score}
+                    feedback={turn.feedback}
+                    turnIndex={turn.turnIndex}
+                  />
+                  <SystemNote turnIndex={turn.turnIndex} isLatest={turn.id === latestGradedId} />
+                </>
               )}
             </section>
           </Fragment>
@@ -91,6 +98,26 @@ function GradeCard({ verdict, score, feedback, turnIndex }: GradeCardProps) {
         <span className="text-muted-foreground ml-auto text-[11px]">Lượt {turnIndex}</span>
       </div>
       {feedback && <p className="text-foreground text-[13.5px] leading-[1.6]">{feedback}</p>}
+    </div>
+  );
+}
+
+/**
+ * Dòng minh bạch điều phối (`.sys` trong mockup, ràng buộc C4 — quyết định điều phối là
+ * logic tất định, không phải AI). Chỉ xác nhận trung tính là kết quả lượt đã được ghi
+ * nhận — KHÔNG suy đoán bước kế tiếp (ví dụ "sẽ hỏi đào sâu hơn") vì dữ liệu hiện có
+ * không cho biết state machine sẽ quyết định gì tiếp theo.
+ */
+function SystemNote({ turnIndex, isLatest }: { turnIndex: number; isLatest: boolean }) {
+  return (
+    <div
+      role={isLatest ? 'status' : undefined}
+      className="border-border bg-muted text-muted-foreground flex items-start gap-2.5 rounded-md border px-3.5 py-2.5 text-[12.5px] leading-[1.55]"
+    >
+      <span className="border-border bg-card text-muted-foreground shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px]">
+        Hệ thống
+      </span>
+      <span>Đã ghi nhận kết quả lượt {turnIndex}.</span>
     </div>
   );
 }
