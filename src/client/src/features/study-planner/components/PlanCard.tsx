@@ -124,16 +124,21 @@ export function PlanCard({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
+        {/* Lưu trữ chỉ có nghĩa với kế hoạch đã xác nhận: server từ chối lưu trữ bản nháp
+            (#265 — nếu cho, thì "Bỏ lưu trữ" thành lối kích hoạt vòng qua bước kiểm chứng).
+            Bản nháp bỏ dở thoát bằng "Xóa vĩnh viễn" ở dưới. */}
         {isArchived ? (
           <DropdownMenuItem onSelect={() => onRestore(plan)}>
             <ArchiveRestore />
             Bỏ lưu trữ
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onSelect={() => onArchive(plan)}>
-            <Archive />
-            Lưu trữ kế hoạch
-          </DropdownMenuItem>
+          !isDraft && (
+            <DropdownMenuItem onSelect={() => onArchive(plan)}>
+              <Archive />
+              Lưu trữ kế hoạch
+            </DropdownMenuItem>
+          )
         )}
 
         {/* SP-05 re-reads the document the plan was built from; a draft has no graph to
@@ -145,8 +150,9 @@ export function PlanCard({
           </DropdownMenuItem>
         )}
 
-        {/* Separated by a rule: archiving is reversible, this is not. */}
-        <DropdownMenuSeparator />
+        {/* Separated by a rule: archiving is reversible, this is not. A draft has no item
+            above it, so the rule would be a stray line at the top of the menu. */}
+        {!isDraft && <DropdownMenuSeparator />}
         <DropdownMenuItem variant="destructive" onSelect={() => onDelete(plan)}>
           <Trash2 />
           Xóa vĩnh viễn

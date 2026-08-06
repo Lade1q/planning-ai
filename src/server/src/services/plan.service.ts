@@ -241,34 +241,21 @@ export async function getPlanById(planId: string, userId: string): Promise<PlanD
 }
 
 /**
- * Whether an analysis is still running for a plan, i.e. its latest job is claimed or queued
- * and has not passed STALE_JOB_THRESHOLD_MS — the same reading of job state that
- * `retryPlanAnalysis` and `changePlanDocument` guard on.
- *
- * Kept as a pure decision separate from the query (SDP risk R05), so the archive rule below
- * is testable without a database. `null` (no job at all) counts as not running: every plan
- * gets a job at creation, so this only happens to data that predates the pipeline.
- */
-export function isAnalysisInProgress(
-  job: { status: string; createdAt: Date } | null,
-  now: number = Date.now()
-): boolean {
-  if (!job) return false;
-  if (job.status !== 'pending' && job.status !== 'processing') return false;
-  return now - job.createdAt.getTime() <= STALE_JOB_THRESHOLD_MS;
-}
-
-/**
  * Archives a plan or pulls it back into circulation (SP-04, Issue #171).
  *
- * `draft` covers two very different situations since Issue #265, and only one of them is a
- * reason to refuse:
- *  - analysis still running — there is nothing to retire yet, and the job would finish onto
- *    an archived plan. Refused.
- *  - analysed but not yet confirmed — the user walked away from the verification step. That
- *    is precisely who needs to archive, and refusing left them with no way out.
- * Going the other way (`draft` → `active`) stays closed: a plan earns `active` by having its
- * concept graph confirmed (`PUT /plans/:id/graph`), which is the step SP-01 exists for.
+ * A `draft` plan is refused in both directions, and that is what keeps the SP-01 verification
+ * step mandatory (Issue #265). This function is the only writer of `archived` — the schema
+ * accepts nothing but `active`/`archived`, `draft` is written once at creation, and `active`
+ * only by `shouldActivate` — so `archived` is reachable only from `active`:
+ *
+ *   draft → active (only via PUT /plans/:id/graph {confirm:true}) | deleted
+ *   active → archived        archived → active
+ *
+ * Allowing a draft to be archived would open a second road to `active` — archive, then
+ * "Bỏ lưu trữ" — that never passes through the confirmation. A user who walks away from an
+ * unconfirmed draft is not stuck: `deletePlan` has no status guard, and an unconfirmed draft
+ * has nothing worth keeping (no mastery, no sessions, no history) — its parking spot is the
+ * "Chưa xác nhận" tab.
  *
  * Setting the status a plan already has is a no-op that still returns 200, so a double-click
  * on "Lưu trữ" does not surface an error.
@@ -292,27 +279,13 @@ export async function updatePlanStatus(
   }
 
   if (plan.status === 'draft') {
-    if (status === 'active') {
-      throw new AppError(
-        'A draft plan becomes active by confirming its concept graph',
-        409,
-        'STATUS_TRANSITION_NOT_ALLOWED'
-      );
-    }
-
-    const latestJob = await prisma.analysisJob.findFirst({
-      where: { planDraftId: planId },
-      orderBy: { createdAt: 'desc' },
-      select: { status: true, createdAt: true },
-    });
-
-    if (isAnalysisInProgress(latestJob)) {
-      throw new AppError(
-        'A plan that is still being analysed cannot be archived',
-        409,
-        'STATUS_TRANSITION_NOT_ALLOWED'
-      );
-    }
+    throw new AppError(
+      status === 'active'
+        ? 'A draft plan becomes active by confirming its concept graph'
+        : 'An unconfirmed plan cannot be archived — confirm its concept graph, or delete it',
+      409,
+      'STATUS_TRANSITION_NOT_ALLOWED'
+    );
   }
 
   const updated = await prisma.studyPlan.update({
