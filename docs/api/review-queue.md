@@ -133,6 +133,11 @@ tóm tắt phiên không được vẽ nút Đồng ý / Bỏ qua nữa.
   chưa có row `ReviewQueueItem` thật — không thể `PATCH` các item này) và
   `sourceSessionEndedAt: null` (chưa có phiên nào để truy ngược).
 
+  ⚠️ **Danh sách fallback A3 này CHỈ có ở endpoint `?planId=`, KHÔNG có ở `/today`** (#273). Mục
+  fallback không mang `scheduledFor` nên không bao giờ "đến hạn"; đưa nó vào `/today` khiến gợi ý
+  của một plan mới toanh (priority từ mastery `null`) lấn át mục **thật sự đến hạn** của plan
+  đang học dở. Xem mục 2.
+
 - **Nhóm "Đã gỡ khỏi lịch" (`includeSkipped=true`):** envelope có thêm `skippedItems`, cùng
   shape với `items` (mọi phần tử có `status: "skipped"`), sắp cùng một kiểu — mục đưa lại phải
   rơi đúng chỗ scheduler xếp cho nó, không phải xuống cuối danh sách chỉ vì từng bị gỡ.
@@ -250,6 +255,14 @@ tóm tắt phiên không được vẽ nút Đồng ý / Bỏ qua nữa.
   Gộp top-K từ **tất cả** plan `active` của user (không chỉ 1 plan), **có lọc**
   `scheduledFor <= hiện tại` — item hẹn ôn trong tương lai chưa xuất hiện ở đây.
 
+- **KHÔNG có fallback A3 (#273):** plan có `0` dòng `ReviewQueueItem` (chưa từng vấn đáp) đóng
+  góp `[]` vào `/today`, **không** phải danh sách gợi ý từ `concepts`. Chỉ mục **đã lên lịch
+  thật** và đến hạn (`scheduledFor <= now`, đã lọc `OFF_SCHEDULE_STATUSES`) mới vào. Lý do:
+  "hôm nay" chỉ nên có việc thật đến hạn — plan chưa học không có gì "đến hạn", nhất quán với
+  việc plan `draft` cũng không vào (#265). Fallback là gợi ý học mới, thuộc bề mặt `?planId=`
+  (mục 1) / Dashboard, không phải danh sách nhắc ôn. Trước 06/08 fallback lọt vào đây và **nuốt
+  mất** mục đến hạn thật của plan khác (gợi ý plan-mới `priority ≈ 0.07` > mục thật đã lên lịch).
+
 - **Response thành công (HTTP 200 OK):** shape giống hệt mục 1
   (`{ items, message, totalEstimatedMinutes }`), nhưng `items` gộp từ nhiều plan. Mỗi item mang
   `planId` + `planName` của **plan chứa nó** (#232) — không có hai field này thì Dashboard
@@ -287,7 +300,15 @@ tóm tắt phiên không được vẽ nút Đồng ý / Bỏ qua nữa.
 
 - **Đã ôn đủ mọi plan hôm nay (HTTP 200 OK):** `message: "Bạn đã hoàn thành kế hoạch hôm nay 🎉"`.
   Đây là **bề mặt duy nhất** được nói chữ "hôm nay", vì cũng là bề mặt duy nhất thật sự lọc theo
-  `scheduledFor` — mục 1 có câu riêng của nó.
+  `scheduledFor` — mục 1 có câu riêng của nó. Câu 🎉 này chỉ hiện khi **có lịch sử** (`hasHistory`)
+  — tức đã từng vấn đáp và giờ không còn mục đến hạn.
+
+- **Có plan `active` nhưng chưa mục nào đến hạn, và chưa plan nào từng vấn đáp (HTTP 200 OK):**
+  trạng thái rỗng **mới** do #273 mở ra khi bỏ fallback khỏi `/today`. `hasHistory=false` nên
+  `resolveEmptyMessage` trả `null` → `{ items: [], message: null, totalEstimatedMinutes: 0 }`.
+  #273 **cố ý không** tự chế câu cho ca này — câu chữ + UI (mời tạo phiên vấn đáp / học mới)
+  thuộc **#231** (design trạng thái Dashboard) và **#232 phần 4** (chọn câu rỗng). Không được
+  dùng câu 🎉 ở đây: chưa ôn gì thì không phải "đã hoàn thành".
 
 - **Không có `includeSkipped` ở endpoint này:** nhóm "đã gỡ" là chuyện của một kế hoạch cụ thể
   (màn Kế hoạch ôn tập), không phải của danh sách gợi ý gộp nhiều plan.

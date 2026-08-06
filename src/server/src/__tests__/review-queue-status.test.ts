@@ -446,6 +446,68 @@ describe('/review-queue/today keeps filtering by scheduledFor', () => {
   });
 });
 
+/**
+ * #273 — the A3 fallback (suggestions for a plan never interviewed) belongs on the per-plan
+ * endpoint, not on `/today`. A fallback item has no `scheduledFor`, so it is never "due"; before
+ * this fix a brand-new plan's suggestions outranked and crowded out the real, actually-due items
+ * of a plan the student was mid-way through.
+ */
+describe('/review-queue/today drops the A3 fallback (#273)', () => {
+  it('a never-interviewed plan contributes nothing to /today, but still suggests on its own queue', async () => {
+    // PLAN_ID has no queue rows at all → the A3 fallback path.
+    queueRows = [];
+    mockedPrisma.concept.findMany.mockResolvedValue([
+      { id: 'concept-new', name: 'Con trỏ', masteryScore: null },
+    ]);
+
+    const today = await getTodayReviewQueue(USER_ID);
+    const ownQueue = await getReviewQueueForPlan(PLAN_ID, USER_ID);
+
+    // Nothing is genuinely due on a plan that has never been scheduled.
+    expect(today.items).toEqual([]);
+    // …but `?planId=` still offers the fallback suggestion — A3 is correct there, untouched.
+    expect(conceptIdsOf(ownQueue.items)).toEqual(['concept-new']);
+  });
+
+  it("does not let a new plan's fallback crowd out another plan's due items", async () => {
+    plans.push({
+      id: SECOND_PLAN_ID,
+      userId: USER_ID,
+      name: 'Mạng máy tính',
+      deadline: null,
+      status: 'active',
+    });
+    // SECOND_PLAN_ID has a real, due item; PLAN_ID has zero rows (fallback territory) whose
+    // null-mastery concept would score a higher fallback priority than the real item and, before
+    // #273, take its slot on /today.
+    queueRows = [row({ id: 'item-real', conceptId: 'concept-avl', planId: SECOND_PLAN_ID })];
+    mockedPrisma.concept.findMany.mockResolvedValue([
+      { id: 'concept-new', name: 'Con trỏ', masteryScore: null },
+    ]);
+
+    const today = await getTodayReviewQueue(USER_ID);
+
+    // Only the genuinely-due item survives; the fallback never enters /today to outrank it.
+    expect(conceptIdsOf(today.items)).toEqual(['concept-avl']);
+  });
+
+  it('returns an empty list, not the fallback, when every active plan is new', async () => {
+    // The only active plan (PLAN_ID) has no rows; DRAFT_PLAN_ID is filtered out by status.
+    queueRows = [];
+    mockedPrisma.concept.findMany.mockResolvedValue([
+      { id: 'concept-new', name: 'Con trỏ', masteryScore: null },
+    ]);
+
+    const today = await getTodayReviewQueue(USER_ID);
+
+    expect(today.items).toEqual([]);
+    // #273 leaves the wording of this new "has plans, nothing due" empty state to #231/#232-p4;
+    // here it is simply null, never a congratulation.
+    expect(today.message).toBeNull();
+    expect(today.message).not.toBe(COMPLETED_TODAY_MESSAGE);
+  });
+});
+
 describe('a plan the user has not confirmed yet stays off the schedule (#265)', () => {
   it('leaves a draft plan out of /review-queue/today, even with due items on it', async () => {
     queueRows = [

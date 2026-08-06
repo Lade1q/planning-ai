@@ -525,6 +525,15 @@ interface PlanQueueResolution {
  * #232: rows are folded to one per concept before they leave here — see `dedupeByConcept()`.
  * Doing it per plan is enough for `/today` too: a `Concept` belongs to exactly one plan, so
  * merging two plans' queues can never put the same concept in twice.
+ *
+ * #273: the A3 fallback is offered on `/review-queue?planId=` (`dueOnly: false`) but **not** on
+ * `/review-queue/today` (`dueOnly: true`). A fallback suggestion has no `scheduledFor`, so it is
+ * never "due"; letting it into `/today` meant a brand-new plan's suggestions (priority from
+ * null mastery ≈ 0.07 each) outranked the real, actually-due items of a plan the student is
+ * mid-way through, and crowded them out of "Gợi ý hôm nay". Only genuinely scheduled, due work
+ * belongs on `/today` — the same reason a `draft` plan contributes nothing there (#265). The
+ * empty state this opens ("has plans, nothing due yet") is left to `resolveEmptyMessage` to
+ * answer with `null`; its wording is #231/#232-phần-4's call, not this function's.
  */
 async function resolvePlanQueue(
   plan: QueuePlan,
@@ -534,7 +543,10 @@ async function resolvePlanQueue(
   const totalCount = await prisma.reviewQueueItem.count({ where: { planId: plan.id } });
 
   if (totalCount === 0) {
-    return { items: await buildFallbackItems(plan, now), hasHistory: false };
+    return {
+      items: options.dueOnly ? [] : await buildFallbackItems(plan, now),
+      hasHistory: false,
+    };
   }
 
   const rows = await prisma.reviewQueueItem.findMany({
