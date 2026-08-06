@@ -3,9 +3,9 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { ConceptGraph } from '@/features/study-planner/components/ConceptGraph';
 import { AnalysisProgressPanel } from '@/features/study-planner/components/AnalysisProgressPanel';
+import { PlanCreationStepper } from '@/features/study-planner/components/PlanCreationStepper';
 import {
   planApi,
   getRetryErrorMessage,
@@ -303,95 +303,14 @@ export default function PlanDetailPage() {
         <p className="text-muted-foreground max-w-160 mb-7 text-pretty text-[14px] leading-[1.7]">
           {isDraft
             ? 'AI đã đề xuất các khái niệm cùng quan hệ tiên quyết. Đối chiếu từng khái niệm với trích đoạn gốc bên phải rồi mới xác nhận — bước này bắt buộc, hệ thống không tự động tin kết quả AI.'
-            : 'Thêm hoặc bỏ khái niệm, nối lại quan hệ tiên quyết cho đồ thị của kế hoạch này. Lưu thay đổi để cập nhật; nhấn tên kế hoạch ở trên để quay lại mà không lưu.'}
+            : 'Thêm hoặc bỏ khái niệm, nối lại quan hệ tiên quyết cho đồ thị của kế hoạch này. Lưu thay đổi để cập nhật.'}
         </p>
 
-        {/* Stepper chỉ có nghĩa trong luồng tạo mới — sửa kế hoạch đã có không đi qua các bước này */}
         {isDraft && (
-          <ol className="bg-card border-border mb-6 flex overflow-hidden rounded-[calc(var(--radius)*0.9)] border">
-            <li className="text-muted-foreground border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]">
-              <span className="border-primary/40 bg-primary/10 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full border">
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 12.5l5.2 5.2L20 7" />
-                </svg>
-              </span>
-              <span className="truncate">Nhập thông tin & tải tài liệu</span>
-            </li>
-            <li
-              className={cn(
-                'border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]',
-                analysisDone ? 'text-muted-foreground' : 'text-foreground font-semibold'
-              )}
-            >
-              <span
-                className={cn(
-                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                  analysisFailed
-                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
-                    : 'border-primary/40 bg-primary/10 text-primary'
-                )}
-              >
-                {analysisFailed ? (
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                ) : analysisRunning ? (
-                  <Spinner className="size-2.5" />
-                ) : (
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 12.5l5.2 5.2L20 7" />
-                  </svg>
-                )}
-              </span>
-              <span className="truncate">AI phân tích</span>
-            </li>
-            <li
-              className={cn(
-                'flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-[13px]',
-                analysisDone ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground'
-              )}
-            >
-              <span
-                className={cn(
-                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]',
-                  analysisDone
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-border'
-                )}
-              >
-                3
-              </span>
-              <span className="truncate">Kiểm chứng & xác nhận</span>
-            </li>
-          </ol>
+          <PlanCreationStepper
+            step={analysisDone ? 3 : 2}
+            analysisStatus={analysisFailed ? 'failed' : analysisRunning ? 'running' : 'done'}
+          />
         )}
 
         <div className="h-150 flex flex-col gap-4">
@@ -503,7 +422,9 @@ export default function PlanDetailPage() {
                 initialEdges={plan.graph.edges}
                 mode={mode}
                 onConfirm={handleConfirmGraph}
-                confirmLabel={isDraft ? 'Xác nhận & Bắt đầu' : 'Lưu thay đổi'}
+                confirmLabel={isDraft ? 'Xác nhận & tạo lịch ôn tập' : 'Lưu thay đổi'}
+                onCancel={() => navigate(isDraft ? '/plans' : '/graph')}
+                isDraft={isDraft}
               />
             ) : (
               <div className="border-border bg-card text-muted-foreground flex h-full w-full items-center justify-center rounded-xl border">
