@@ -282,6 +282,17 @@ export default function PlanDetailPage({ routeMode }: PlanDetailPageProps) {
   const isVerify = mode === 'verify';
   const isEditing = mode === 'edit' || isVerify;
 
+  // Bộ chọn trên toolbar (DB-05) là bộ đổi PHẠM VI bên trong mục "Đồ thị khái niệm", nên nó
+  // chỉ được chứa những kế hoạch thuộc mục đó. Bản nháp thì không: chọn một bản nháp sẽ bị
+  // guard đẩy sang /plan/:id/verify, và sidebar nhảy sang "Kế hoạch ôn tập" — người dùng bị
+  // văng khỏi chính mục đang đứng, đúng thứ Issue #274 sinh ra để diệt (trước #274 chuyện này
+  // không xảy ra vì bản nháp chỉ đổi query, pathname giữ nguyên).
+  // `archived` thì GIỮ: kế hoạch lưu trữ vẫn có đồ thị xem được ở đây, chỉ mất nút "Sửa đồ thị"
+  // bên dưới. Lọc nó đi là cắt mất thứ vốn thuộc về mục này.
+  // Bản nháp vẫn có lối vào riêng — trạng thái rỗng của GraphIndexPage và thẻ "Chờ xác nhận"
+  // ở màn Kế hoạch ôn tập — nên lọc ở đây không giấu mất chúng.
+  const switchablePlans = (planList ?? []).filter((p) => p.status !== 'draft');
+
   // A separate, faster tick so the elapsed clock on the progress panel counts smoothly
   // between the 2.5s polls (same pattern as PlansPage's card clock).
   const [now, setNow] = useState(() => new Date());
@@ -509,7 +520,7 @@ export default function PlanDetailPage({ routeMode }: PlanDetailPageProps) {
                 về dashboard (DB-02 áp cho nhiều kế hoạch). Luôn hiện khi đã tải được danh sách
                 (khớp mockup) — kể cả lúc mới có 1 kế hoạch, để affordance "đổi kế hoạch ở đây"
                 nhất quán, chứ không xuất hiện đột ngột khi kế hoạch thứ hai ra đời. */}
-            {planList && planList.length > 0 && (
+            {switchablePlans.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="plan-switch"
@@ -526,12 +537,12 @@ export default function PlanDetailPage({ routeMode }: PlanDetailPageProps) {
                   {/* Kế hoạch hiện tại không (còn) nằm trong danh sách — vd. lỗi tải, hoặc id
                       từ một liên kết cũ. Không để <select> âm thầm rơi về option đầu tiên,
                       trông như đang xem đúng kế hoạch đó. */}
-                  {!planList.some((p) => p.id === id) && (
+                  {!switchablePlans.some((p) => p.id === id) && (
                     <option value={id ?? ''} disabled>
                       Kế hoạch này
                     </option>
                   )}
-                  {planList.map((p) => (
+                  {switchablePlans.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {p.conceptCount} khái niệm
                     </option>

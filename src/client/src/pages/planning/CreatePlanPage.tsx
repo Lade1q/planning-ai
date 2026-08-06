@@ -303,7 +303,7 @@ export default function CreatePlanPage() {
           </div>
           {errors.deadline?.message && <FieldError>{errors.deadline.message}</FieldError>}
           <FieldDescription className="mt-1.5 text-xs">
-            SRE dùng mốc này để rải khái niệm theo độ khó và quan hệ tiên quyết.
+            Hệ thống dùng mốc này để rải khái niệm theo độ khó và quan hệ tiên quyết.
           </FieldDescription>
         </Field>
 
