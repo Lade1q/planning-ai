@@ -121,8 +121,10 @@ export default function CreatePlanPage() {
       // in the same instant, so the user never saw it complete.
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // Redirect to Concept Graph page in edit mode
-      navigate(`/plan/${response.planId}?mode=edit`);
+      // Bước 3 của luồng tạo: kiểm chứng đồ thị AI đề xuất. Route riêng chứ không phải
+      // `?mode=edit` — đây vẫn là luồng "Kế hoạch ôn tập", không phải sửa đồ thị của một
+      // kế hoạch đang chạy (Issue #274).
+      navigate(`/plan/${response.planId}/verify`);
     } catch (error) {
       console.error('Failed to create plan:', error);
       toast.error(getCreatePlanErrorMessage(error));
