@@ -10,6 +10,7 @@ export function PlanCreationStepper({ step, analysisStatus = 'idle' }: PlanCreat
   return (
     <ol className="bg-card border-border mb-6 flex overflow-hidden rounded-[calc(var(--radius)*0.9)] border">
       <li
+        aria-current={step === 1 ? 'step' : undefined}
         className={cn(
           'border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]',
           step === 1 ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground'
@@ -43,6 +44,7 @@ export function PlanCreationStepper({ step, analysisStatus = 'idle' }: PlanCreat
         <span className="truncate">Nhập thông tin & tải tài liệu</span>
       </li>
       <li
+        aria-current={step === 2 ? 'step' : undefined}
         className={cn(
           'border-border flex min-w-0 flex-1 items-center gap-2.5 border-r px-4 py-3 text-[13px]',
           step === 2 ? 'text-foreground font-semibold' : 'text-muted-foreground'
@@ -94,6 +96,7 @@ export function PlanCreationStepper({ step, analysisStatus = 'idle' }: PlanCreat
         <span className="truncate">AI phân tích</span>
       </li>
       <li
+        aria-current={step === 3 ? 'step' : undefined}
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-[13px]',
           step === 3 ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground'

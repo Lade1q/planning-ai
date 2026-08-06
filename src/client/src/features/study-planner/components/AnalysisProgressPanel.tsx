@@ -111,30 +111,25 @@ export function AnalysisProgressPanel({
   const currentIndex = complete ? PHASE_ORDER.length : phase ? PHASE_ORDER.indexOf(phase) : 0;
   const skipsSendPhase = documentKind === 'text';
 
-  // Upload phase is 'done' only once the server has written the document record and
-  // returned pageCount. Until then, keep it as 'now' so the spinner matches reality.
-  const uploadState: SubPhaseState = pageCount != null ? 'done' : 'now';
-
-  // Block all downstream phases while upload hasn't finished yet (pageCount not returned).
-  // Without this, server's `phase` can advance to 'sending_to_ai' before pageCount is written,
-  // causing two simultaneous spinners which is logically impossible.
-  const effectiveIndex = uploadState === 'done' ? currentIndex : -1;
-
+  // Hard-coded `done`: xem docblock đầu file — 201 chỉ trả về sau khi
+  // createPlanInDb commit (plan+document+job cùng transaction), và panel
+  // chỉ render sau 201. Đừng suy từ pageCount (chỉ PDF) hay document!=null
+  // (analysisPlan còn null tới lần poll đầu, +2500ms).
   const phases: { label: string; state: SubPhaseState }[] = [
     {
       label: `Tải tệp lên kho lưu trữ · lưu bản ghi documents${
-        pageCount != null ? ` (${pageCount} trang)` : ''
+        pageCount ? ` (${pageCount} trang)` : ''
       }`,
-      state: uploadState,
+      state: 'done',
     },
     ...(skipsSendPhase
       ? []
-      : [{ label: 'Gửi tài liệu tới AI Service', state: subPhaseState(0, effectiveIndex) }]),
+      : [{ label: 'Gửi tài liệu tới AI Service', state: subPhaseState(0, currentIndex) }]),
     {
       label: 'Trích xuất khái niệm, độ khó và quan hệ tiên quyết',
-      state: subPhaseState(1, effectiveIndex),
+      state: subPhaseState(1, currentIndex),
     },
-    { label: 'Kiểm tra chu trình (DAG) và dựng đồ thị', state: subPhaseState(2, effectiveIndex) },
+    { label: 'Kiểm tra chu trình (DAG) và dựng đồ thị', state: subPhaseState(2, currentIndex) },
   ];
 
   const elapsed = startedAt ? formatElapsed(startedAt, now) : null;
