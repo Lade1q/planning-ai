@@ -303,7 +303,7 @@ export default function PlanDetailPage() {
         <p className="text-muted-foreground max-w-160 mb-7 text-pretty text-[14px] leading-[1.7]">
           {isDraft
             ? 'AI đã đề xuất các khái niệm cùng quan hệ tiên quyết. Đối chiếu từng khái niệm với trích đoạn gốc bên phải rồi mới xác nhận — bước này bắt buộc, hệ thống không tự động tin kết quả AI.'
-            : 'Thêm hoặc bỏ khái niệm, nối lại quan hệ tiên quyết cho đồ thị của kế hoạch này. Lưu thay đổi để cập nhật; nhấn tên kế hoạch ở trên để quay lại mà không lưu.'}
+            : 'Thêm hoặc bỏ khái niệm, nối lại quan hệ tiên quyết cho đồ thị của kế hoạch này. Lưu thay đổi để cập nhật.'}
         </p>
 
         {isDraft && (
