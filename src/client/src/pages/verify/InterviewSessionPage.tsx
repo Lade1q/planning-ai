@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MetaMono } from '@/components/ui/kbd';
 import { ChatBubble } from '@/components/ui/chat-bubble';
@@ -23,12 +23,13 @@ import type {
  * AE-02 — màn phỏng vấn nhiều lượt do state machine tất định điều phối.
  *
  * Bố cục phỏng theo `screen-interview.html` (`.ex-shell`): một màn chiếm trọn khung nhìn,
- * KHÔNG có sidebar/nav của app (xem `InterviewLayout`), gồm thanh trên 3 vùng (thoát phiên
- * + tiêu đề | mét tiến độ | vùng phải để trống), rồi cột trái "phạm vi bài kiểm tra" (hàng
- * đợi khái niệm + lượt) và cột phải (thanh khái niệm + hội thoại cuộn riêng + khu trả lời
- * ghim đáy). Khi phiên rơi vào fallback (AE-05) thì thay ô gõ bằng ba nút tự chấm và hiện
- * băng cảnh báo. Toàn bộ state do `useInterviewSession` sở hữu — server là nguồn chân lý,
- * trang này chỉ trình bày lại.
+ * KHÔNG có sidebar/nav của app (xem `InterviewLayout`), gồm thanh trên 3 vùng (thoát phiên +
+ * tiêu đề | mét tiến độ | đồng hồ đếm giờ phiên — toggle Gõ/Giọng nói và bánh răng cài đặt của
+ * mockup ngoài phạm vi, không dựng), rồi cột trái "phạm vi bài kiểm tra" (hàng đợi khái niệm +
+ * lượt + nguồn tài liệu) và cột phải (thanh khái niệm + hội thoại cuộn riêng + khu trả lời ghim
+ * đáy — panel xác nhận tạm dừng cũng thế chỗ đó, không phải modal). Khi phiên rơi vào fallback
+ * (AE-05) thì thay ô gõ bằng ba nút tự chấm và hiện băng cảnh báo. Toàn bộ state do
+ * `useInterviewSession` sở hữu — server là nguồn chân lý, trang này chỉ trình bày lại.
  */
 
 /**
@@ -38,6 +39,15 @@ import type {
  */
 const NO_CACHED_QUESTIONS_MESSAGE =
   'AI hiện chưa khả dụng và khái niệm này chưa có câu hỏi lưu sẵn. Hãy thử lại sau.';
+
+/**
+ * Trọng số mỗi lượt trong công thức trung bình có trọng số của `mastery_score` (UC-Overview
+ * §5.4) — khớp `TURN_WEIGHTS` (`src/server/src/utils/mastery.ts:19`). Đây là hằng số cố định
+ * của cả hệ thống (định nghĩa luôn C6: `MAX_TURNS_PER_CONCEPT = TURN_WEIGHTS.length`), không
+ * phải dữ liệu riêng của phiên — hiện ra không phải bịa, cùng cách `MAX_TURNS_PER_CONCEPT` đã
+ * được hardcode phía client. Chỉ áp dụng khi phiên dùng đúng trần mặc định (xem nơi dùng).
+ */
+const TURN_WEIGHTS = [0.2, 0.3, 0.5] as const;
 
 /**
  * Ba mức tự chấm của chế độ flashcard (AE-05). Con số chỉ để sinh viên biết mình đang gán
@@ -137,13 +147,43 @@ export default function InterviewSessionPage() {
     el.scrollTop = el.scrollHeight;
   }, [turns.length, currentQuestion?.turnId, pendingTurnAnswered]);
 
-  const handlePause = async (): Promise<void> => {
+  const [showPauseConfirm, setShowPauseConfirm] = useState(false);
+
+  const confirmPause = async (): Promise<void> => {
     const ok = await pause();
+    setShowPauseConfirm(false);
     if (ok) {
       toast.success('Đã tạm dừng. Bạn có thể tiếp tục phiên này sau.');
       navigate('/dashboard');
     }
   };
+
+  // Chặn back/forward của trình duyệt (kể cả nút vật lý trên chuột) khi phiên đang chạy —
+  // trước #118 reopen, rời trang kiểu này không hỏi gì cả, mất ngữ cảnh không báo trước.
+  // Kỹ thuật: đẩy thêm một history entry trùng URL hiện tại; nếu người dùng bấm back, entry
+  // đó bị pop trước — bắt đúng lúc đó, đẩy lại ngay (giữ URL đứng yên) rồi hỏi bằng đúng
+  // panel "Tạm dừng phiên kiểm tra?" ở khu trả lời (không phải dialog — xem `PauseConfirmPanel`
+  // bên dưới), không có nhánh "redo" riêng vì xác nhận xong là gọi thẳng `confirmPause`
+  // (điều hướng thật), còn hủy thì chỉ đơn giản ở nguyên tại chỗ.
+  const isSessionActive = session?.status === 'active';
+  useEffect(() => {
+    if (!isSessionActive) return;
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = (): void => {
+      window.history.pushState(null, '', window.location.href);
+      setShowPauseConfirm(true);
+    };
+    const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isSessionActive]);
 
   // ---------- Loading khôi phục lần đầu ----------
   if (isLoading && !session) {
@@ -172,10 +212,32 @@ export default function InterviewSessionPage() {
 
   const { progress, currentConcept, fallbackMode } = session;
   // "Tạm dừng" chỉ hợp lệ khi phiên đang chạy — backend từ chối pause phiên không active.
-  const isActive = session.status === 'active';
+  // Cùng giá trị với `isSessionActive` ở trên (tính lại bằng non-null `session` cho gọn).
+  const isActive = isSessionActive;
   // completedConcepts là số khái niệm đã chốt; +1 là khái niệm đang hỏi (không vượt tổng).
   const conceptPosition = Math.min(progress.completedConcepts + 1, progress.conceptTotal);
   const turnIndex = progress.turnIndex ?? currentQuestion?.turnIndex ?? null;
+  const currentTurnWeight =
+    turnIndex !== null && progress.maxTurnsPerConcept === TURN_WEIGHTS.length
+      ? TURN_WEIGHTS[turnIndex - 1]
+      : undefined;
+  // Panel xác nhận tạm dừng cần nói đúng số lượt ĐÃ CHẤM của khái niệm hiện tại (không phải
+  // lượt đang chờ) — đếm thẳng từ transcript đã tải, không suy đoán từ `turnIndex`.
+  const gradedTurnsForConcept = currentConcept
+    ? turns.filter((turn) => turn.conceptId === currentConcept.id && turn.verdict !== null).length
+    : 0;
+  // `.rail__source` của mockup ghi cả tên file lẫn tổng số trang — ta chỉ có tên file thật
+  // (trích dẫn từng câu hỏi mang `sourceCitation.filename`), KHÔNG có tổng số trang của cả
+  // tài liệu (chỉ có khoảng trang đã trích), nên không bịa số đó ra. Gom tên duy nhất từ mọi
+  // câu hỏi đã tải — một phiên có thể trích nhiều tài liệu khác nhau qua các khái niệm.
+  const citedDocumentNames = Array.from(
+    new Set(
+      [
+        ...turns.map((turn) => turn.sourceCitation?.filename),
+        currentQuestion?.sourceCitation?.filename,
+      ].filter((name): name is string => Boolean(name))
+    )
+  );
 
   return (
     // `.ex-shell`: khoá đúng một viewport (layout đã cấp h-dvh) để hội thoại tự cuộn bên
@@ -191,7 +253,7 @@ export default function InterviewSessionPage() {
               active (paused mà auto-resume chưa ăn, hoặc đang kết thúc) vẫn phải có lối về,
               chỉ khác là về thẳng Dashboard chứ không gọi pause. */}
           {isActive ? (
-            <Button variant="outline" size="sm" onClick={() => void handlePause()}>
+            <Button variant="outline" size="sm" onClick={() => setShowPauseConfirm(true)}>
               <ArrowLeft />
               Tạm dừng &amp; thoát
             </Button>
@@ -205,6 +267,10 @@ export default function InterviewSessionPage() {
         </div>
 
         <ConceptMeter progress={progress} className="hidden md:flex" />
+
+        <div className="flex items-center justify-end gap-3">
+          <SessionClock startedAt={session.startedAt} />
+        </div>
       </header>
 
       <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[288px_minmax(0,1fr)]">
@@ -222,13 +288,34 @@ export default function InterviewSessionPage() {
             turnIndex={turnIndex}
             turns={turns}
           />
+
+          {/* `.rail__source` — ghim đáy rail bằng margin-top:auto, đúng mockup. Không hiện gì
+              nếu chưa có câu hỏi nào tải xong (chưa có trích dẫn để lấy tên tài liệu thật). */}
+          {citedDocumentNames.length > 0 && (
+            <div className="border-border text-muted-foreground mt-auto border-t pt-[18px] text-[12px] leading-[1.55]">
+              Chấm theo tài liệu bạn tải lên:
+              {citedDocumentNames.length === 1 ? (
+                <>
+                  <br />
+                  <strong className="text-foreground font-medium">{citedDocumentNames[0]}</strong>
+                </>
+              ) : (
+                <>
+                  <br />
+                  <strong className="text-foreground font-medium">
+                    {citedDocumentNames.length} tài liệu
+                  </strong>
+                </>
+              )}
+            </div>
+          )}
         </aside>
 
         {/* Cột phải: thanh khái niệm + hội thoại (cuộn riêng) + khu trả lời (ghim đáy). */}
         <div className="flex min-h-0 flex-col">
           <div className="border-border gap-x-4.5 flex flex-none flex-wrap items-center gap-y-2 border-b px-5 py-3.5 lg:px-8">
             <div className="flex min-w-0 items-baseline gap-3">
-              <h2 className="font-heading truncate text-xl tracking-[-0.02em]">
+              <h2 className="font-heading truncate text-[22px] leading-[1.15] tracking-[-0.02em]">
                 {currentConcept?.name ?? 'Đang tải…'}
               </h2>
               <MetaMono className="text-muted-foreground whitespace-nowrap text-xs">
@@ -241,6 +328,12 @@ export default function InterviewSessionPage() {
                 <TurnPips turnIndex={turnIndex} maxTurns={progress.maxTurnsPerConcept} />
                 Lượt <strong className="text-foreground">{turnIndex}</strong>/
                 {progress.maxTurnsPerConcept}
+                {currentTurnWeight !== undefined && (
+                  <>
+                    {' '}
+                    · trọng số <MetaMono className="text-[11px]">{currentTurnWeight}</MetaMono>
+                  </>
+                )}
               </span>
             )}
 
@@ -298,39 +391,175 @@ export default function InterviewSessionPage() {
             </div>
           </div>
 
-          {/* `.dock` — gõ (mặc định) hoặc tự chấm flashcard (fallback). Luôn nhìn thấy vì
-              cột này là flex-col và chỉ vùng hội thoại ở trên mới cuộn. */}
-          {currentQuestion && (
+          {/* `.dock` — gõ (mặc định) hoặc tự chấm flashcard (fallback). Luôn nhìn thấy vì cột
+              này là flex-col và chỉ vùng hội thoại ở trên mới cuộn.
+              Panel xác nhận tạm dừng CHÈN THÊM phía trên khu trả lời, không thay thế nó — ô
+              nhập vẫn hiện nguyên (chỉ khoá tạm) thay vì biến mất đột ngột. Không mở modal:
+              mockup ghi rõ "Không dùng modal" (screen-interview.html:1044-1046) đúng cho quyết
+              định này — modal sẽ che mất phần hội thoại phía trên mà chính panel cần trích dẫn
+              ("đã trả lời lượt mấy"). Khoá ô nhập khi panel mở vì lối vào bấm back/forward cần
+              chặn thật — không phải chỉ "gợi ý" — tới khi người dùng quyết định. */}
+          {(currentQuestion || showPauseConfirm) && (
             <footer className="border-border bg-card flex-none border-t px-5 py-4 lg:px-8">
               <div className="mx-auto w-full max-w-[680px]">
-                {fallbackMode ? (
-                  <div>
-                    <p className="text-muted-foreground mb-3 text-[13px]">
-                      Tự trả lời trong đầu, rồi chọn mức độ đúng của bạn.
-                    </p>
-                    <div className="flex flex-wrap gap-2.5">
-                      {SELF_GRADE_OPTIONS.map(({ grade, label, value }) => (
-                        <Button
-                          key={grade}
-                          variant="outline"
-                          onClick={() => void submitSelfGrade(grade)}
-                          disabled={isSubmitting}
-                        >
-                          {label}
-                          <MetaMono className="text-muted-foreground text-[11px]">{value}</MetaMono>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <AnswerInput onSubmit={submit} isSubmitting={isSubmitting} />
+                {showPauseConfirm && (
+                  <PauseConfirmPanel
+                    conceptName={currentConcept?.name ?? 'khái niệm đang dở'}
+                    completedConcepts={progress.completedConcepts}
+                    gradedTurnsForConcept={gradedTurnsForConcept}
+                    turnIndex={turnIndex}
+                    onCancel={() => setShowPauseConfirm(false)}
+                    onConfirm={() => void confirmPause()}
+                  />
                 )}
+                <div className={showPauseConfirm ? 'mt-4' : undefined}>
+                  {fallbackMode ? (
+                    <div>
+                      <p className="text-muted-foreground mb-3 text-[13px]">
+                        Tự trả lời trong đầu, rồi chọn mức độ đúng của bạn.
+                      </p>
+                      <div className="flex flex-wrap gap-2.5">
+                        {SELF_GRADE_OPTIONS.map(({ grade, label, value }) => (
+                          <Button
+                            key={grade}
+                            variant="outline"
+                            onClick={() => void submitSelfGrade(grade)}
+                            disabled={isSubmitting || showPauseConfirm}
+                          >
+                            {label}
+                            <MetaMono className="text-muted-foreground text-[11px]">
+                              {value}
+                            </MetaMono>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <AnswerInput
+                      onSubmit={submit}
+                      isSubmitting={isSubmitting}
+                      disabled={showPauseConfirm}
+                    />
+                  )}
+                </div>
               </div>
             </footer>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+interface PauseConfirmPanelProps {
+  conceptName: string;
+  completedConcepts: number;
+  gradedTurnsForConcept: number;
+  turnIndex: number | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+/**
+ * Panel xác nhận tạm dừng (`.confirm` trong mockup, `screen-interview.html:3499-3524`).
+ * KHÔNG phải modal — mockup nói rõ lý do (`:1044-1046`): "Bỏ qua" và "Tạm dừng" đều là quyết
+ * định cần đọc hậu quả trước khi bấm, mà modal che mất đúng ngữ cảnh đó (đang ở lượt mấy, đã
+ * trả lời gì). Panel này thế chỗ khu trả lời (dock) — hội thoại phía trên vẫn nguyên, không
+ * bị che.
+ *
+ * Số liệu là thật, đếm từ `progress`/transcript đã tải — không phải minh hoạ như mockup (mockup
+ * viết chết "2 khái niệm đã chấm", "Ngăn xếp"). Đường "mở lại" cũng đổi chữ: mockup trỏ tới
+ * "Lịch sử phiên → Tiếp tục phiên", nhưng màn Lịch sử phiên đó (DB-03) chưa có issue, chưa được
+ * xây — trỏ tới một nút không có thật còn tệ hơn không nói gì, nên đổi thành đường thật (đồ thị
+ * khái niệm).
+ */
+function PauseConfirmPanel({
+  conceptName,
+  completedConcepts,
+  gradedTurnsForConcept,
+  turnIndex,
+  onCancel,
+  onConfirm,
+}: PauseConfirmPanelProps) {
+  return (
+    <div className="border-border bg-card max-w-[560px] rounded-lg border px-5 py-[18px]">
+      <h4 className="mb-2 text-[14.5px] font-semibold">Tạm dừng phiên kiểm tra?</h4>
+      <ul className="mt-2.5 flex flex-col gap-[7px] text-[13px]">
+        <li className="flex items-start gap-[9px]">
+          <Check className="text-muted-foreground mt-[3px] size-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            Giữ nguyên {completedConcepts} khái niệm đã chấm
+            {gradedTurnsForConcept > 0 && (
+              <>
+                {' '}
+                và {gradedTurnsForConcept} lượt đã trả lời của <strong>{conceptName}</strong>
+              </>
+            )}
+            .
+          </span>
+        </li>
+        {turnIndex !== null && (
+          <li className="flex items-start gap-[9px]">
+            <Check
+              className="text-muted-foreground mt-[3px] size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            <span>
+              Lần sau mở lại, câu hỏi lượt {turnIndex} được đọc lại nguyên văn — bạn không mất lượt.
+            </span>
+          </li>
+        )}
+        <li className="flex items-start gap-[9px]">
+          <CircleAlert
+            className="text-muted-foreground mt-[3px] size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          <span>
+            Truy ngược lỗ hổng chưa chạy vì <strong>{conceptName}</strong> chưa chốt điểm.
+          </span>
+        </li>
+      </ul>
+      <p className="text-muted-foreground mt-[14px] text-[13px] leading-[1.62]">
+        Mở lại đúng khái niệm này từ đồ thị khái niệm để tiếp tục.
+      </p>
+      <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
+        <Button onClick={onConfirm}>Tạm dừng &amp; thoát</Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Ở lại phiên
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Đồng hồ đếm giờ phiên (`.clock` trong mockup, `screen-interview.html:2372`) — thời gian
+ * ĐÃ TRÔI QUA, tính từ `session.startedAt` thật (không phải bộ đếm client tự chạy lại từ 0
+ * mỗi lần mount), nên reload/tạm dừng-tiếp tục vẫn ra đúng số. Định dạng theo đúng mẫu mockup
+ * ("18:42" = phút:giây), chỉ thêm giờ khi phiên đã kéo dài quá 1 tiếng.
+ */
+function SessionClock({ startedAt }: { startedAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const elapsedSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const text =
+    hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+
+  return (
+    <span
+      className="text-muted-foreground font-mono text-[13px] tabular-nums"
+      title="Thời gian đã trôi qua trong phiên"
+    >
+      {text}
+    </span>
   );
 }
 
@@ -447,9 +676,20 @@ function ConceptQueueRail({
 }
 
 /**
+ * Nhãn trọng số của một lượt (`×0.2` trong mockup) — chỉ hiện khi phiên dùng đúng trần mặc
+ * định 3 lượt/khái niệm (`TURN_WEIGHTS.length`); một phiên tạo với `maxTurnsPerConcept` khác
+ * (tham số tuỳ chọn của `startInterview`) sẽ không khớp mảng hằng số này, nên thà im lặng còn
+ * hơn gán sai trọng số.
+ */
+function turnWeightLabel(turnIndex: number, maxTurnsPerConcept: number): string | null {
+  if (maxTurnsPerConcept !== TURN_WEIGHTS.length) return null;
+  const weight: number | undefined = TURN_WEIGHTS[turnIndex - 1];
+  return weight !== undefined ? `×${weight}` : null;
+}
+
+/**
  * Ngăn xếp lượt của khái niệm đang hỏi (`.rail__turns`). Trạng thái mỗi lượt tra thẳng
- * từ transcript đã tải (`turns`) — không đếm/suy đoán phía client. Trọng số lượt (×0.2/
- * ×0.3/×0.5 trong mockup) không có sẵn qua API nên không hiển thị, tránh bịa số.
+ * từ transcript đã tải (`turns`) — không đếm/suy đoán phía client.
  *
  * FIX F: `maxTurnsPerConcept` là trần cứng có thật (C6), nhưng `decideNextStep` có thể
  * dừng khái niệm sớm khi đạt mastery — nên lượt chưa mở KHÔNG chắc sẽ xảy ra. Nhãn "Chưa
@@ -487,11 +727,12 @@ function TurnStackRail({
           // Chưa được chấm và không phải lượt đang hỏi: có thể sẽ không bao giờ mở nếu
           // khái niệm dừng sớm — hạ độ đậm để đọc như "chưa chắc" chứ không phải "sắp tới".
           const notYetReached = !graded && !isNow;
+          const weightLabel = turnWeightLabel(n, progress.maxTurnsPerConcept);
           return (
             <div
               key={n}
               className={cn(
-                'grid grid-cols-[16px_minmax(0,1fr)] items-center gap-2.5 px-3 py-2.5 text-[13px]',
+                'grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 text-[13px]',
                 isNow && 'bg-ai-accent/7',
                 notYetReached && 'opacity-55'
               )}
@@ -508,6 +749,9 @@ function TurnStackRail({
                 <span className={isNow ? 'text-foreground' : 'text-muted-foreground'}>
                   {isNow ? 'Đang trả lời' : 'Có thể chưa cần'}
                 </span>
+              )}
+              {weightLabel && (
+                <MetaMono className="text-muted-foreground text-[11px]">{weightLabel}</MetaMono>
               )}
             </div>
           );

@@ -71,7 +71,9 @@ export function TurnHistory({
               </ChatBubble>
 
               {turn.answerText && (
-                <ChatBubble role="user">
+                // Mockup `.chat-bubble-user { max-width: 82% }` — component dùng chung mặc
+                // định 68% (cho các nơi khác), override riêng ở đây cho đúng màn interview.
+                <ChatBubble role="user" className="max-w-[82%]">
                   <p className="text-sm leading-[1.62]">{turn.answerText}</p>
                 </ChatBubble>
               )}

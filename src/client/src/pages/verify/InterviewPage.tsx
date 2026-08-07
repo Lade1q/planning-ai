@@ -263,6 +263,15 @@ export default function InterviewPage() {
   const selectedCount = selectedConceptIds.size;
   /** Khái niệm phiên cũ đang dừng ở — nêu đích danh thì hệ quả đọc cụ thể hơn hẳn. */
   const pendingConceptName = pending?.response.session.currentConcept?.name;
+  /**
+   * Tên (các) khái niệm của LƯỢT BẤM VỪA RỒI — khác hẳn `pendingConceptName` (khái niệm của
+   * PHIÊN CŨ đang dở). "Kết thúc và chấm phần đã làm" mở phiên mới đúng cho nhóm này
+   * (`endAndStartNew` truyền lại `pending.conceptIds`) — không nêu tên thì người bấm không
+   * biết mình sắp được đưa vào kiểm tra khái niệm nào, dễ tưởng nhầm là chỉ dừng lại.
+   */
+  const pendingNewConceptNames = pending?.conceptIds
+    ?.map((id) => concepts?.find((concept) => concept.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
 
   // AE-03 — có phiên đang dở. Ba lối ra, xếp dọc theo mức độ ưu tiên: tiếp tục (không mất
   // gì), kết thúc và chấm phần đã làm, hoặc để sau. Xếp dọc vì nhãn của lựa chọn giữa dài
@@ -299,6 +308,18 @@ export default function InterviewPage() {
         <p className="text-muted-foreground text-[12.5px] leading-[1.65]">
           Kết thúc sớm thì {pendingConceptName ?? 'khái niệm đang dở'} chỉ được chấm trên số lượt
           bạn đã trả lời — điểm sẽ kém tin cậy hơn và khái niệm dễ bị xếp lại vào lịch ôn.
+        </p>
+
+        {/* Không nói rõ vế này thì người bấm "Kết thúc..." tưởng chỉ đơn thuần dừng lại,
+            trong khi thực tế một phiên MỚI mở ra ngay sau đó cho đúng lượt vừa bấm. */}
+        <p className="text-muted-foreground text-[12.5px] leading-[1.65]">
+          Kết thúc xong, phiên kiểm tra mới cho{' '}
+          <strong>
+            {pendingNewConceptNames && pendingNewConceptNames.length > 0
+              ? pendingNewConceptNames.join(', ')
+              : 'lựa chọn vừa rồi'}
+          </strong>{' '}
+          sẽ mở ngay — không phải chỉ dừng lại.
         </p>
 
         <DialogFooter className="sm:flex-col-reverse">
