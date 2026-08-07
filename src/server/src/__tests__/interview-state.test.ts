@@ -151,6 +151,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 0,
         totalTurnsServed: 0,
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'no_cache_available' });
   });
@@ -162,6 +163,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 0,
         totalTurnsServed: 0,
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
   });
@@ -173,6 +175,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 1,
         totalTurnsServed: 1,
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'ask_cached', cacheIndex: 1 });
   });
@@ -184,6 +187,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 2,
         totalTurnsServed: 2,
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'finish_concept' });
   });
@@ -195,6 +199,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 1,
         totalTurnsServed: 1,
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'finish_concept' });
   });
@@ -206,6 +211,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 1,
         totalTurnsServed: 1,
         maxTurns: 1,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'finish_concept' });
   });
@@ -217,6 +223,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: MAX_CACHED_QUESTIONS_PER_CONCEPT,
         totalTurnsServed: MAX_CACHED_QUESTIONS_PER_CONCEPT,
         maxTurns: 10,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'finish_concept' });
   });
@@ -233,6 +240,7 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 0, // no cache used yet — the 2 prior turns were both AI-sourced
         totalTurnsServed: 2, // ...but 2 turns of *some* kind already happened for this concept
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
   });
@@ -244,8 +252,65 @@ describe('resolveFallbackStep', () => {
         cachedTurnsServed: 0,
         totalTurnsServed: 3, // maxTurns already reached by prior AI turns alone
         maxTurns: 3,
+        lastVerdict: null,
       })
     ).toEqual({ type: 'finish_concept' });
+  });
+});
+
+/**
+ * CF-03/CF-04 regression: fallback mode must end a concept immediately on `wrong`, the same
+ * rule AI mode enforces in `decideNextStep`. Before this fix, a `wrong` self-grade in fallback
+ * mode was ignored and the next cached question was served — the student kept answering a
+ * concept they had already shown they do not understand.
+ */
+describe('resolveFallbackStep — wrong verdict ends concept (CF-03/CF-04)', () => {
+  it('ends the concept immediately when the last verdict is wrong, even with cache left', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 0,
+        totalTurnsServed: 1,
+        maxTurns: 3,
+        lastVerdict: 'wrong',
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('ends the concept on wrong after AI turns + one cached turn', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 1,
+        totalTurnsServed: 2, // 1 AI + 1 cache_fallback, last was wrong
+        maxTurns: 3,
+        lastVerdict: 'wrong',
+      })
+    ).toEqual({ type: 'finish_concept' });
+  });
+
+  it('still serves the next cached question when the last verdict is deep', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 1,
+        totalTurnsServed: 1,
+        maxTurns: 3,
+        lastVerdict: 'deep',
+      })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 1 });
+  });
+
+  it('still serves the next cached question when the last verdict is shallow', () => {
+    expect(
+      resolveFallbackStep({
+        cachedQuestionCount: 2,
+        cachedTurnsServed: 0,
+        totalTurnsServed: 1,
+        maxTurns: 3,
+        lastVerdict: 'shallow',
+      })
+    ).toEqual({ type: 'ask_cached', cacheIndex: 0 });
   });
 });
 
