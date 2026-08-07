@@ -62,3 +62,5 @@ Team members:
 | 2 | [EPIC #8] Focus Session - Pomodoro Study Session | 08/08/26 | Nguyen Phuong Gia Bao, Nguyen Minh Phat, Ngo Van Phong |
 | 3 | [EPIC #6] AI Examiner - Multi-turn Interview | 09/08/26 | Nguyen The Quan, Nguyen Phuong Gia Bao, Nguyen Minh Phat, Ngo Van Phong |
 | 4 | [EPIC #9] PA4 Delivery - Design, Docs & Beta Release 0.5 | 09/08/26 | Thai Nguyen Tuan Kiet, Nguyen The Quan, Nguyen Minh Phat, Ngo Van Phong |
+| 5 | [EPIC] Immediate review schedule + AE-09 as final state of interview session | 09/08/26 | Nguyen The Quan |
+| 6 | [EPIC] Overview Dashboard (DB-01) — entry point of the learning loop | 09/08/26 | Nguyen Phuong Gia Bao, Ngo Van Phong |
