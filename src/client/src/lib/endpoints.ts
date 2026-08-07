@@ -26,4 +26,14 @@ export const ENDPOINTS = {
     RESUME: (id: string) => `/api/v1/interviews/${id}/resume`,
     ABANDON: (id: string) => `/api/v1/interviews/${id}/abandon`,
   },
+  REVIEW_QUEUE: {
+    TODAY: '/api/v1/review-queue/today',
+  },
+  FOCUS_SESSIONS: {
+    BASE: '/api/v1/focus-sessions',
+    DETAIL: (id: string) => `/api/v1/focus-sessions/${id}`,
+  },
+  USERS: {
+    POMODORO_CONFIG: '/api/v1/users/me/pomodoro-config',
+  },
 } as const;
