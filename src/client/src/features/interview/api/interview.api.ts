@@ -53,8 +53,30 @@ export function getInterviewErrorMessage(error: unknown): string {
     case 'VALIDATION_ERROR':
       return 'Thông tin gửi lên chưa hợp lệ.';
     default:
+      // Mọi lỗi Gemini nổi lên dưới dạng mã `AI_*` (`isAiFailure` phía server). Nói rõ là
+      // dịch vụ AI để người dùng không tưởng mình vừa gửi sai thứ gì.
+      if (code?.startsWith('AI_')) {
+        return 'Dịch vụ AI đang bận hoặc tạm thời không phản hồi. Vui lòng thử lại sau ít phút.';
+      }
       return 'Đã xảy ra lỗi, vui lòng thử lại.';
   }
+}
+
+/**
+ * Lỗi này là do hạ tầng/AI (thử lại có ích) hay do dữ liệu người dùng gửi lên (thử lại y hệt
+ * thì vẫn hỏng)? Phân biệt được thì lối vào deep-link mới mời "Thử lại" đúng lúc thay vì bắt
+ * chọn lại kế hoạch — chọn lại không sửa được việc Gemini đang chậm.
+ *
+ * Tính là lỗi hạ tầng/AI khi: không có response (mất mạng hoặc quá 60s chờ Gemini), server
+ * trả mã `AI_*` (mọi lỗi Gemini đều nổi lên dưới dạng này — `isAiFailure` phía server), hoặc
+ * HTTP 5xx. Còn lại (4xx: NOT_FOUND, NO_MATERIAL, VALIDATION_ERROR…) là lỗi đầu vào.
+ */
+export function isAiOrNetworkFailure(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+  if (!error.response) return true;
+  const code: string | undefined = error.response.data?.error?.code;
+  if (code?.startsWith('AI_')) return true;
+  return error.response.status >= 500;
 }
 
 export const interviewApi = {
