@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 // Layouts
 import { AuthLayout } from '@/components/shared/layouts/AuthLayout';
+import { InterviewLayout } from '@/components/shared/layouts/InterviewLayout';
 import { MainLayout } from '@/components/shared/layouts/MainLayout';
 
 // Pages — Auth
@@ -56,9 +57,15 @@ function App() {
               <Route path="/graph" element={<GraphIndexPage />} />
               <Route path="/focus" element={<FocusPage />} />
               <Route path="/interview" element={<InterviewPage />} />
-              <Route path="/interview/:sessionId" element={<InterviewSessionPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+            {/* Phiên vấn đáp là màn toàn khung nhìn, không có sidebar/nav của app
+                (mockup `.ex-shell`) — vẫn nằm trong ProtectedRoute như mọi route sau
+                đăng nhập, chỉ đổi layout. */}
+            <Route element={<InterviewLayout />}>
+              <Route path="/interview/:sessionId" element={<InterviewSessionPage />} />
             </Route>
           </Route>
 
