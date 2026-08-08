@@ -151,8 +151,9 @@ describe('turn limits', () => {
 
 /**
  * AE-05's flashcard-fallback stepping (UC-12) — pure, same C4/R05 charter as `decideNextStep`
- * above. Deliberately never consults a verdict: fallback mode always asks every cached question
- * it has, in order, then finishes (confirmed product decision), unlike the AI-mode state table.
+ * above. Mostly ignores `deep`/`shallow` verdicts: fallback mode asks every cached question it
+ * has, in order, then finishes — but a `wrong` verdict still ends the concept early (CF-03/CF-04,
+ * covered in the describe block below).
  */
 describe('resolveFallbackStep', () => {
   it('is UC-12 E1 when the concept has never had a question served and none is cached', () => {

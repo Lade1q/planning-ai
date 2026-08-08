@@ -87,34 +87,38 @@
 
 - **Hành động khắc phục:**
   - Bổ sung Unit Test Regression `BR-AIEX-001` để đảm bảo khẳng định logic lượt 2 luôn tiếp tục lượt 3 khi `maxTurns = 3`.
-  - Rebuild toàn bộ mã nguồn server với `npm run build`.
+  - **Không có thay đổi logic nào trong `decideNextStep`** — hàm này vốn đã đúng. QA vui lòng re-test theo hướng dẫn mục 3 bên dưới để xác định nguyên nhân thật sự trong 3 khả năng đã liệt kê.
+  - Đề nghị chạy lại `npm run build` trên máy local trước khi re-test, để chắc chắn `dist/` không còn là bản build cũ.
 
 ---
 
 ## 🧪 KẾT QUẢ KIỂM THỬ TỰ ĐỘNG (AUTOMATED TEST RESULTS)
 
-Toàn bộ test suite đã chạy thành công 100%:
+Các test case mới bổ sung (đều PASS):
 
-```bash
-PASS src/__tests__/interview-state.test.ts
-  decideNextStep — continuing the same concept
-    ✓ asks a deeper question after a deep answer while turns remain
-    ✓ BR-AIEX-001: continues to turn 3 (ask_deeper) after turn 2 has verdict deep when maxTurns = 3
-    ✓ probes after a shallow answer while turns remain
-    ✓ maps each continuing step to the generate_question mode the caller must use
-  resolveFallbackStep — wrong verdict ends concept (CF-03/CF-04)
-    ✓ ends the concept immediately when the last verdict is wrong, even with cache left
-    ✓ ends the concept on wrong after AI turns + one cached turn
-    ✓ still serves the next cached question when the last verdict is deep
-    ✓ still serves the next cached question when the last verdict is shallow
-
-PASS src/__tests__/interview-service.test.ts
-
-Test Suites: 2 passed, 2 total
-Tests:       45 passed, 45 total
-TypeScript:  0 errors (npx tsc --noEmit)
-Build:       Clean build (npm run build)
 ```
+decideNextStep — continuing the same concept
+  ✓ BR-AIEX-001: continues to turn 3 (ask_deeper) after turn 2 has verdict deep when maxTurns = 3
+
+resolveFallbackStep — wrong verdict ends concept (CF-03/CF-04)
+  ✓ ends the concept immediately when the last verdict is wrong, even with cache left
+  ✓ ends the concept on wrong after AI turns + one cached turn
+  ✓ still serves the next cached question when the last verdict is deep
+  ✓ still serves the next cached question when the last verdict is shallow
+
+submitAnswer — replaying a concurrent double-submit
+  ✓ replays the winner's grade once it lands inside the poll window
+  ✓ gives up with ANSWER_IN_PROGRESS if the winner never finishes inside the poll window
+```
+
+Kết quả chạy thực tế (`cd src/server`):
+
+| Lệnh                                                                    | Kết quả                |
+| ----------------------------------------------------------------------- | ---------------------- |
+| `npx jest src/__tests__/interview-state.test.ts`                        | 36 passed / 36 total   |
+| `npx jest src/__tests__/interview-{service,controller,abandon}.test.ts` | 49 passed / 49 total   |
+| `npx tsc --noEmit`                                                      | 0 lỗi                  |
+| `npx jest` (toàn bộ)                                                    | 507 passed / 507 total |
 
 ---
 

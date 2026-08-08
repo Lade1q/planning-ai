@@ -147,7 +147,8 @@ export interface FallbackStateInput {
    * `finalizeConceptResult` (I7.2) will run traceback if the concept has prerequisites.
    *
    * Added to fix CF-03/CF-04: fallback mode previously ignored the verdict and kept serving
-   * cached questions after a `wrong` self-grade, which violated the Use-case Specification §2.3.
+   * cached questions after a `wrong` self-grade, contradicting UC-11's state machine
+   * ("verdict == wrong → kết thúc khái niệm", UC-04_AIExaminer.md) and AE-02 basic flow step 9.
    */
   lastVerdict: Verdict | null;
 }
