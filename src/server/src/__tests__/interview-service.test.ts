@@ -262,13 +262,28 @@ describe('interview.service — AE-05 flashcard fallback', () => {
       }: {
         where: {
           id: string;
-          verdict: null;
-          OR: Array<{ answeredAt: null | { lt: Date } }>;
+          verdict?: null;
+          answeredAt?: Date;
+          OR?: Array<{ answeredAt: null | { lt: Date } }>;
         };
         data: Partial<FakeTurn>;
       }) => {
         const turn = turns.find((t) => t.id === where.id);
-        if (!turn || turn.verdict !== null) return Promise.resolve({ count: 0 });
+        if (!turn) return Promise.resolve({ count: 0 });
+
+        // Grade-write shape (#288): a claim-bound optimistic lock `{ id, answeredAt: <claim mark> }`
+        // with no `OR`/`verdict`. It writes only while the turn still carries this request's own
+        // claim; a stale-reclaim by a newer request moves `answeredAt` and makes this a no-op.
+        if (where.OR === undefined && where.answeredAt instanceof Date) {
+          const holdsClaim =
+            turn.answeredAt !== null && turn.answeredAt.getTime() === where.answeredAt.getTime();
+          if (!holdsClaim) return Promise.resolve({ count: 0 });
+          Object.assign(turn, data);
+          return Promise.resolve({ count: 1 });
+        }
+
+        // Claim shape: `{ id, verdict: null, OR: [{ answeredAt: null }, { answeredAt: { lt } }] }`.
+        if (turn.verdict !== null || where.OR === undefined) return Promise.resolve({ count: 0 });
         const claimable = where.OR.some((cond) =>
           cond.answeredAt === null
             ? turn.answeredAt === null
@@ -334,6 +349,71 @@ describe('interview.service — AE-05 flashcard fallback', () => {
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ statusCode: 409, code: 'NOT_IN_FALLBACK_MODE' });
     expect(mockedPrisma.interviewTurn.updateMany).not.toHaveBeenCalled();
+  });
+
+  /**
+   * #288 regression: the grade write is bound to the exact claim the request took
+   * (`updateMany where { id, answeredAt: <claim mark> }`). A request whose slow Gemini call
+   * outlasted ANSWER_CLAIM_STALE_MS loses its claim to a stale-reclaim; it must NOT overwrite
+   * the winner's verdict and — the part that actually corrupts a session — must NOT advance the
+   * state machine a second time (which would silently skip a concept). It replays instead.
+   */
+  describe('#288 — grade write is bound to the claim it took', () => {
+    it('AI path: a request that lost its claim mid-grade replays instead of double-advancing', async () => {
+      sessionRow.fallbackMode = false;
+      const turn = seedPendingTurn();
+
+      // While this request awaits Gemini, a newer identical request reclaims the turn (its claim
+      // moves `answeredAt`) and finishes grading it first — the classic #288 timeline.
+      mockedGradeAnswer.mockImplementationOnce(async () => {
+        turn.answeredAt = new Date(turn.answeredAt!.getTime() + 5 * 60 * 1000); // someone else's claim
+        turn.score = 1;
+        turn.feedback = 'winner feedback';
+        turn.verdict = 'deep';
+        return { score: 0.2, feedback: 'loser feedback', verdict: 'shallow' }; // this request's own grade
+      });
+
+      const result = await submitAnswer(SESSION_ID, USER_ID, 'câu trả lời');
+
+      // The loser replays the winner's result rather than throwing or writing its own.
+      expect(result.replayed).toBe(true);
+      expect(result.grading).toEqual({ score: 1, feedback: 'winner feedback', verdict: 'deep' });
+      // Its own grade never landed: the turn still carries the winner's verdict...
+      expect(turn.verdict).toBe('deep');
+      expect(turn.score).toBe(1);
+      // ...and the state machine did not advance a second time (no extra turn was created).
+      expect(turns).toHaveLength(1);
+    });
+
+    it('self-grade path: a lost claim replays instead of writing/advancing', async () => {
+      sessionRow.fallbackMode = true;
+      const turn = seedPendingTurn({ source: 'cache_fallback' });
+
+      // First updateMany = claim (wins); second = the grade write, which finds the claim gone.
+      let call = 0;
+      mockedPrisma.interviewTurn.updateMany.mockImplementation(
+        ({ where, data }: { where: { answeredAt?: Date }; data: Partial<FakeTurn> }) => {
+          call += 1;
+          if (call === 1) {
+            Object.assign(turn, data); // claim sets answeredAt
+            return Promise.resolve({ count: 1 });
+          }
+          // The concurrent winner already graded + advanced this turn.
+          turn.score = 1;
+          turn.verdict = 'deep';
+          void where;
+          return Promise.resolve({ count: 0 });
+        }
+      );
+
+      const result = await submitSelfGrade(SESSION_ID, USER_ID, 'wrong');
+
+      expect(result.replayed).toBe(true);
+      expect(result.grading).toEqual({ score: 1, feedback: null, verdict: 'deep' });
+      // The loser's `wrong` self-grade did not overwrite the winner's verdict.
+      expect(turn.verdict).toBe('deep');
+      expect(turns).toHaveLength(1);
+    });
   });
 
   it('serves a cached question instead of calling Gemini once fallbackMode is true', async () => {

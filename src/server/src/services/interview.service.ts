@@ -1037,10 +1037,22 @@ export async function submitAnswer(
     return gradingUnavailable(view, pending);
   }
 
-  await prisma.interviewTurn.update({
-    where: { id: pending.id },
+  // #288: bind the grade write to the exact claim this request took. A slow Gemini call can
+  // outlast ANSWER_CLAIM_STALE_MS, letting a newer identical request reclaim the turn — its
+  // claim moves `answeredAt` to a fresh timestamp. Writing on `id` alone would then overwrite
+  // the winner's verdict AND run the state machine a second time, silently dropping a concept
+  // from a multi-concept session. Anchoring on `answeredAt: now` (the mark set by this
+  // request's own claim above) makes the write a no-op once the claim has been lost.
+  const written = await prisma.interviewTurn.updateMany({
+    where: { id: pending.id, answeredAt: now },
     data: { score: graded.score, feedback: graded.feedback, verdict: graded.verdict },
   });
+
+  if (written.count === 0) {
+    // Lost the claim mid-grade: do not advance the state machine again. Replay whatever the
+    // winning request recorded so this one still resolves coherently instead of double-stepping.
+    return replayAnswer(sessionId, userId, pending.id);
+  }
 
   // The decision itself is re-derived from the turn just stored, so this request and a later
   // GET can never disagree about what comes next.
@@ -1169,10 +1181,17 @@ export async function submitSelfGrade(
   const score = SELF_GRADE_SCORE[selfGrade];
   const verdict = SELF_GRADE_VERDICT[selfGrade];
 
-  await prisma.interviewTurn.update({
-    where: { id: pending.id },
+  // #288: same claim-bound write as the AI path. The window is far smaller here (no Gemini
+  // await between claim and write), but the invariant is identical — a request that lost its
+  // claim must neither overwrite the verdict nor advance the state machine a second time.
+  const written = await prisma.interviewTurn.updateMany({
+    where: { id: pending.id, answeredAt: now },
     data: { score, verdict },
   });
+
+  if (written.count === 0) {
+    return replayAnswer(sessionId, userId, pending.id);
+  }
 
   const advance = await advanceToNextQuestion(await reloadView(sessionId, userId));
 
