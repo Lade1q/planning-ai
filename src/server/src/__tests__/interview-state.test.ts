@@ -37,6 +37,17 @@ describe('decideNextStep — continuing the same concept', () => {
     expect(step('deep', 2)).toBe('ask_deeper');
   });
 
+  it('BR-AIEX-001: continues to turn 3 (ask_deeper) after turn 2 has verdict deep when maxTurns = 3', () => {
+    expect(
+      decideNextStep({
+        verdict: 'deep',
+        turnIndex: 2,
+        maxTurns: 3,
+        remainingConcepts: 0,
+      })
+    ).toBe('ask_deeper');
+  });
+
   it('probes after a shallow answer while turns remain', () => {
     expect(step('shallow', 1)).toBe('ask_probe');
     expect(step('shallow', 2)).toBe('ask_probe');
