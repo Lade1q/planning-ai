@@ -278,6 +278,13 @@ describe('interview.service — AE-05 flashcard fallback', () => {
         const turn = turns.find((t) => t.id === where.id);
         if (!turn) return Promise.resolve({ count: 0 });
 
+        if (where.OR === undefined && !(where.answeredAt instanceof Date)) {
+          throw new Error(
+            `unrecognised interviewTurn.updateMany where-shape: ${JSON.stringify(where)} — ` +
+              'a grade write must stay bound to its claim mark (#288)'
+          );
+        }
+
         // Grade-write shape (#288): a claim-bound optimistic lock `{ id, answeredAt: <claim mark> }`
         // with no `OR`/`verdict`. It writes only while the turn still carries this request's own
         // claim; a stale-reclaim by a newer request moves `answeredAt` and makes this a no-op.
