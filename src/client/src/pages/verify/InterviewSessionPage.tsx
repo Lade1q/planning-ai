@@ -508,13 +508,22 @@ function PauseConfirmDialog({
         </DialogHeader>
 
         <ul className="gap-1.75 flex flex-col text-[13px]">
-          <li className="gap-2.25 flex items-start">
-            <Check className="text-muted-foreground mt-0.75 size-3.5 shrink-0" aria-hidden="true" />
-            <span>
-              Giữ nguyên {gradedTurnsForConcept} lượt đã trả lời của{' '}
-              <strong className="text-foreground">{conceptName}</strong>.
-            </span>
-          </li>
+          {/* Rớt bullet này khi 0 lượt — trấn an "giữ nguyên 0 lượt" là câu vô nghĩa, và không
+              có gì để giữ khi vừa vào khái niệm chưa trả lời câu nào (review PR #279, "lỗi mới
+              nhỏ" ở commit `8d7887f`). Lượt hiện tại đọc lại nguyên văn đã có bullet riêng bên
+              dưới, không phụ thuộc gradedTurnsForConcept. */}
+          {gradedTurnsForConcept > 0 && (
+            <li className="gap-2.25 flex items-start">
+              <Check
+                className="text-muted-foreground mt-0.75 size-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span>
+                Giữ nguyên {gradedTurnsForConcept} lượt đã trả lời của{' '}
+                <strong className="text-foreground">{conceptName}</strong>.
+              </span>
+            </li>
+          )}
           {turnIndex !== null && (
             <li className="gap-2.25 flex items-start">
               <Check

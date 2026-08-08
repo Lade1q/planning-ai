@@ -66,15 +66,17 @@ export function TurnHistory({
               </div>
 
               <ChatBubble role="ai" className="max-w-full">
-                <p className="text-sm leading-[1.62]">{turn.questionText}</p>
+                <p className="whitespace-pre-line text-sm leading-[1.62]">{turn.questionText}</p>
                 <SourceCitation citation={turn.sourceCitation} />
               </ChatBubble>
 
               {turn.answerText && (
                 // Mockup `.chat-bubble-user { max-width: 82% }` — component dùng chung mặc
                 // định 68% (cho các nơi khác), override riêng ở đây cho đúng màn interview.
+                // `whitespace-pre-line`: giữ nguyên xuống dòng/gạch đầu dòng sinh viên tự gõ —
+                // mặc định `<p>` gộp hết newline thành khoảng trắng, dính liền cả đoạn.
                 <ChatBubble role="user" className="max-w-[82%]">
-                  <p className="text-sm leading-[1.62]">{turn.answerText}</p>
+                  <p className="whitespace-pre-line text-sm leading-[1.62]">{turn.answerText}</p>
                 </ChatBubble>
               )}
 
@@ -134,7 +136,11 @@ function GradeCard({ verdict, score, feedback, turnIndex }: GradeCardProps) {
         {score !== null && <MetaMono className="text-[13px]">{score.toFixed(2)}</MetaMono>}
         <span className="text-muted-foreground ml-auto text-[11px]">Lượt {turnIndex}</span>
       </div>
-      {feedback && <p className="text-foreground text-[13.5px] leading-[1.6]">{feedback}</p>}
+      {feedback && (
+        <p className="text-foreground whitespace-pre-line text-[13.5px] leading-[1.6]">
+          {feedback}
+        </p>
+      )}
     </div>
   );
 }
