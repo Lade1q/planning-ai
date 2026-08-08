@@ -1034,7 +1034,7 @@ export async function submitAnswer(
     });
   } catch (error) {
     if (!isAiFailure(error)) throw error;
-    return gradingUnavailable(view, pending);
+    return gradingUnavailable(view, pending, now);
   }
 
   // #288: bind the grade write to the exact claim this request took. A slow Gemini call can
@@ -1115,19 +1115,37 @@ async function replayAnswer(
  * grade_answer was unavailable. The session survives in fallback mode (#115) and the claim is
  * released so the same turn can be answered again — the typed answer is kept so the student
  * does not have to retype it. I6.4 replaces this branch with flashcard self-grading (AE-05).
+ *
+ * #288: only a request that STILL holds the claim may do this. One whose slow Gemini call let a
+ * newer identical request reclaim the turn (a stale-reclaim) must not flip `fallbackMode` — the
+ * turn now belongs to that other request, which may be grading it successfully; flipping here
+ * would strip AI grading from a healthy session for the rest of it, and clearing `answeredAt`
+ * would wipe the winner's claim mark. So the release is bound to this request's own claim, and
+ * the fallback flip runs only when that release actually wrote a row.
  */
 async function gradingUnavailable(
   view: SessionView,
-  pending: TurnRow
+  pending: TurnRow,
+  claimMark: Date
 ): Promise<SubmitAnswerResponse> {
-  const [session] = await prisma.$transaction([
-    prisma.interviewSession.update({
+  const session = await prisma.$transaction(async (tx) => {
+    const released = await tx.interviewTurn.updateMany({
+      where: { id: pending.id, answeredAt: claimMark },
+      data: { answeredAt: null },
+    });
+    if (released.count === 0) return null;
+    return tx.interviewSession.update({
       where: { id: view.session.id },
       data: { fallbackMode: true },
       select: sessionSelect,
-    }),
-    prisma.interviewTurn.update({ where: { id: pending.id }, data: { answeredAt: null } }),
-  ]);
+    });
+  });
+
+  if (session === null) {
+    // Lost the claim mid-grade: touch nothing, and above all do not flip the session. Replay
+    // whatever the winning request recorded so this one still resolves coherently.
+    return replayAnswer(view.session.id, view.session.userId, pending.id);
+  }
 
   return {
     session: toSessionState({ ...view, session }),
