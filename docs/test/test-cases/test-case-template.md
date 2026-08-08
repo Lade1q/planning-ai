@@ -2,6 +2,7 @@
 
 > **Module:** [VD: Authentication / AI Planning / Focus Session / ...]  
 > **Use Case tham chiếu:** [Mã UC hoặc Tên tính năng liên quan]  
+> **Người viết:** [Họ tên]  
 > **Ngày tạo:** [YYYY-MM-DD]  
 > **Ngày cập nhật:** [YYYY-MM-DD]  
 > **Phiên bản:** [1.0]  
