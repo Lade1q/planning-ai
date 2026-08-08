@@ -3,6 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, Check, CircleAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { MetaMono } from '@/components/ui/kbd';
 import { ChatBubble } from '@/components/ui/chat-bubble';
 import { cn } from '@/lib/utils';
@@ -27,9 +34,12 @@ import type {
  * tiêu đề | mét tiến độ | đồng hồ đếm giờ phiên — toggle Gõ/Giọng nói và bánh răng cài đặt của
  * mockup ngoài phạm vi, không dựng), rồi cột trái "phạm vi bài kiểm tra" (hàng đợi khái niệm +
  * lượt + nguồn tài liệu) và cột phải (thanh khái niệm + hội thoại cuộn riêng + khu trả lời ghim
- * đáy — panel xác nhận tạm dừng cũng thế chỗ đó, không phải modal). Khi phiên rơi vào fallback
- * (AE-05) thì thay ô gõ bằng ba nút tự chấm và hiện băng cảnh báo. Toàn bộ state do
- * `useInterviewSession` sở hữu — server là nguồn chân lý, trang này chỉ trình bày lại.
+ * đáy). Tạm dừng (bấm nút hoặc bấm back/forward) hỏi xác nhận qua modal `PauseConfirmDialog` —
+ * vỏ Dialog theo `CancelSessionDialog` của Focus Session (PR #285, nhất quán giữa hai màn),
+ * nội dung bên trong (list có tick, thứ tự nút) theo đúng mockup gốc của chính màn này. Khi
+ * phiên rơi vào fallback (AE-05) thì thay ô gõ bằng ba nút tự chấm và hiện băng cảnh báo. Toàn
+ * bộ state do `useInterviewSession` sở hữu — server là nguồn chân lý, trang này chỉ trình bày
+ * lại.
  */
 
 /**
@@ -72,7 +82,11 @@ export default function InterviewSessionPage() {
       if (hasExitedRef.current) return;
       hasExitedRef.current = true;
       showToast();
-      navigate('/dashboard');
+      // `replace`: nếu phiên vừa hoàn thành trong lúc đang active, guard back/forward bên dưới
+      // đã đẩy thêm 1 history entry trùng URL — không dọn thì Back từ Dashboard phải bấm hai
+      // lần (M5, review PR #279). Vô hại với nhánh phiên đã kết thúc sẵn từ trước (guard chưa
+      // từng chạy ở lượt mount đó, không có gì để dọn).
+      navigate('/dashboard', { replace: true });
     },
     [navigate]
   );
@@ -148,13 +162,18 @@ export default function InterviewSessionPage() {
   }, [turns.length, currentQuestion?.turnId, pendingTurnAnswered]);
 
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
 
   const confirmPause = async (): Promise<void> => {
+    setIsPausing(true);
     const ok = await pause();
+    setIsPausing(false);
     setShowPauseConfirm(false);
     if (ok) {
       toast.success('Đã tạm dừng. Bạn có thể tiếp tục phiên này sau.');
-      navigate('/dashboard');
+      // `replace`: dọn luôn history entry mà guard back/forward bên dưới vừa đẩy thêm — không
+      // thì Back từ Dashboard phải bấm hai lần mới thực sự rời khỏi được (M5, review PR #279).
+      navigate('/dashboard', { replace: true });
     }
   };
 
@@ -162,9 +181,13 @@ export default function InterviewSessionPage() {
   // trước #118 reopen, rời trang kiểu này không hỏi gì cả, mất ngữ cảnh không báo trước.
   // Kỹ thuật: đẩy thêm một history entry trùng URL hiện tại; nếu người dùng bấm back, entry
   // đó bị pop trước — bắt đúng lúc đó, đẩy lại ngay (giữ URL đứng yên) rồi hỏi bằng đúng
-  // panel "Tạm dừng phiên kiểm tra?" ở khu trả lời (không phải dialog — xem `PauseConfirmPanel`
-  // bên dưới), không có nhánh "redo" riêng vì xác nhận xong là gọi thẳng `confirmPause`
-  // (điều hướng thật), còn hủy thì chỉ đơn giản ở nguyên tại chỗ.
+  // dialog "Tạm dừng phiên kiểm tra?" (`PauseConfirmDialog` bên dưới — modal, khớp
+  // `CancelSessionDialog` của Focus Session #285 để hai màn không ra hai kiểu khác nhau).
+  //
+  // Entry thừa được dọn ở CHÍNH XÁC hai chỗ rời trang chủ động (confirmPause ở trên,
+  // exitToDashboard ở dưới) bằng `{ replace: true }` — không dọn ở cleanup của effect này vì
+  // cleanup chạy cả khi unmount bình thường lẫn khi rời qua nút back, hai trường hợp cần xử
+  // lý khác nhau (M5, review PR #279).
   const isSessionActive = session?.status === 'active';
   useEffect(() => {
     if (!isSessionActive) return;
@@ -292,7 +315,7 @@ export default function InterviewSessionPage() {
           {/* `.rail__source` — ghim đáy rail bằng margin-top:auto, đúng mockup. Không hiện gì
               nếu chưa có câu hỏi nào tải xong (chưa có trích dẫn để lấy tên tài liệu thật). */}
           {citedDocumentNames.length > 0 && (
-            <div className="border-border text-muted-foreground mt-auto border-t pt-[18px] text-[12px] leading-[1.55]">
+            <div className="border-border text-muted-foreground pt-4.5 mt-auto border-t text-[12px] leading-[1.55]">
               Chấm theo tài liệu bạn tải lên:
               {citedDocumentNames.length === 1 ? (
                 <>
@@ -354,7 +377,7 @@ export default function InterviewSessionPage() {
 
           {fallbackMode && (
             <div className="flex-none px-5 pt-4 lg:px-8">
-              <div className="mx-auto w-full max-w-[680px]">
+              <div className="max-w-170 mx-auto w-full">
                 <FallbackBanner />
               </div>
             </div>
@@ -365,7 +388,7 @@ export default function InterviewSessionPage() {
             ref={transcriptScrollRef}
             className="min-h-0 flex-1 overflow-y-auto px-5 py-5 lg:px-8"
           >
-            <div className="mx-auto flex w-full max-w-[680px] flex-col gap-5">
+            <div className="max-w-170 mx-auto flex w-full flex-col gap-5">
               <TurnHistory
                 turns={turns}
                 currentTurnId={pendingTurnAnswered ? null : (currentQuestion?.turnId ?? null)}
@@ -392,143 +415,149 @@ export default function InterviewSessionPage() {
           </div>
 
           {/* `.dock` — gõ (mặc định) hoặc tự chấm flashcard (fallback). Luôn nhìn thấy vì cột
-              này là flex-col và chỉ vùng hội thoại ở trên mới cuộn.
-              Panel xác nhận tạm dừng CHÈN THÊM phía trên khu trả lời, không thay thế nó — ô
-              nhập vẫn hiện nguyên (chỉ khoá tạm) thay vì biến mất đột ngột. Không mở modal:
-              mockup ghi rõ "Không dùng modal" (screen-interview.html:1044-1046) đúng cho quyết
-              định này — modal sẽ che mất phần hội thoại phía trên mà chính panel cần trích dẫn
-              ("đã trả lời lượt mấy"). Khoá ô nhập khi panel mở vì lối vào bấm back/forward cần
-              chặn thật — không phải chỉ "gợi ý" — tới khi người dùng quyết định. */}
-          {(currentQuestion || showPauseConfirm) && (
+              này là flex-col và chỉ vùng hội thoại ở trên mới cuộn. */}
+          {currentQuestion && (
             <footer className="border-border bg-card flex-none border-t px-5 py-4 lg:px-8">
-              <div className="mx-auto w-full max-w-[680px]">
-                {showPauseConfirm && (
-                  <PauseConfirmPanel
-                    conceptName={currentConcept?.name ?? 'khái niệm đang dở'}
-                    completedConcepts={progress.completedConcepts}
-                    gradedTurnsForConcept={gradedTurnsForConcept}
-                    turnIndex={turnIndex}
-                    onCancel={() => setShowPauseConfirm(false)}
-                    onConfirm={() => void confirmPause()}
-                  />
-                )}
-                <div className={showPauseConfirm ? 'mt-4' : undefined}>
-                  {fallbackMode ? (
-                    <div>
-                      <p className="text-muted-foreground mb-3 text-[13px]">
-                        Tự trả lời trong đầu, rồi chọn mức độ đúng của bạn.
-                      </p>
-                      <div className="flex flex-wrap gap-2.5">
-                        {SELF_GRADE_OPTIONS.map(({ grade, label, value }) => (
-                          <Button
-                            key={grade}
-                            variant="outline"
-                            onClick={() => void submitSelfGrade(grade)}
-                            disabled={isSubmitting || showPauseConfirm}
-                          >
-                            {label}
-                            <MetaMono className="text-muted-foreground text-[11px]">
-                              {value}
-                            </MetaMono>
-                          </Button>
-                        ))}
-                      </div>
+              <div className="max-w-170 mx-auto w-full">
+                {fallbackMode ? (
+                  <div>
+                    <p className="text-muted-foreground mb-3 text-[13px]">
+                      Tự trả lời trong đầu, rồi chọn mức độ đúng của bạn.
+                    </p>
+                    <div className="flex flex-wrap gap-2.5">
+                      {SELF_GRADE_OPTIONS.map(({ grade, label, value }) => (
+                        <Button
+                          key={grade}
+                          variant="outline"
+                          onClick={() => void submitSelfGrade(grade)}
+                          disabled={isSubmitting}
+                        >
+                          {label}
+                          <MetaMono className="text-muted-foreground text-[11px]">{value}</MetaMono>
+                        </Button>
+                      ))}
                     </div>
-                  ) : (
-                    <AnswerInput
-                      onSubmit={submit}
-                      isSubmitting={isSubmitting}
-                      disabled={showPauseConfirm}
-                    />
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <AnswerInput onSubmit={submit} isSubmitting={isSubmitting} />
+                )}
               </div>
             </footer>
           )}
         </div>
       </div>
+
+      <PauseConfirmDialog
+        open={showPauseConfirm}
+        onOpenChange={setShowPauseConfirm}
+        isSubmitting={isPausing}
+        conceptName={currentConcept?.name ?? 'khái niệm đang dở'}
+        gradedTurnsForConcept={gradedTurnsForConcept}
+        turnIndex={turnIndex}
+        onConfirm={() => void confirmPause()}
+      />
     </div>
   );
 }
 
-interface PauseConfirmPanelProps {
+interface PauseConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isSubmitting: boolean;
   conceptName: string;
-  completedConcepts: number;
   gradedTurnsForConcept: number;
   turnIndex: number | null;
-  onCancel: () => void;
   onConfirm: () => void;
 }
 
 /**
- * Panel xác nhận tạm dừng (`.confirm` trong mockup, `screen-interview.html:3499-3524`).
- * KHÔNG phải modal — mockup nói rõ lý do (`:1044-1046`): "Bỏ qua" và "Tạm dừng" đều là quyết
- * định cần đọc hậu quả trước khi bấm, mà modal che mất đúng ngữ cảnh đó (đang ở lượt mấy, đã
- * trả lời gì). Panel này thế chỗ khu trả lời (dock) — hội thoại phía trên vẫn nguyên, không
- * bị che.
+ * Xác nhận tạm dừng — dialog (modal), KHÔNG phải panel inline như bản dựng trước.
+ *
+ * Vỏ ngoài (Dialog, dùng `<Dialog>` chuẩn thay vì panel chèn vào dock) theo review PR #279
+ * vòng 2: dự án đã có tiền lệ thật cho đúng loại quyết định này — `CancelSessionDialog` của
+ * Focus Session (PR #285, đã review GREEN) dùng modal, không panel — nhất quán với màn đã
+ * được duyệt quan trọng hơn lý do "không dùng modal" mà mockup của riêng màn interview tự ghi.
+ *
+ * NHƯNG nội dung bên trong (list có tick, thứ tự nút) quay lại đúng mockup gốc của màn này
+ * (`screen-interview.html:3499-3524`, `.confirm__list`/`.confirm__actions`) chứ không rập
+ * khuôn `CancelSessionDialog` nữa — hai dialog có SỐ LƯỢNG hệ quả cần nói khác hẳn nhau (dialog
+ * kia chỉ 1 ý, dialog này 2-3 ý rời nhau: giữ được gì / đọc lại thế nào / cái gì CHƯA chạy),
+ * nhồi hết vào một câu văn xuôi (bản thử trước) đọc rối hơn hẳn so với xuống dòng từng ý.
  *
  * Số liệu là thật, đếm từ `progress`/transcript đã tải — không phải minh hoạ như mockup (mockup
- * viết chết "2 khái niệm đã chấm", "Ngăn xếp"). Đường "mở lại" cũng đổi chữ: mockup trỏ tới
- * "Lịch sử phiên → Tiếp tục phiên", nhưng màn Lịch sử phiên đó (DB-03) chưa có issue, chưa được
- * xây — trỏ tới một nút không có thật còn tệ hơn không nói gì, nên đổi thành đường thật (đồ thị
- * khái niệm).
+ * viết chết "2 khái niệm đã chấm", "Ngăn xếp"). Không nhắc "Lịch sử phiên → Tiếp tục phiên" như
+ * mockup vì màn đó (DB-03) chưa có issue, chưa được xây — trỏ tới một nút không có thật còn tệ
+ * hơn không nói gì.
  */
-function PauseConfirmPanel({
+function PauseConfirmDialog({
+  open,
+  onOpenChange,
+  isSubmitting,
   conceptName,
-  completedConcepts,
   gradedTurnsForConcept,
   turnIndex,
-  onCancel,
   onConfirm,
-}: PauseConfirmPanelProps) {
+}: PauseConfirmDialogProps) {
   return (
-    <div className="border-border bg-card max-w-[560px] rounded-lg border px-5 py-[18px]">
-      <h4 className="mb-2 text-[14.5px] font-semibold">Tạm dừng phiên kiểm tra?</h4>
-      <ul className="mt-2.5 flex flex-col gap-[7px] text-[13px]">
-        <li className="flex items-start gap-[9px]">
-          <Check className="text-muted-foreground mt-[3px] size-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            Giữ nguyên {completedConcepts} khái niệm đã chấm
-            {gradedTurnsForConcept > 0 && (
-              <>
-                {' '}
-                và {gradedTurnsForConcept} lượt đã trả lời của <strong>{conceptName}</strong>
-              </>
-            )}
-            .
-          </span>
-        </li>
-        {turnIndex !== null && (
-          <li className="flex items-start gap-[9px]">
-            <Check
-              className="text-muted-foreground mt-[3px] size-3.5 shrink-0"
+    <Dialog open={open} onOpenChange={(next) => !isSubmitting && onOpenChange(next)}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle className="text-[14.5px] font-semibold">
+            Tạm dừng phiên kiểm tra?
+          </DialogTitle>
+        </DialogHeader>
+
+        <ul className="gap-1.75 flex flex-col text-[13px]">
+          <li className="gap-2.25 flex items-start">
+            <Check className="text-muted-foreground mt-0.75 size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              Giữ nguyên {gradedTurnsForConcept} lượt đã trả lời của{' '}
+              <strong className="text-foreground">{conceptName}</strong>.
+            </span>
+          </li>
+          {turnIndex !== null && (
+            <li className="gap-2.25 flex items-start">
+              <Check
+                className="text-muted-foreground mt-0.75 size-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span>
+                Lần sau mở lại, câu hỏi lượt {turnIndex} được đọc lại nguyên văn — bạn không mất
+                lượt.
+              </span>
+            </li>
+          )}
+          <li className="gap-2.25 flex items-start">
+            <CircleAlert
+              className="text-muted-foreground mt-0.75 size-3.5 shrink-0"
               aria-hidden="true"
             />
             <span>
-              Lần sau mở lại, câu hỏi lượt {turnIndex} được đọc lại nguyên văn — bạn không mất lượt.
+              Truy ngược lỗ hổng chưa chạy vì{' '}
+              <strong className="text-foreground">{conceptName}</strong> chưa chốt điểm.
             </span>
           </li>
-        )}
-        <li className="flex items-start gap-[9px]">
-          <CircleAlert
-            className="text-muted-foreground mt-[3px] size-3.5 shrink-0"
-            aria-hidden="true"
-          />
-          <span>
-            Truy ngược lỗ hổng chưa chạy vì <strong>{conceptName}</strong> chưa chốt điểm.
-          </span>
-        </li>
-      </ul>
-      <p className="text-muted-foreground mt-[14px] text-[13px] leading-[1.62]">
-        Mở lại đúng khái niệm này từ đồ thị khái niệm để tiếp tục.
-      </p>
-      <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
-        <Button onClick={onConfirm}>Tạm dừng &amp; thoát</Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Ở lại phiên
-        </Button>
-      </div>
-    </div>
+        </ul>
+
+        <p className="text-muted-foreground text-[13px] leading-[1.62]">
+          Mở lại đúng khái niệm này từ đồ thị khái niệm để tiếp tục.
+        </p>
+
+        <DialogFooter className="flex-row justify-start gap-2.5">
+          <Button type="button" loading={isSubmitting} onClick={onConfirm}>
+            Tạm dừng &amp; thoát
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
+            onClick={() => onOpenChange(false)}
+          >
+            Ở lại phiên
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -289,10 +289,20 @@ export default function InterviewPage() {
         // Đóng hộp thoại mà không chọn "Tiếp tục" hay "Kết thúc" (Để sau / Esc / bấm ra
         // ngoài). Không có gì hỏng cả — người dùng chủ động hoãn — nên không có băng lỗi
         // nào để hiện. Ở lối vào deep-link, URL `/interview?planId=...` chỉ là bước chuyển,
-        // không phải điểm đến (cùng lý do BUG C): đưa người dùng rời khỏi đây luôn bằng
-        // lịch sử trình duyệt, quay đúng về chỗ vừa bấm "Kiểm tra ngay"/"Kiểm tra N khái
-        // niệm gốc" — không rớt xuống bộ chọn thủ công mồ côi (chốt 05/08).
-        if (deepLinkPlanId) navigate(-1);
+        // không phải điểm đến (cùng lý do BUG C): đưa người dùng rời khỏi đây luôn.
+        //
+        // M3/M6 (review PR #279, vòng 2): TRƯỚC đây dùng `navigate(-1)` — hỏng ở đúng lối
+        // vào deep-link thật sự cần tới nhất. `navigate(-1)` chỉ hoạt động nếu có một trang
+        // TRƯỚC ĐÓ trong tab để lùi về; deep-link mở ở tab mới / bookmark / dán URL thẳng thì
+        // không có gì để lùi — kẹt vĩnh viễn ở màn "Đang mở phiên kiểm tra…" (M3). Còn khi
+        // CÓ trang trước đó, `navigate(-1)` chỉ lùi con trỏ chứ không xoá entry deep-link —
+        // bấm Forward sau đó bắn lại đúng luồng autostart + hộp thoại này (M6).
+        //
+        // Đích thay thế: `replace` thẳng về TRANG THẬT của kế hoạch (nơi cả hai lối vào
+        // deep-link — ConceptDetailPanel lẫn ConceptGraph — đều sống) thay vì dựa vào lịch sử.
+        // Luôn đúng bất kể có lịch sử hay không, và `replace` xoá hẳn entry deep-link nên
+        // không còn gì để Forward quay lại được nữa.
+        if (deepLinkPlanId) navigate(`/plan/${deepLinkPlanId}`, { replace: true });
       }}
     >
       <DialogContent>
