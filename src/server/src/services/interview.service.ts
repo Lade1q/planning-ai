@@ -1067,8 +1067,8 @@ export async function submitAnswer(
 /**
  * The answer was already claimed by an identical request. If that request finished, its result
  * is replayed so a double-click looks like one call; if it is still waiting on Gemini, we poll
- * briefly — grading typically takes 10–20s (#115), but a double-click arrives within 1s, so a
- * short wait is almost always enough to let the winner finish.
+ * until the winner's grade lands — Gemini grading typically takes 10–20s (#115), so the window
+ * has to cover that whole range, not just the first couple of seconds.
  *
  * Idempotency fix: the original code threw 409 immediately when `verdict === null`, which made
  * concurrent double-submits both return 409 (the loser saw the winner's not-yet-graded turn).
@@ -1076,8 +1076,8 @@ export async function submitAnswer(
  */
 
 /** How many times to re-read the turn waiting for the winner's grading to land. */
-const REPLAY_POLL_ATTEMPTS = 3;
-/** Milliseconds between re-reads — short enough to feel instant to the user. */
+const REPLAY_POLL_ATTEMPTS = 10;
+/** Milliseconds between re-reads — 10 × 2s = 20s, covering Gemini's worst-case grading time. */
 const REPLAY_POLL_INTERVAL_MS = 2_000;
 
 function sleep(ms: number): Promise<void> {

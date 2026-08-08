@@ -51,16 +51,22 @@
 - **Giải pháp đã thực hiện:**
   - Cập nhật hàm `replayAnswer()` trong `src/server/src/services/interview.service.ts` thêm vòng lặp Polling (Retry-Wait):
     ```typescript
-    const REPLAY_POLL_ATTEMPTS = 3;
+    const REPLAY_POLL_ATTEMPTS = 10;
     const REPLAY_POLL_INTERVAL_MS = 2_000;
 
-    // Đợi tối đa 3 lần x 2 giây cho request 1 hoàn tất
+    // Đợi tối đa 10 lần x 2 giây (20s) cho request 1 hoàn tất
     for (let attempt = 0; attempt < REPLAY_POLL_ATTEMPTS && turn?.verdict === null; attempt++) {
       await sleep(REPLAY_POLL_INTERVAL_MS);
       turn = await prisma.interviewTurn.findUnique({...});
     }
     ```
-  - **Kết quả:** Request 2 sẽ đợi vừa đủ để request 1 ghi xong điểm vào DB, sau đó replay kết quả `200 OK` (`replayed: true`), không còn tình trạng trả về 409 cho cả 2 request.
+  - **Lưu ý về cửa sổ poll:** bản sửa đầu tiên chỉ đợi 3×2s = 6s, trong khi comment của chính file
+    này ghi nhận Gemini grading thường mất 10–20s — nghĩa là double-submit thật trong lúc AI đang
+    chấm điểm vẫn thường xuyên bị 409 trước khi request thắng chấm xong. Đã nâng lên 10×2s = 20s để
+    phủ hết khoảng thời gian chấm điểm thực tế, và bổ sung 2 test (`interview-service.test.ts`) mô
+    phỏng cả hai nhánh: (1) request thua replay thành công khi kết quả về giữa lúc đang poll, và
+    (2) request thua nhận `ANSWER_IN_PROGRESS` (409) nếu request thắng không hoàn tất trong cửa sổ poll.
+  - **Kết quả:** Request 2 sẽ đợi vừa đủ để request 1 ghi xong điểm vào DB, sau đó replay kết quả `200 OK` (`replayed: true`), không còn tình trạng trả về 409 cho cả 2 request trong các trường hợp thực tế.
 
 ---
 
