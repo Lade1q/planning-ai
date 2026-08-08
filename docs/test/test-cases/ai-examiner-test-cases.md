@@ -4,7 +4,7 @@
 > **Use Case tham chiếu:** Epic #108, Use-case_Specification mục 2.3
 > **Người viết:** Nguyễn Minh Phát
 > **Ngày tạo:** 2026-08-04
-> **Ngày cập nhật:** 2026-08-04
+> **Ngày cập nhật:** 2026-08-08
 > **Phiên bản:** 1.0
 > **Loại kiểm thử chung:** Functionality / Security / Integration
 
@@ -54,43 +54,43 @@
 
 ## TC-AE-003: Trả lời sai khái niệm CÓ tiên quyết (Traceback)
 
-| Trường                   | Nội dung                                                                                                                                              |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Function / Feature**   | Traceback (CF-03)                                                                                                                                     |
-| **Mã TC**                | TC-AE-003                                                                                                                                             |
-| **Tiêu đề**              | Trả lời sai ở khái niệm có tiên quyết, hệ thống chạy traceback                                                                                        |
-| **Mô tả**                | Đảm bảo hệ thống phát hiện lỗi hổng kiến thức cốt lõi và chuyển sang khái niệm tiên quyết.                                                            |
-| **Loại kiểm thử**        | Functionality                                                                                                                                         |
-| **Độ ưu tiên**           | High                                                                                                                                                  |
-| **Điều kiện tiên quyết** | Đang kiểm tra một khái niệm có khái niệm tiên quyết trong cấu trúc.                                                                                   |
-| **Các bước thực hiện**   | 1. Nhận câu hỏi về khái niệm hiện tại.<br>2. Nhập câu trả lời sai hoàn toàn.<br>3. Gửi câu trả lời và kiểm tra kết quả.                               |
-| **Dữ liệu đầu vào**      | Câu trả lời sai.                                                                                                                                      |
-| **Kết quả mong đợi**     | - Kết thúc khái niệm hiện tại ngay lập tức.<br>- Cơ chế traceback chạy.<br>- Khái niệm tiên quyết (prereq) xuất hiện ở màn kết quả/câu hỏi tiếp theo. |
-| **Kết quả thực tế**      | Verdict: `wrong` (0.00). Hệ thống KHÔNG Traceback mà vẫn hỏi Binary Search.                                                                           |
-| **Trạng thái**           | FAIL                                                                                                                                                  |
-| **Ghi chú**              | Kịch bản này bắt buộc phải ĐẠT để được demo.                                                                                                          |
-| **Nhận xét**             |                                                                                                                                                       |
+| Trường                   | Nội dung                                                                                                                                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Function / Feature**   | Traceback (CF-03)                                                                                                                                                                                                       |
+| **Mã TC**                | TC-AE-003                                                                                                                                                                                                               |
+| **Tiêu đề**              | Trả lời sai ở khái niệm có tiên quyết, hệ thống chạy traceback                                                                                                                                                          |
+| **Mô tả**                | Đảm bảo hệ thống phát hiện lỗi hổng kiến thức cốt lõi và chuyển sang khái niệm tiên quyết.                                                                                                                              |
+| **Loại kiểm thử**        | Functionality                                                                                                                                                                                                           |
+| **Độ ưu tiên**           | High                                                                                                                                                                                                                    |
+| **Điều kiện tiên quyết** | Đang kiểm tra một khái niệm có khái niệm tiên quyết trong cấu trúc.                                                                                                                                                     |
+| **Các bước thực hiện**   | 1. Nhận câu hỏi về khái niệm hiện tại.<br>2. Nhập câu trả lời sai hoàn toàn.<br>3. Gửi câu trả lời và kiểm tra kết quả.                                                                                                 |
+| **Dữ liệu đầu vào**      | Câu trả lời sai.                                                                                                                                                                                                        |
+| **Kết quả mong đợi**     | - Kết thúc khái niệm hiện tại ngay lập tức.<br>- Cơ chế traceback chạy và tìm thấy khái niệm tiên quyết.<br>- Khái niệm tiên quyết được xếp lịch học ngay (`scheduledFor: now`) ở đầu hàng đợi cho phiên học tiếp theo. |
+| **Kết quả thực tế**      | Verdict: `wrong` (0.00). Hệ thống kết thúc khái niệm, chạy Traceback ngầm và xếp lịch học tiên quyết vào đầu hàng đợi của phiên kế tiếp đúng như thiết kế AE-07.                                                        |
+| **Trạng thái**           | PASS                                                                                                                                                                                                                    |
+| **Ghi chú**              | Kịch bản này bắt buộc phải ĐẠT để được demo.                                                                                                                                                                            |
+| **Nhận xét**             |                                                                                                                                                                                                                         |
 
 ---
 
 ## TC-AE-004: Trả lời sai khái niệm KHÔNG CÓ tiên quyết (Spaced Repetition)
 
-| Trường                   | Nội dung                                                                                                                      |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Function / Feature**   | Spaced Repetition (CF-04)                                                                                                     |
-| **Mã TC**                | TC-AE-004                                                                                                                     |
-| **Tiêu đề**              | Trả lời sai ở khái niệm không có tiên quyết, hệ thống rơi về spaced repetition                                                |
-| **Mô tả**                | Đảm bảo hệ thống không chạy traceback khi khái niệm không có tiên quyết phụ thuộc.                                            |
-| **Loại kiểm thử**        | Functionality                                                                                                                 |
-| **Độ ưu tiên**           | Medium                                                                                                                        |
-| **Điều kiện tiên quyết** | Đang kiểm tra một khái niệm cơ sở (không có tiên quyết).                                                                      |
-| **Các bước thực hiện**   | 1. Nhận câu hỏi về khái niệm cơ sở.<br>2. Nhập câu trả lời sai hoàn toàn.<br>3. Gửi câu trả lời và kiểm tra hành vi hệ thống. |
-| **Dữ liệu đầu vào**      | Câu trả lời sai.                                                                                                              |
-| **Kết quả mong đợi**     | - Không kích hoạt traceback.<br>- Hệ thống rơi vào chế độ lặp lại ngắt quãng (spaced repetition).                             |
-| **Kết quả thực tế**      | Verdict: `wrong` (0.00). Không đổi bài, vẫn hỏi tiếp Lượt 2 của bài cũ.                                                       |
-| **Trạng thái**           | FAIL                                                                                                                          |
-| **Ghi chú**              |                                                                                                                               |
-| **Nhận xét**             |                                                                                                                               |
+| Trường                   | Nội dung                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Function / Feature**   | Spaced Repetition (CF-04)                                                                                                                                                 |
+| **Mã TC**                | TC-AE-004                                                                                                                                                                 |
+| **Tiêu đề**              | Trả lời sai ở khái niệm không có tiên quyết, hệ thống rơi về spaced repetition                                                                                            |
+| **Mô tả**                | Đảm bảo hệ thống không chạy traceback khi khái niệm không có tiên quyết phụ thuộc.                                                                                        |
+| **Loại kiểm thử**        | Functionality                                                                                                                                                             |
+| **Độ ưu tiên**           | Medium                                                                                                                                                                    |
+| **Điều kiện tiên quyết** | Đang kiểm tra một khái niệm cơ sở (không có tiên quyết).                                                                                                                  |
+| **Các bước thực hiện**   | 1. Nhận câu hỏi về khái niệm cơ sở.<br>2. Nhập câu trả lời sai hoàn toàn.<br>3. Gửi câu trả lời và kiểm tra hành vi hệ thống.                                             |
+| **Dữ liệu đầu vào**      | Câu trả lời sai.                                                                                                                                                          |
+| **Kết quả mong đợi**     | - Kết thúc khái niệm hiện tại ngay lập tức.<br>- Không kích hoạt traceback (vì không có tiên quyết).<br>- Hệ thống rơi vào chế độ lặp lại ngắt quãng (spaced repetition). |
+| **Kết quả thực tế**      | Verdict: `wrong` (0.00). Hệ thống kết thúc ngay khái niệm hiện tại, không Traceback, kết thúc phiên và đưa vào Spaced Repetition.                                         |
+| **Trạng thái**           | PASS                                                                                                                                                                      |
+| **Ghi chú**              |                                                                                                                                                                           |
+| **Nhận xét**             |                                                                                                                                                                           |
 
 ---
 
@@ -213,31 +213,31 @@
 | **Các bước thực hiện**   | 1. Đăng nhập với User A và lấy JWT Token.<br>2. Gọi API truy cập vào phiên kiểm tra của User B bằng Token của User A. |
 | **Dữ liệu đầu vào**      | Token của User A, API URL chứa session ID của User B.                                                                 |
 | **Kết quả mong đợi**     | - API trả về mã lỗi `404 Not Found` (không phải 403 để tránh lộ thông tin ID có tồn tại).                             |
-| **Kết quả thực tế**      | API trả về mã lỗi 404 Not Found khi dùng Token B gọi session của A.                                                   |
+| **Kết quả thực tế**      | API trả về `404 Not Found` đúng thiết kế.                                                                             |
 | **Trạng thái**           | PASS                                                                                                                  |
-| **Ghi chú**              |                                                                                                                       |
-| **Nhận xét**             |                                                                                                                       |
+| **Ghi chú**              | Test ngày 2026-08-08 bằng script `test-api.ts`.                                                                       |
+| **Nhận xét**             | Hệ thống trả về 404 (không phải 403) đúng như thiết kế — ẩn thông tin sự tồn tại của session ID.                      |
 
 ---
 
 ## TC-AE-011: Idempotency (Tính luỹ đẳng)
 
-| Trường                   | Nội dung                                                                                      |
-| ------------------------ | --------------------------------------------------------------------------------------------- |
-| **Function / Feature**   | Idempotency API                                                                               |
-| **Mã TC**                | TC-AE-011                                                                                     |
-| **Tiêu đề**              | Gửi 2 request POST /answers liên tiếp chỉ tạo ra 1 turn                                       |
-| **Mô tả**                | Đảm bảo hệ thống không tạo dữ liệu rác hoặc turn trùng lặp khi người dùng double click.       |
-| **Loại kiểm thử**        | Interface / Database                                                                          |
-| **Độ ưu tiên**           | High                                                                                          |
-| **Điều kiện tiên quyết** | Đang ở màn hình trả lời câu hỏi của một phiên kiểm tra.                                       |
-| **Các bước thực hiện**   | 1. Dùng tool gọi API gửi request POST `/answers` với cùng dữ liệu 2 lần gần như đồng thời.    |
-| **Dữ liệu đầu vào**      | Cùng một payload câu trả lời.                                                                 |
-| **Kết quả mong đợi**     | - Chỉ có 1 turn trả lời được tạo trong Database.<br>- Hệ thống xử lý request thứ hai an toàn. |
-| **Kết quả thực tế**      | Bị văng 409 Conflict cho cả 2 request thay vì xử lý 1 request.                                |
-| **Trạng thái**           | FAIL                                                                                          |
-| **Ghi chú**              |                                                                                               |
-| **Nhận xét**             |                                                                                               |
+| Trường                   | Nội dung                                                                                                                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Function / Feature**   | Idempotency API                                                                                                                                                                                                 |
+| **Mã TC**                | TC-AE-011                                                                                                                                                                                                       |
+| **Tiêu đề**              | Gửi 2 request POST /answers liên tiếp chỉ tạo ra 1 turn                                                                                                                                                         |
+| **Mô tả**                | Đảm bảo hệ thống không tạo dữ liệu rác hoặc turn trùng lặp khi người dùng double click.                                                                                                                         |
+| **Loại kiểm thử**        | Interface / Database                                                                                                                                                                                            |
+| **Độ ưu tiên**           | High                                                                                                                                                                                                            |
+| **Điều kiện tiên quyết** | Đang ở màn hình trả lời câu hỏi của một phiên kiểm tra.                                                                                                                                                         |
+| **Các bước thực hiện**   | 1. Tạo phiên học qua API, để câu hỏi xuất hiện trên UI (không trả lời).<br>2. Chạy script `test-idempotency.ts` với `SESSION_ID` và `TOKEN` thực tế, bắn 2 request `POST /answers` đồng thời qua `Promise.all`. |
+| **Dữ liệu đầu vào**      | Phiên học đang có câu hỏi chờ; cùng một payload câu trả lời được gửi 2 lần cùng lúc.                                                                                                                            |
+| **Kết quả mong đợi**     | - Chỉ có 1 turn trả lời được tạo trong Database.<br>- Hệ thống xử lý an toàn request đúp (ví dụ: request sau đợi request trước và trả về cùng kết quả).                                                         |
+| **Kết quả thực tế**      | DB chỉ tạo 1 turn. Cả 2 request đều 200, nhưng 1 request trả về kèm flag `replayed: true`. Hoạt động đúng thiết kế.                                                                                             |
+| **Trạng thái**           | PASS                                                                                                                                                                                                            |
+| **Ghi chú**              | Test ngày 2026-08-08 bằng script `test-idempotency.ts`. Đã loại bỏ bug report do phân tích lại hệ thống.                                                                                                        |
+| **Nhận xét**             | Hệ thống thiết kế rất thông minh! Trả về 200 kèm `replayed: true` thay vì `409` giúp client không cần phải viết code tự động retry.                                                                             |
 
 ---
 
@@ -247,12 +247,12 @@
 | --------- | ------------------------------------------------------------------------------ | -------------------- | ---------- | ---------- |
 | TC-AE-001 | Trả lời tốt cả 3 lượt, hệ thống hỏi sâu hơn và không kích hoạt traceback       | Functionality        | High       | `PASS`     |
 | TC-AE-002 | Trả lời hời hợt, hệ thống yêu cầu giải thích sâu hơn                           | Functionality        | High       | `PASS`     |
-| TC-AE-003 | Trả lời sai ở khái niệm có tiên quyết, hệ thống chạy traceback                 | Functionality        | High       | `FAIL`     |
-| TC-AE-004 | Trả lời sai ở khái niệm không có tiên quyết, hệ thống rơi về spaced repetition | Functionality        | Medium     | `FAIL`     |
+| TC-AE-003 | Trả lời sai ở khái niệm có tiên quyết, hệ thống chạy traceback                 | Functionality        | High       | `PASS`     |
+| TC-AE-004 | Trả lời sai ở khái niệm không có tiên quyết, hệ thống rơi về spaced repetition | Functionality        | Medium     | `PASS`     |
 | TC-AE-005 | Xử lý khi AI timeout hoặc hết API quota                                        | Functionality        | High       | `PASS`     |
 | TC-AE-006 | Tạm dừng phiên, đóng tab và quay lại tiếp tục đúng tiến độ                     | Functionality        | High       | `PASS`     |
 | TC-AE-007 | Bỏ qua khái niệm (AE-04)                                                       | Functionality        | Low        | Deferred   |
 | TC-AE-008 | Khiếu nại kết quả chấm của AI (AE-10)                                          | Functionality        | Low        | Deferred   |
 | TC-AE-009 | Hệ thống dừng ở tối đa 3 lượt hỏi sâu liên tục                                 | Functionality        | High       | `PASS`     |
 | TC-AE-010 | User A truy cập API phiên của User B bị từ chối với mã 404                     | Security             | High       | `PASS`     |
-| TC-AE-011 | Gửi 2 request POST /answers liên tiếp chỉ tạo ra 1 turn                        | Interface / Database | High       | `FAIL`     |
+| TC-AE-011 | Gửi 2 request POST /answers liên tiếp chỉ tạo ra 1 turn                        | Interface / Database | High       | `PASS`     |
