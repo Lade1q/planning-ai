@@ -27,6 +27,8 @@ export const ENDPOINTS = {
     ABANDON: (id: string) => `/api/v1/interviews/${id}/abandon`,
   },
   REVIEW_QUEUE: {
+    BASE: '/api/v1/review-queue',
+    ITEM: (itemId: string) => `/api/v1/review-queue/${itemId}`,
     TODAY: '/api/v1/review-queue/today',
   },
   FOCUS_SESSIONS: {
