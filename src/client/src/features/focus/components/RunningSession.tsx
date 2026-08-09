@@ -354,12 +354,13 @@ export function RunningSession({
           Canh giữa bằng `my-auto` của flex chứ không phải `place-items-center` của grid: khi nội
           dung cao hơn khung, margin auto co về 0 (chỉ hấp thụ khoảng trống dương) nên nội dung
           bám mép trên và cuộn được; grid centering thì đẩy mép trên ra ngoài vùng cuộn. */}
-      {/* Vùng nội dung + lớp overlay ghi chú chung một khối định vị `relative`: rail ghi chú NỔI
-          tuyệt đối bên phải, KHÔNG chen vào luồng nên KHÔNG đẩy lệch màn đang chạy (quyết định UX
-          2026-08-09: panel nhỏ không đáng để xê dịch đồng hồ). Khi ghi chú mở, `isStageTakenOver`
-          đã ẩn tài liệu ⇒ nhánh dưới rơi về màn đang chạy NGUYÊN VẸN (vòng Pomodoro + khái niệm +
-          tally, canh giữa viewport), rail chỉ phủ lên lề phải. */}
-      <div className="relative flex min-h-0 flex-1">
+      {/* Vùng nội dung + lớp ghi chú chung một khối định vị `relative`. Từ 900px trở lên: rail ghi
+          chú NỔI tuyệt đối bên phải, KHÔNG chen vào luồng nên KHÔNG đẩy lệch màn đang chạy (quyết
+          định UX 2026-08-09: panel nhỏ không đáng để xê dịch đồng hồ). Dưới 900px (mockup `.notes`
+          @media): rail 320-340px sẽ CHE gần hết vòng, nên khối chuyển sang XẾP DỌC — stage trên,
+          ghi chú thành khối tĩnh bên dưới (đồng hồ vẫn nhìn thấy). Khi ghi chú mở, `isStageTakenOver`
+          đã ẩn tài liệu ⇒ nhánh dưới rơi về màn đang chạy NGUYÊN VẸN. */}
+      <div className="relative flex min-h-0 flex-1 flex-col min-[900px]:flex-row">
         {documentPlanId !== null && isDocumentOpen ? (
           /* Bố cục hai cột của mockup (`.split`): tài liệu trái, cột phải giữ ĐỒNG HỒ RÚT GỌN + nút
            đổi mức. Theo mockup, cột phải CHỈ có đồng hồ + ghi chú + một nút duy nhất — cụm dừng/kết
@@ -562,7 +563,9 @@ export function RunningSession({
             thì, không trượt. `bg-card` đục + viền trái + bóng nhẹ tinted để nổi lên trên nội dung. */}
         {notesOpen && screen === 'running' && (
           <NotesPanel
-            className="border-border absolute inset-y-0 right-0 z-10 w-[min(340px,85vw)] border-l shadow-[-6px_0_20px_-14px_oklch(0_0_0_/_0.1)]"
+            // <900px: khối tĩnh xếp dưới stage (đồng hồ ở trên vẫn thấy), cao tối đa 45vh tự cuộn.
+            // ≥900px: rail nổi tuyệt đối bên phải, KHÔNG reflow đồng hồ. Khớp @media của mockup.
+            className="border-border max-h-[45vh] w-full flex-none border-t min-[900px]:absolute min-[900px]:inset-y-0 min-[900px]:right-0 min-[900px]:z-10 min-[900px]:max-h-none min-[900px]:w-[min(340px,85vw)] min-[900px]:border-l min-[900px]:border-t-0 min-[900px]:shadow-[-6px_0_20px_-14px_oklch(0_0_0_/_0.1)]"
             sessionId={session.id}
             conceptId={item.conceptId}
             conceptName={item.name}
