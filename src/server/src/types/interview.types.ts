@@ -225,17 +225,23 @@ export interface SessionSummaryConceptResponse {
 }
 
 /**
- * One `ReviewQueueItem` this session's traceback (I7.2) queued — AE-08's contribution to the
- * summary screen, read as-is rather than recomputed (I7.2 already decided this, once).
+ * One `ReviewQueueItem` this session queued — the whole review schedule it produced, read as-is
+ * rather than recomputed (I7.2 already decided this, once). Two kinds arrive here, told apart by
+ * `reason`: the `spaced_repetition` row written for every concept the session finished, and the
+ * `traceback` prerequisites AE-08 queued ahead of a weak one. The summary screen (I6.7) needs
+ * both — a session that triggered no traceback still has a review schedule to show.
  */
-export interface SessionSummaryTracebackItemResponse {
+export interface SessionSummaryReviewItemResponse {
   conceptId: string;
   name: string;
   reason: ReviewReason;
+  /** `1`/`2` for a traceback prerequisite; `null` for a `spaced_repetition` row. */
   depth: number | null;
-  /** The concept this prerequisite was traced back *from*; `null` if that concept was deleted since. */
+  /** The concept this prerequisite was traced back *from*; `null` if that concept was deleted since, and always `null` for `spaced_repetition`. */
   sourceConceptName: string | null;
   status: ReviewItemStatus;
+  /** When the concept comes back. Traceback rows are due immediately (AE-07 step 6). */
+  scheduledFor: Date | null;
 }
 
 /**
@@ -260,5 +266,15 @@ export interface SessionSummaryResponse {
   durationMinutes: number;
   concepts: SessionSummaryConceptResponse[];
   summary: SessionSummaryReport;
-  traceback: SessionSummaryTracebackItemResponse[];
+  /**
+   * Every review row this session queued, traceback prerequisites first (by `depth`), then the
+   * per-concept spaced-repetition schedule (by `scheduledFor`) — the order the mockup's queue
+   * reads in, "hai khái niệm nền lên đầu hàng đợi". Split it by `reason`, not by position: a
+   * session that triggered no traceback returns only `spaced_repetition` rows, and that is the
+   * whole content of the summary screen's schedule section rather than an empty state.
+   *
+   * Named `traceback` for the field that used to hold only those rows; kept as-is so the
+   * in-flight I6.7 client (#119) does not have to be rewritten around a rename.
+   */
+  traceback: SessionSummaryReviewItemResponse[];
 }
