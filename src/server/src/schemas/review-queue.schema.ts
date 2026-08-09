@@ -70,8 +70,19 @@ const snoozeBodySchema = z.object({ snooze: z.literal(true) }).strict();
  * Cộng thuần, không sửa nhánh cũ: `{ status }` mà #224/#225 đang gửi live đi qua đây y hệt như
  * trước. `.strict()` ở cả hai nhánh nên một body lẫn cả `status` lẫn `snooze` bị 400 rõ ràng
  * thay vì để một trong hai âm thầm rơi mất.
+ *
+ * `error` thay câu mặc định `"Invalid input"` của union — câu đó không nói được body sai ở đâu,
+ * vì union hỏng thì mọi nhánh đều hỏng. Câu này nêu thẳng cả hai hình dạng hợp lệ.
+ *
+ * Giới hạn đã đo, đừng tưởng nó dọn sạch response: zod **vẫn** kèm mảng `errors` của từng nhánh
+ * trong chính issue đó, và `errorHandler` trả nguyên `err.issues` vào `details` — nên `details`
+ * vẫn có phần lồng, và `error.message` của response vẫn là câu chung `"Invalid input data"`.
+ * Dọn hai chỗ đó là sửa `middleware/errorHandler.ts`, tức chạm mọi endpoint có Zod — không đáng
+ * cho một endpoint. Câu rõ nằm ở `details[0].message`.
  */
-export const updateReviewQueueItemSchema = z.union([updateStatusBodySchema, snoozeBodySchema]);
+export const updateReviewQueueItemSchema = z.union([updateStatusBodySchema, snoozeBodySchema], {
+  error: () => "body must be { status: 'skipped' | 'pending' } or { snooze: true }",
+});
 
 export type UpdateReviewQueueItemInput = z.infer<typeof updateReviewQueueItemSchema>;
 

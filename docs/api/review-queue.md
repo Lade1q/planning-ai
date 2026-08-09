@@ -449,9 +449,26 @@ Hai shape khác nhau là trung thực chứ không phải bừa bãi — chúng 
   ```json
   {
     "success": false,
-    "error": { "code": "VALIDATION_ERROR", "message": "Invalid input data", "details": [] }
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Invalid input data",
+      "details": [
+        {
+          "code": "invalid_union",
+          "path": [],
+          "message": "body must be { status: 'skipped' | 'pending' } or { snooze: true }",
+          "errors": ["…issue của từng nhánh…"]
+        }
+      ]
+    }
   }
   ```
+
+  Union hỏng thì **mọi** nhánh đều hỏng, nên câu mặc định của zod (`"Invalid input"`) không nói
+  được gì; `details[0].message` vì thế nêu thẳng cả hai hình dạng hợp lệ. Hai chỗ **không** dọn:
+  `error.message` vẫn là câu chung `"Invalid input data"` và `details[0].errors` vẫn kèm issue
+  của từng nhánh — cả hai do `middleware/errorHandler.ts` trả nguyên `err.issues`, sửa nó là
+  chạm mọi endpoint dùng Zod.
 
 - **Lỗi `itemId` thiếu hoặc không phải UUID (HTTP 400 Bad Request):** `itemId` là `@db.Uuid`
   trong Prisma nên được validate là UUID hợp lệ trước khi chạm DB (tránh P2023 → 500).
