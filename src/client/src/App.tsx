@@ -17,6 +17,7 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import PlansPage from '@/pages/planning/PlansPage';
 import CreatePlanPage from '@/pages/planning/CreatePlanPage';
 import PlanDetailPage from '@/pages/planning/PlanDetailPage';
+import PlanReviewQueuePage from '@/pages/planning/PlanReviewQueuePage';
 import GraphIndexPage from '@/pages/planning/GraphIndexPage';
 import FocusPage from '@/pages/focus/FocusPage';
 import InterviewPage from '@/pages/verify/InterviewPage';
@@ -54,6 +55,9 @@ function App() {
                   đang mở thuộc mục nav nào, nên "trang này LÀ trang nào" phải nằm trong
                   đường dẫn (Issue #274). */}
               <Route path="/plan/:id/verify" element={<PlanDetailPage routeMode="verify" />} />
+              {/* SP-07/SP-08 (#225) — màn con của "Kế hoạch ôn tập", xem sửa hàng đợi ôn của
+                  một plan. Không có mục sidebar riêng (xem MainLayout.tsx isPlanCreationStep). */}
+              <Route path="/plan/:id/review-queue" element={<PlanReviewQueuePage />} />
               <Route path="/graph" element={<GraphIndexPage />} />
               <Route path="/focus" element={<FocusPage />} />
               <Route path="/interview" element={<InterviewPage />} />

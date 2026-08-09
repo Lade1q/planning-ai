@@ -67,9 +67,11 @@ export function MainLayout() {
   const isNavItemActive = (href: string): boolean => {
     const path = location.pathname;
 
-    // Hai bước của luồng tạo kế hoạch (SP-01): chọn tài liệu, rồi kiểm chứng đồ thị AI đề
-    // xuất. Cả hai thuộc "Kế hoạch ôn tập" — /plan/new trước đây không sáng mục nào cả.
-    const isPlanCreationStep = path === '/plan/new' || /^\/plan\/[^/]+\/verify$/.test(path);
+    // Ba bước con của "Kế hoạch ôn tập": tạo mới, kiểm chứng đồ thị (SP-01), và hàng đợi ôn sửa
+    // được của một plan (#225). Cả ba thuộc mục nav này, không phải "Đồ thị khái niệm" —
+    // /plan/new trước đây không sáng mục nào cả.
+    const isPlanCreationStep =
+      path === '/plan/new' || /^\/plan\/[^/]+\/(verify|review-queue)$/.test(path);
 
     if (href === '/plans') {
       return isPlanCreationStep || path === href || path.startsWith(`${href}/`);
