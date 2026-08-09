@@ -634,9 +634,13 @@ export async function reanalyzePlan(
     // Issue #216: cùng lý do như changePlanDocument — bước merge giữ nguyên id concept, nên
     // câu hỏi cache sinh từ trước lần reanalyze này sẽ sống sót qua bước kiểm tra idempotent
     // của pregenerateForPlan nếu không xoá. Lưu ý: nếu đúng lúc đó có phiên interview đang ở
-    // chế độ fallback trên plan này, deck flashcard của phiên đó có thể bị rỗng giữa chừng —
-    // đây là rủi ro đã tồn tại từ trước (reanalyze vốn đã đổi graph ngay dưới một phiên đang
-    // sống), không phải lỗi mới phát sinh do thay đổi này.
+    // chế độ fallback trên plan này, deck flashcard của phiên đó có thể bị rỗng giữa chừng.
+    // Việc reanalyze đổi graph ngay dưới một phiên đang sống là rủi ro có sẵn từ trước; nhưng
+    // deck rỗng *vì cache bị xoá* là hệ quả mới hẹp của chính thay đổi này (trước đây cache
+    // không bị xoá nên vẫn phục vụ câu cũ — đúng là bug #216). Chấp nhận được: cửa sổ đồng thời
+    // rất hẹp, phiên vốn đã ở chế độ degraded, deck rỗng rơi vào path `no_cached_questions` sẵn
+    // có (kết thúc sớm có thông báo, không crash), và xoá là đánh đổi đúng cho C5 — thà rỗng
+    // còn hơn phục vụ câu hỏi của tài liệu đã bị thay.
     await clearQuestionCacheForPlan(tx, planId);
 
     await tx.analysisJob.create({
