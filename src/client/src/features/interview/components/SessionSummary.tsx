@@ -69,6 +69,7 @@ export function SessionSummary({
       setPendingItemIds((prev) => new Set(prev).add(conceptId));
 
       try {
+        // TODO(@reviewer): Workaround FE: API /summary chưa trả về itemId, nên tạm thời phải fetch lại toàn bộ review queue để tìm ID. Khi BE cập nhật API, cần xoá request này đi.
         // Workaround FE: Fetch review queue to find the actual itemId from conceptId
         const res = await apiClient.get(`/api/v1/review-queue?planId=${planId}`);
 

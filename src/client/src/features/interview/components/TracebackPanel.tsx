@@ -51,6 +51,7 @@ export function TracebackPanel({
   // Gom theo khái niệm gốc, giữ nguyên thứ tự server đã sort (tầng 1 trước tầng 2).
   const groups = new Map<string, SessionSummaryReviewItemResponse[]>();
   for (const item of items) {
+    // TODO(@reviewer): Đang tạm gom nhóm bằng Tên gốc vì BE chưa trả ID gốc. Code này sẽ gom sai nếu 2 khái niệm trùng tên. Mọi người cân nhắc thêm `sourceConceptId` ở BE sớm giúp mình nhé.
     // `sourceConceptName` chỉ `null` khi khái niệm gốc đã bị xoá khỏi kế hoạch từ sau phiên.
     const key = item.sourceConceptName ?? '';
     const existing = groups.get(key);

@@ -132,6 +132,7 @@ export default function InterviewSessionPage() {
 
   const [summaryData, setSummaryData] = useState<SessionSummaryResponse | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  // TODO(@reviewer): Chỗ lấy lại summary khi thất bại đang dùng cách tăng biến đếm để trigger lại useEffect. Lần tới đụng vào file này mình sẽ refactor tách hàm fetch riêng ra cho chuẩn React pattern hơn.
   // Tăng lên để chạy lại effect tải tổng kết. Lần gọi đầu của một phiên chưa cache phải chờ
   // AI, và AI có thể hỏng hoặc quá tải — không có đường thử lại thì màn kết quả của cả một
   // phiên 30 phút mất trắng chỉ vì một lời gọi.

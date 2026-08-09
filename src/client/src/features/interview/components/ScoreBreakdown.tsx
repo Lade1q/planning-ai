@@ -240,6 +240,7 @@ function WeightedFormula({
     (sum, turn, idx) => sum + (turn.score ?? 0) * (weights[idx] ?? 0),
     0
   );
+  // TODO(@reviewer): Workaround để che đi bug #244 của BE (điểm trả về không khớp điểm cộng dồn). Tạm ẩn công thức nếu bị lệch. Chờ BE fix #244 xong thì xoá hộ đoạn check này.
   if (Math.abs(computed - masteryScore) > 0.005) {
     return <div className="text-muted-foreground text-xs">{turns.length} lượt</div>;
   }
