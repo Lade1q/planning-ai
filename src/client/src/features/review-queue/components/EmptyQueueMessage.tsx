@@ -64,9 +64,13 @@ export function EmptyQueueMessage({ planId, message, planStatus }: EmptyQueueMes
         <Icon aria-hidden="true" className="size-10" strokeWidth={1.3} />
       </div>
       <h3 className="font-heading mb-2 text-[20px] tracking-[-0.02em]">{heading}</h3>
-      <p className="text-muted-foreground mb-4.5 text-pretty text-[13.5px] leading-[1.7]">
-        {message}
-      </p>
+      {/* Chỉ render khi có câu chữ: ca biên plan active 0 khái niệm cho `message = ''`
+          (server trả null → `?? ''`), lúc đó một <p> rỗng chỉ chèn khoảng trắng thừa. */}
+      {message && (
+        <p className="text-muted-foreground mb-4.5 text-pretty text-[13.5px] leading-[1.7]">
+          {message}
+        </p>
+      )}
       {action && (
         <Button variant="outline" asChild>
           <Link to={action.to}>{action.label}</Link>
