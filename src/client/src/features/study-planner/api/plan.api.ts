@@ -210,6 +210,18 @@ export const planApi = {
       // cap (10MB) is the real bound on how long this can legitimately take.
       timeout: 60000,
     });
+
+    // XHR builds the Blob with only the *essence* of Content-Type — `text/plain; charset=utf-8`
+    // arrives as `text/plain`, charset dropped. That loss is invisible until the blob URL is
+    // opened as a top-level tab: with no charset and no parent document to inherit one from,
+    // the browser falls back to its platform default and renders Vietnamese material as
+    // mojibake (measured in Chrome). Rebuilding the Blob from the header restores what the
+    // server actually said — verified by reading back what Chrome then serves for the object
+    // URL. An `<iframe>` hides this bug, because it inherits the host page's UTF-8.
+    const contentType = response.headers['content-type'];
+    if (typeof contentType === 'string' && contentType !== response.data.type) {
+      return new Blob([response.data], { type: contentType });
+    }
     return response.data;
   },
 
