@@ -50,7 +50,9 @@ export default function DashboardPage() {
         ) : today.error && today.data === null ? (
           <BlockError message="Không tải được gợi ý hôm nay." onRetry={today.reload} />
         ) : today.data ? (
-          <TodayNudge data={today.data} />
+          // `onChanged` = đọc lại đúng khối này sau khi hoãn / bỏ qua (DB-09 #233). Hai thao tác
+          // đó chỉ đổi hàng đợi hôm nay, nên không kéo theo `/dashboard/stats` hay `/plans`.
+          <TodayNudge data={today.data} onChanged={today.reload} />
         ) : null}
       </section>
 

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { reviewQueueApi } from '@/features/review-queue/api/review-queue.api';
 import type {
   ReviewQueueItem,
   ReviewQueueListResponse,
@@ -58,15 +61,78 @@ function TodayQueue({ data }: { data: ReviewQueueListResponse }) {
   );
 }
 
+type DeferAction = 'snooze' | 'skip';
+
+/**
+ * Hai lối thoát của DB-09 (#233). Cùng một endpoint, nhưng **hai hành vi khác nhau** — và câu
+ * phản hồi phải nói ra hệ quả khác nhau đó, nếu không thì "hoãn" và "bỏ qua" trông như một nút
+ * "Ẩn" duy nhất: hoãn giữ khái niệm trên lịch (chỉ dời sang mai), bỏ qua gỡ nó khỏi lịch.
+ */
+const DEFER_ACTIONS: Record<
+  DeferAction,
+  { label: string; run: (itemId: string) => Promise<unknown>; success: string; failure: string }
+> = {
+  snooze: {
+    label: 'Hoãn đến mai',
+    run: (itemId) => reviewQueueApi.snoozeReviewQueueItem(itemId),
+    success: 'Sẽ nhắc lại vào ngày mai.',
+    failure: 'Chưa hoãn được gợi ý này. Vui lòng thử lại.',
+  },
+  skip: {
+    label: 'Bỏ qua gợi ý',
+    run: (itemId) => reviewQueueApi.updateReviewQueueItem(itemId, 'skipped'),
+    success: 'Đã gỡ khỏi lịch — sửa lại trong Kế hoạch ôn tập.',
+    failure: 'Chưa bỏ qua được gợi ý này. Vui lòng thử lại.',
+  },
+};
+
+/** `.today__defer` của mockup: 13px, muted → foreground khi rê chuột, không phải nút. Nhẹ ký về
+ *  thị giác là có chủ đích — đây là lối thoát, không được đứng ngang hàng hai nút hành động. */
+const DEFER_CLASS =
+  'text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-sm px-0.5 py-1.5 text-[13px] transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-50';
+
 /**
  * Khối "Gợi ý hôm nay" (DB-04), điểm vào của vòng lặp học tập. Mục đứng đầu hàng đợi trở thành
  * tiêu đề: `name` (khái niệm cần làm) đặt cạnh `reasonText` (lý do do backend sinh) — cặp này
  * đã diễn đạt đúng "đã chèn [P], nền của [C]" của AE-08 mà KHÔNG ghép câu ở client và không để
- * tên khái niệm đứng trơ trọi. Không có nút "Đồng ý" (lịch đã áp, không phải đề xuất chờ duyệt)
- * và không render "Hoãn / Bỏ qua" khi chưa có API (#233, Sprint 5) — nút xám không giải thích nổi.
+ * tên khái niệm đứng trơ trọi. Không có nút "Đồng ý": lịch đã áp rồi, đây là chỗ *điều chỉnh*
+ * chứ không phải cổng duyệt (epic #220) — nên hai lối thoát dưới đây cũng không hỏi lại.
+ *
+ * `onChanged` là `reload` của khối gợi ý (không phải của cả trang): sau khi hoãn/bỏ qua, hàng đợi
+ * phải tự đọc lại từ server. Bỏ qua mục cuối cùng thì lần đọc đó trả `items: []` + `message`, và
+ * `TodayNudge` chuyển sang `EmptyNudge` — trạng thái "đã xong hôm nay", không phải khoảng trắng.
  */
-function ActiveNudge({ data }: { data: ReviewQueueListResponse }) {
+function ActiveNudge({
+  data,
+  onChanged,
+}: {
+  data: ReviewQueueListResponse;
+  onChanged: () => void;
+}) {
   const top = data.items[0];
+  const [pendingAction, setPendingAction] = useState<DeferAction | null>(null);
+
+  // Gợi ý ảo A3-fallback không có hàng thật trong DB để hoãn hay gỡ (server sẽ 404). Ẩn hẳn hai
+  // lối thoát thay vì để chúng vô hiệu hoá: một nút xám không nói được vì sao nó xám.
+  const itemId = top.id;
+
+  const runDeferAction = (action: DeferAction): void => {
+    if (itemId === null || pendingAction !== null) return;
+    setPendingAction(action);
+
+    void (async () => {
+      try {
+        await DEFER_ACTIONS[action].run(itemId);
+        toast.success(DEFER_ACTIONS[action].success);
+        onChanged();
+      } catch (error) {
+        console.error('Failed to defer today nudge', error);
+        toast.error(DEFER_ACTIONS[action].failure);
+      } finally {
+        setPendingAction(null);
+      }
+    })();
+  };
 
   return (
     <section className={`${CARD_CLASS} grid grid-cols-1 md:grid-cols-[1fr_320px]`}>
@@ -85,6 +151,21 @@ function ActiveNudge({ data }: { data: ReviewQueueListResponse }) {
           <Button asChild variant="secondary">
             <Link to={interviewHref(top)}>Vào thẳng phiên kiểm tra</Link>
           </Button>
+          {itemId !== null &&
+            (Object.keys(DEFER_ACTIONS) as DeferAction[]).map((action) => (
+              <button
+                key={action}
+                type="button"
+                className={DEFER_CLASS}
+                // Khoá cả hai trong lúc một cái đang chạy: chúng đụng cùng một hàng, bấm chồng
+                // lên nhau thì kết quả tuỳ thứ tự response về — hoãn rồi bỏ qua hay ngược lại.
+                disabled={pendingAction !== null}
+                aria-busy={pendingAction === action || undefined}
+                onClick={() => runDeferAction(action)}
+              >
+                {DEFER_ACTIONS[action].label}
+              </button>
+            ))}
         </div>
       </div>
       <TodayQueue data={data} />
@@ -139,9 +220,15 @@ function EmptyNudge({
   );
 }
 
-export function TodayNudge({ data }: { data: ReviewQueueListResponse }) {
+export function TodayNudge({
+  data,
+  onChanged,
+}: {
+  data: ReviewQueueListResponse;
+  onChanged: () => void;
+}) {
   if (data.items.length > 0) {
-    return <ActiveNudge data={data} />;
+    return <ActiveNudge data={data} onChanged={onChanged} />;
   }
 
   // A2b (#273): server cố ý trả `message: null` cho kế hoạch vừa xác nhận đồ thị mà chưa vấn đáp
