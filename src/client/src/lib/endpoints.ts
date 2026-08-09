@@ -37,6 +37,9 @@ export const ENDPOINTS = {
   FOCUS_SESSIONS: {
     BASE: '/api/v1/focus-sessions',
     DETAIL: (id: string) => `/api/v1/focus-sessions/${id}`,
+    // FS-05 ghi chú nhanh — lồng dưới phiên (#228).
+    NOTES: (id: string) => `/api/v1/focus-sessions/${id}/notes`,
+    NOTE: (id: string, noteId: string) => `/api/v1/focus-sessions/${id}/notes/${noteId}`,
   },
   USERS: {
     POMODORO_CONFIG: '/api/v1/users/me/pomodoro-config',
