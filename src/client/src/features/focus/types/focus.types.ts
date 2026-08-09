@@ -39,6 +39,16 @@ export interface EndFocusSessionInput {
   pomodorosCompleted?: number;
 }
 
+/** Một ghi chú nhanh (FS-05), như GET/POST/PATCH /focus-sessions/:id/notes trả về. */
+export interface SessionNote {
+  id: string;
+  sessionId: string;
+  conceptId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Lượt hiện tại trong chu kỳ Pomodoro. */
 export type PomodoroPhase = 'work' | 'short_break' | 'long_break';
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, Pause, Play, Settings2, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, FileText, Pause, Play, Settings2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import type { CreateFocusSessionResponse, PomodoroConfig } from '../types/focus.
 import type { ReviewQueueItem } from '@/features/review-queue/types/review-queue.types';
 import { formatClock, formatClockTime, formatMinutesSecondsPhrase } from '../utils/format';
 import { CancelSessionDialog } from './CancelSessionDialog';
+import { NotesPanel } from './NotesPanel';
 import { PomodoroClockRing } from './PomodoroClockRing';
 import { PomodoroConfigPanel } from './PomodoroConfigPanel';
 import { SessionDocumentPanel, SessionDocumentSegment } from './SessionDocument';
@@ -102,6 +103,9 @@ export function RunningSession({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  // FS-05: panel ghi chú (#228). Loại trừ lẫn nhau với panel tài liệu (#227) — mở ghi chú ẩn tài
+  // liệu qua `isStageTakenOver` bên dưới, nên hai bố cục hai-cột không bao giờ chồng nhau.
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const setChromeInert = useFocusOverlay();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -214,7 +218,10 @@ export function RunningSession({
   const sessionDocument = useSessionDocument({
     planId: documentPlanId,
     conceptId: item.conceptId,
-    isStageTakenOver: screen !== 'running',
+    // Panel ghi chú mở cũng CHIẾM sân khấu với tài liệu: `notesOpen` ẩn tài liệu + vô hiệu phím `D`
+    // (useSessionDocument bỏ qua `D` khi `isStageTakenOver`), nên hai panel loại trừ nhau — không
+    // bao giờ có bố cục ba cột chen chúc mà mockup không hề vẽ.
+    isStageTakenOver: screen !== 'running' || notesOpen,
   });
   const isDocumentOpen = sessionDocument.level !== 'hidden';
 
@@ -224,6 +231,39 @@ export function RunningSession({
     if (document.activeElement?.closest('[data-slot="popover-content"]')) return;
     contentRef.current?.focus();
   }, [screen]);
+
+  // Đóng panel ghi chú → trả tiêu điểm về vùng nội dung (nút đang focus vừa bị unmount cùng panel).
+  // Mở panel thì để yên: `NotesPanel` tự đưa tiêu điểm vào ô soạn.
+  useEffect(() => {
+    if (notesOpen) return;
+    if (document.activeElement?.closest('[data-slot="popover-content"]')) return;
+    contentRef.current?.focus();
+  }, [notesOpen]);
+
+  // FS-05 phím tắt: `N` mở/đóng ghi chú, `Esc` đóng. Input-guard giống phím `D` của #227 — gõ chữ
+  // "n" trong ô soạn/ô nhập KHÔNG được lật panel. `Esc` thì cố ý hoạt động cả trong ô soạn (đó là
+  // cách đóng nhanh khi con trỏ đang ở textarea), nhưng nhường lại cho Popover cấu hình / hộp thoại
+  // hủy khi chúng đang mở để không đóng nhầm hai lớp cùng lúc.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const isTyping = !!target?.closest('input, textarea, select, [contenteditable="true"]');
+
+      if ((e.key === 'n' || e.key === 'N') && !isTyping && screen === 'running') {
+        e.preventDefault();
+        setNotesOpen((open) => !open);
+        return;
+      }
+
+      if (e.key === 'Escape' && notesOpen && !showConfigPanel && !showCancelConfirm) {
+        e.preventDefault();
+        setNotesOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [screen, notesOpen, showConfigPanel, showCancelConfirm]);
 
   // Mockup vẽ màn phiên KHÔNG có sidebar (`.fs-shell` = `100dvh`, `overflow:hidden`). Route vẫn
   // nằm trong `MainLayout` — AC ⓪ cần sidebar cho hai lối vào ⓪/① — nên chính màn phiên tự phủ
@@ -261,8 +301,24 @@ export function RunningSession({
         </div>
         <div className="flex items-center justify-end gap-2.5">
           {/* Chỉ có mặt ở màn ĐANG CHẠY: trong giờ nghỉ / lúc rời tab thì tài liệu đã tự ẩn, để lại
-              một segment bấm được nhưng không đổi được gì trên màn hình là nói dối người dùng. */}
-          {screen === 'running' && <SessionDocumentSegment document={sessionDocument} />}
+              một segment bấm được nhưng không đổi được gì trên màn hình là nói dối người dùng. Ẩn
+              luôn khi panel ghi chú mở — lúc đó tài liệu bị `isStageTakenOver` khoá, segment sẽ bấm
+              được mà không đổi gì (cùng lý do trên). */}
+          {screen === 'running' && !notesOpen && (
+            <SessionDocumentSegment document={sessionDocument} />
+          )}
+          {screen === 'running' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Ghi chú nhanh"
+              aria-pressed={notesOpen}
+              onClick={() => setNotesOpen((open) => !open)}
+            >
+              <FileText />
+            </Button>
+          )}
           <PomodoroConfigPanel
             open={showConfigPanel}
             onOpenChange={setShowConfigPanel}
@@ -298,198 +354,224 @@ export function RunningSession({
           Canh giữa bằng `my-auto` của flex chứ không phải `place-items-center` của grid: khi nội
           dung cao hơn khung, margin auto co về 0 (chỉ hấp thụ khoảng trống dương) nên nội dung
           bám mép trên và cuộn được; grid centering thì đẩy mép trên ra ngoài vùng cuộn. */}
-      {documentPlanId !== null && isDocumentOpen ? (
-        /* Bố cục hai cột của mockup (`.split`): tài liệu trái, cột phải giữ ĐỒNG HỒ RÚT GỌN + nút
+      {/* Vùng nội dung + lớp ghi chú chung một khối định vị `relative`. Từ 900px trở lên: rail ghi
+          chú NỔI tuyệt đối bên phải, KHÔNG chen vào luồng nên KHÔNG đẩy lệch màn đang chạy (quyết
+          định UX 2026-08-09: panel nhỏ không đáng để xê dịch đồng hồ). Dưới 900px (mockup `.notes`
+          @media): rail 320-340px sẽ CHE gần hết vòng, nên khối chuyển sang XẾP DỌC — stage trên,
+          ghi chú thành khối tĩnh bên dưới (đồng hồ vẫn nhìn thấy). Khi ghi chú mở, `isStageTakenOver`
+          đã ẩn tài liệu ⇒ nhánh dưới rơi về màn đang chạy NGUYÊN VẸN. */}
+      <div className="relative flex min-h-0 flex-1 flex-col min-[900px]:flex-row">
+        {documentPlanId !== null && isDocumentOpen ? (
+          /* Bố cục hai cột của mockup (`.split`): tài liệu trái, cột phải giữ ĐỒNG HỒ RÚT GỌN + nút
            đổi mức. Theo mockup, cột phải CHỈ có đồng hồ + ghi chú + một nút duy nhất — cụm dừng/kết
            thúc thuộc màn không-tài-liệu; ở đây `Space` vẫn tạm dừng, và bấm "Ẩn" trên thanh trên là
            về màn đó. Mỗi cột tự cuộn (`min-h-0` + `overflow-y-auto`) để trang PDF cao đến đâu cũng
            không đẩy đồng hồ khỏi tầm mắt. */
-        <div
-          ref={contentRef}
-          tabIndex={-1}
-          className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_300px] outline-none"
-        >
-          <div className="border-border flex min-h-0 flex-col overflow-y-auto border-r px-6 py-[22px]">
-            <SessionDocumentPanel planId={documentPlanId} document={sessionDocument} />
-          </div>
-
-          <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-[22px]">
-            <div className="text-center">
-              <div className="font-mono text-[34px] font-semibold tabular-nums tracking-[-0.03em]">
-                {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
-              </div>
-              <div className="text-muted-foreground mt-1.5 text-[10px] uppercase tracking-[0.08em]">
-                Còn lại · Pomodoro {(timer.pomodorosCompleted % timer.config.cycles) + 1}/
-                {timer.config.cycles}
-              </div>
-            </div>
-
-            <p className="text-muted-foreground m-0 text-xs leading-[1.6]">
-              {sessionDocument.level === 'excerpt'
-                ? 'Vùng tô sáng là đoạn khớp với khái niệm đang học. Phần còn lại của tài liệu vẫn mở được, nhưng không mặc định chiếm màn hình.'
-                : 'Đang mở toàn văn. Thời gian tập trung vẫn chạy vì bạn còn ở trong tab này.'}
-            </p>
-
-            <div id="dieu-khien" tabIndex={-1} className="outline-none">
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() =>
-                  sessionDocument.setLevel(
-                    sessionDocument.level === 'excerpt' ? 'fulltext' : 'hidden'
-                  )
-                }
-              >
-                {sessionDocument.level === 'excerpt' ? 'Mở toàn văn' : 'Ẩn tài liệu'}
-              </Button>
-            </div>
-          </aside>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-7">
           <div
             ref={contentRef}
             tabIndex={-1}
-            className="max-w-130 mx-auto my-auto flex w-full flex-col items-center gap-6 outline-none"
+            className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_300px] outline-none"
           >
-            {awayInfo ? (
-              <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
-                <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+            <div className="border-border flex min-h-0 flex-col overflow-y-auto border-r px-6 py-[22px]">
+              <SessionDocumentPanel planId={documentPlanId} document={sessionDocument} />
+            </div>
+
+            <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-[22px]">
+              <div className="text-center">
+                <div className="font-mono text-[34px] font-semibold tabular-nums tracking-[-0.03em]">
                   {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
                 </div>
-                <h1 className="font-heading text-[19px] tracking-[-0.02em]">
-                  Đồng hồ tập trung đã dừng
-                </h1>
-                <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">
-                  Bạn rời tab lúc {formatClockTime(new Date(awayInfo.leftAt))} và quay lại sau{' '}
-                  <strong className="text-foreground">
-                    {formatMinutesSecondsPhrase(Math.round(awayInfo.durationMs / 1000))}
-                  </strong>
-                  . Khoảng đó không tính vào thời gian tập trung. Tổng trong phiên này:{' '}
-                  {timer.awayCount} lần ·{' '}
-                  {formatMinutesSecondsPhrase(Math.round(timer.awayTotalMs / 1000))}.
-                </p>
-                <div
-                  id="dieu-khien"
-                  tabIndex={-1}
-                  className="flex items-center gap-2.5 outline-none"
-                >
-                  <Button type="button" onClick={() => timer.acknowledgeAway(false)}>
-                    Tiếp tục
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => timer.acknowledgeAway(true)}
-                  >
-                    Tắt chế độ nghiêm ngặt
-                  </Button>
+                <div className="text-muted-foreground mt-1.5 text-[10px] uppercase tracking-[0.08em]">
+                  Còn lại · Pomodoro {(timer.pomodorosCompleted % timer.config.cycles) + 1}/
+                  {timer.config.cycles}
                 </div>
               </div>
-            ) : isBreak ? (
-              <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
-                <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
-                  {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
-                </div>
-                <h1 className="font-heading text-[19px] tracking-[-0.02em]">{breakLabel}</h1>
-                <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">
-                  Hết giờ nghỉ, Pomodoro {(timer.pomodorosCompleted % timer.config.cycles) + 1}/
-                  {timer.config.cycles} tự bắt đầu với cùng khái niệm{' '}
-                  <strong className="text-foreground">{item.name}</strong>. Thời gian nghỉ không
-                  tính vào thời gian tập trung.
-                </p>
-                <div
-                  id="dieu-khien"
-                  tabIndex={-1}
-                  className="flex items-center gap-2.5 outline-none"
+
+              <p className="text-muted-foreground m-0 text-xs leading-[1.6]">
+                {sessionDocument.level === 'excerpt'
+                  ? 'Vùng tô sáng là đoạn khớp với khái niệm đang học. Phần còn lại của tài liệu vẫn mở được, nhưng không mặc định chiếm màn hình.'
+                  : 'Đang mở toàn văn. Thời gian tập trung vẫn chạy vì bạn còn ở trong tab này.'}
+              </p>
+
+              <div id="dieu-khien" tabIndex={-1} className="outline-none">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() =>
+                    sessionDocument.setLevel(
+                      sessionDocument.level === 'excerpt' ? 'fulltext' : 'hidden'
+                    )
+                  }
                 >
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={isEnding || isCancelling}
-                    onClick={timer.skipBreak}
-                  >
-                    Bỏ qua giờ nghỉ
-                  </Button>
-                  <Button
-                    type="button"
-                    loading={isEnding}
-                    disabled={isCancelling}
-                    onClick={() => void handleEnd()}
-                  >
-                    Kết thúc phiên học
-                  </Button>
-                </div>
+                  {sessionDocument.level === 'excerpt' ? 'Mở toàn văn' : 'Ẩn tài liệu'}
+                </Button>
               </div>
-            ) : (
-              <>
-                <section className="flex flex-col items-center gap-2.5 text-center">
-                  {chip && <Badge tone="remediate">{chip}</Badge>}
-                  <h1 className="font-heading text-balance text-[34px] leading-[1.15] tracking-[-0.025em]">
-                    {item.name}
+            </aside>
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-7">
+            <div
+              ref={contentRef}
+              tabIndex={-1}
+              className="max-w-130 mx-auto my-auto flex w-full flex-col items-center gap-6 outline-none"
+            >
+              {awayInfo ? (
+                <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
+                  <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+                    {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
+                  </div>
+                  <h1 className="font-heading text-[19px] tracking-[-0.02em]">
+                    Đồng hồ tập trung đã dừng
                   </h1>
-                  <p className="text-muted-foreground max-w-[46ch] text-[13px] leading-[1.65]">
-                    {item.reasonText}
+                  <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">
+                    Bạn rời tab lúc {formatClockTime(new Date(awayInfo.leftAt))} và quay lại sau{' '}
+                    <strong className="text-foreground">
+                      {formatMinutesSecondsPhrase(Math.round(awayInfo.durationMs / 1000))}
+                    </strong>
+                    . Khoảng đó không tính vào thời gian tập trung. Tổng trong phiên này:{' '}
+                    {timer.awayCount} lần ·{' '}
+                    {formatMinutesSecondsPhrase(Math.round(timer.awayTotalMs / 1000))}.
                   </p>
-                </section>
-
-                <PomodoroClockRing
-                  elapsedMs={timer.phaseElapsedMs}
-                  targetMs={timer.phaseTargetMs}
-                  pomodorosCompleted={timer.pomodorosCompleted}
-                  config={timer.config}
-                />
-
-                <SessionTally
-                  focusedMs={timer.focusedMs}
-                  strictMode={timer.strictMode}
-                  awayCount={timer.awayCount}
-                  awayTotalMs={timer.awayTotalMs}
-                />
-
-                <div
-                  id="dieu-khien"
-                  tabIndex={-1}
-                  className="flex items-center gap-2.5 outline-none"
-                >
-                  <Button
-                    type="button"
-                    className="bg-focus-session/12 border-focus-session/45 text-focus-session hover:bg-focus-session/20 border font-semibold"
-                    onClick={() => (timer.runState === 'running' ? timer.pause() : timer.resume())}
+                  <div
+                    id="dieu-khien"
+                    tabIndex={-1}
+                    className="flex items-center gap-2.5 outline-none"
                   >
-                    {timer.runState === 'running' ? <Pause /> : <Play />}
-                    {timer.runState === 'running' ? 'Tạm dừng' : 'Tiếp tục'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    loading={isEnding}
-                    disabled={isCancelling}
-                    onClick={() => void handleEnd()}
-                  >
-                    Kết thúc phiên học
-                  </Button>
+                    <Button type="button" onClick={() => timer.acknowledgeAway(false)}>
+                      Tiếp tục
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => timer.acknowledgeAway(true)}
+                    >
+                      Tắt chế độ nghiêm ngặt
+                    </Button>
+                  </div>
                 </div>
+              ) : isBreak ? (
+                <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
+                  <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+                    {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
+                  </div>
+                  <h1 className="font-heading text-[19px] tracking-[-0.02em]">{breakLabel}</h1>
+                  <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">
+                    Hết giờ nghỉ, Pomodoro {(timer.pomodorosCompleted % timer.config.cycles) + 1}/
+                    {timer.config.cycles} tự bắt đầu với cùng khái niệm{' '}
+                    <strong className="text-foreground">{item.name}</strong>. Thời gian nghỉ không
+                    tính vào thời gian tập trung.
+                  </p>
+                  <div
+                    id="dieu-khien"
+                    tabIndex={-1}
+                    className="flex items-center gap-2.5 outline-none"
+                  >
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={isEnding || isCancelling}
+                      onClick={timer.skipBreak}
+                    >
+                      Bỏ qua giờ nghỉ
+                    </Button>
+                    <Button
+                      type="button"
+                      loading={isEnding}
+                      disabled={isCancelling}
+                      onClick={() => void handleEnd()}
+                    >
+                      Kết thúc phiên học
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <section className="flex flex-col items-center gap-2.5 text-center">
+                    {chip && <Badge tone="remediate">{chip}</Badge>}
+                    <h1 className="font-heading text-balance text-[34px] leading-[1.15] tracking-[-0.025em]">
+                      {item.name}
+                    </h1>
+                    <p className="text-muted-foreground max-w-[46ch] text-[13px] leading-[1.65]">
+                      {item.reasonText}
+                    </p>
+                  </section>
 
-                <p className="text-muted-foreground flex flex-wrap items-center justify-center gap-3.5 text-[11.5px]">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Kbd>Space</Kbd> tạm dừng
-                  </span>
-                  {/* Chỉ mời dùng `D` khi nó THẬT SỰ làm được gì: khái niệm chưa neo vị trí thì phím
+                  <PomodoroClockRing
+                    elapsedMs={timer.phaseElapsedMs}
+                    targetMs={timer.phaseTargetMs}
+                    pomodorosCompleted={timer.pomodorosCompleted}
+                    config={timer.config}
+                  />
+
+                  <SessionTally
+                    focusedMs={timer.focusedMs}
+                    strictMode={timer.strictMode}
+                    awayCount={timer.awayCount}
+                    awayTotalMs={timer.awayTotalMs}
+                  />
+
+                  <div
+                    id="dieu-khien"
+                    tabIndex={-1}
+                    className="flex items-center gap-2.5 outline-none"
+                  >
+                    <Button
+                      type="button"
+                      className="bg-focus-session/12 border-focus-session/45 text-focus-session hover:bg-focus-session/20 border font-semibold"
+                      onClick={() =>
+                        timer.runState === 'running' ? timer.pause() : timer.resume()
+                      }
+                    >
+                      {timer.runState === 'running' ? <Pause /> : <Play />}
+                      {timer.runState === 'running' ? 'Tạm dừng' : 'Tiếp tục'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      loading={isEnding}
+                      disabled={isCancelling}
+                      onClick={() => void handleEnd()}
+                    >
+                      Kết thúc phiên học
+                    </Button>
+                  </div>
+
+                  <p className="text-muted-foreground flex flex-wrap items-center justify-center gap-3.5 text-[11.5px]">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Kbd>Space</Kbd> tạm dừng
+                    </span>
+                    {/* Chỉ mời dùng `D` khi nó THẬT SỰ làm được gì: khái niệm chưa neo vị trí thì phím
                     này không mở nổi mức nào, quảng cáo nó chỉ tạo một lối tắt bấm vào không phản
                     hồi — tệ hơn là không nhắc. Lý do khoá đã nằm ở tooltip của segment. */}
-                  {sessionDocument.unavailableReason === null && (
+                    {sessionDocument.unavailableReason === null && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Kbd>D</Kbd> tài liệu
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1.5">
-                      <Kbd>D</Kbd> tài liệu
+                      <Kbd>N</Kbd> ghi chú
                     </span>
-                  )}
-                </p>
-              </>
-            )}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        {/* FS-05: rail ghi chú NỔI bên phải — overlay tuyệt đối, KHÔNG reflow màn đang chạy. Chỉ ở
+            màn ĐANG CHẠY (giờ nghỉ / rời tab thì ghi chú tự ẩn như tài liệu #227). §0: hiện/ẩn tức
+            thì, không trượt. `bg-card` đục + viền trái + bóng nhẹ tinted để nổi lên trên nội dung. */}
+        {notesOpen && screen === 'running' && (
+          <NotesPanel
+            // <900px: khối tĩnh xếp dưới stage (đồng hồ ở trên vẫn thấy), cao tối đa 45vh tự cuộn.
+            // ≥900px: rail nổi tuyệt đối bên phải, KHÔNG reflow đồng hồ. Khớp @media của mockup.
+            className="border-border max-h-[45vh] w-full flex-none border-t min-[900px]:absolute min-[900px]:inset-y-0 min-[900px]:right-0 min-[900px]:z-10 min-[900px]:max-h-none min-[900px]:w-[min(340px,85vw)] min-[900px]:border-l min-[900px]:border-t-0 min-[900px]:shadow-[-6px_0_20px_-14px_oklch(0_0_0_/_0.1)]"
+            sessionId={session.id}
+            conceptId={item.conceptId}
+            conceptName={item.name}
+          />
+        )}
+      </div>
 
       <p className="sr-only" role="status" aria-live="polite">
         {timer.announcement}
