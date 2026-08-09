@@ -47,9 +47,31 @@ export type GetTodayQueueQuery = z.infer<typeof getTodayQueueQuerySchema>;
  * `schema.prisma`), gửi lên sẽ 400 VALIDATION_ERROR chứ không im lặng thành no-op.
  * `'done'` vẫn không nhận: chưa code path nào ghi giá trị đó, và nó không phải việc của người dùng.
  */
-export const updateReviewQueueItemSchema = z.object({
-  status: z.enum(['skipped', 'pending']),
-});
+const updateStatusBodySchema = z.object({ status: z.enum(['skipped', 'pending']) }).strict();
+
+/**
+ * Nhánh thứ hai: **hoãn đến mai** (DB-09 / #233). Cờ trần, không tham số.
+ *
+ * `snooze` KHÔNG mang ngày: biên "đầu ngày mai theo giờ VN" thuộc về server (`getVnTomorrowStartUtc`),
+ * cùng mốc mà streak của #200 dùng. Cho client gửi `snoozedUntil` là giao mốc ngày cho một cái
+ * đồng hồ ở múi giờ bất kỳ, và mở đường cho `now + 24h` mà AC cấm thẳng.
+ *
+ * `z.literal(true)` chứ không phải `z.boolean()`: `{ "snooze": false }` sẽ là một lệnh không có
+ * nghĩa (không-hoãn), và nếu nhận thì nó lặng lẽ thành no-op 200 — đúng loại phản hồi khiến
+ * người gọi tưởng đã hoãn xong.
+ */
+const snoozeBodySchema = z.object({ snooze: z.literal(true) }).strict();
+
+/**
+ * Hai hình dạng, một endpoint. Đây là body của **cùng một tài nguyên**, nên gộp bằng union chứ
+ * không đẻ endpoint thứ hai (AC #233). Hai shape khác nhau vì hai thao tác đổi hai trục khác
+ * nhau: "bỏ qua" đổi `status`, "hoãn" đổi *ngày đến hạn* — và giữ nguyên `status`.
+ *
+ * Cộng thuần, không sửa nhánh cũ: `{ status }` mà #224/#225 đang gửi live đi qua đây y hệt như
+ * trước. `.strict()` ở cả hai nhánh nên một body lẫn cả `status` lẫn `snooze` bị 400 rõ ràng
+ * thay vì để một trong hai âm thầm rơi mất.
+ */
+export const updateReviewQueueItemSchema = z.union([updateStatusBodySchema, snoozeBodySchema]);
 
 export type UpdateReviewQueueItemInput = z.infer<typeof updateReviewQueueItemSchema>;
 
