@@ -5,6 +5,7 @@ import {
   formatMinutesSecondsPhrase,
   cyclesToWords,
   formatClockTime,
+  formatPageAnchor,
 } from './format';
 
 describe('formatClock', () => {
@@ -74,5 +75,24 @@ describe('cyclesToWords', () => {
 describe('formatClockTime', () => {
   it('returns an HH:mm shaped string', () => {
     expect(formatClockTime(new Date(2026, 7, 8, 22, 5, 0))).toMatch(/^\d{2}:\d{2}$/);
+  });
+});
+
+describe('formatPageAnchor', () => {
+  it('renders a single page when from and to are equal', () => {
+    expect(formatPageAnchor(41, 41)).toBe('tr. 41');
+  });
+
+  it('renders a range with an en dash when the excerpt spans pages', () => {
+    expect(formatPageAnchor(41, 43)).toBe('tr. 41–43');
+  });
+
+  it('treats a null pageTo as a single page', () => {
+    expect(formatPageAnchor(41, null)).toBe('tr. 41');
+  });
+
+  it('returns null when there is no anchor at all', () => {
+    expect(formatPageAnchor(null, null)).toBeNull();
+    expect(formatPageAnchor(null, 43)).toBeNull();
   });
 });

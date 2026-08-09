@@ -65,3 +65,16 @@ export function formatRelativeDayTime(date: Date, now: Date = new Date()): strin
   const dateLabel = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
   return `${time} ngày ${dateLabel}`;
 }
+
+/**
+ * Neo vị trí của một trích đoạn trong tệp gốc: `tr. 41` khi đoạn nằm gọn một trang, `tr. 41–43` khi
+ * nó bắc qua nhiều trang. `null` khi không có neo — gọi là "tr. null" thì thà đừng hiện dòng nào.
+ *
+ * Gạch ngang là en dash (–) chứ không phải hyphen: đây là một KHOẢNG trang, cùng quy ước với khối
+ * nguồn ở panel khái niệm (`ConceptSourceList`) — hai chỗ cùng nói một chuyện phải trông như nhau.
+ */
+export function formatPageAnchor(pageFrom: number | null, pageTo: number | null): string | null {
+  if (pageFrom === null) return null;
+  if (pageTo === null || pageTo === pageFrom) return `tr. ${pageFrom}`;
+  return `tr. ${pageFrom}–${pageTo}`;
+}
