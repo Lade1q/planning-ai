@@ -195,6 +195,24 @@ export const planApi = {
     return response.data.data;
   },
 
+  /**
+   * GET /plans/:id/documents/:documentId — the original file, for deep C5 verification (#203).
+   *
+   * Fetched as a blob rather than linked to directly: auth is a Bearer token in a header
+   * (`apiClient`), not a cookie, so a bare `<a href target="_blank">` would open a tab that
+   * sends no token and gets a 401. Going through `apiClient` also means a request landing on
+   * an expired token still hits the refresh-and-retry interceptor.
+   */
+  getDocumentFile: async (planId: string, documentId: string): Promise<Blob> => {
+    const response = await apiClient.get<Blob>(ENDPOINTS.PLANS.DOCUMENT_FILE(planId, documentId), {
+      responseType: 'blob',
+      // A scanned PDF can be several MB; the 10s default is tuned for JSON, and the upload
+      // cap (10MB) is the real bound on how long this can legitimately take.
+      timeout: 60000,
+    });
+    return response.data;
+  },
+
   retryPlan: async (id: string): Promise<void> => {
     await apiClient.post(ENDPOINTS.PLANS.RETRY(id));
   },

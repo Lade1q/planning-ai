@@ -231,6 +231,7 @@ export function ConceptDetailPanel({
               Trích từ tài liệu
             </h4>
             <ConceptSourceList
+              planId={planId}
               sources={detail?.sources ?? []}
               conceptName={conceptName}
               prerequisiteNames={prerequisites.map((p) => p.name)}
