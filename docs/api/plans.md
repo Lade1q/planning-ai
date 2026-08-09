@@ -543,7 +543,7 @@ Cạnh (`ConceptEdge`) thì **dựng lại toàn bộ** theo bản mới — c�
   { "status": "archived" }
   ```
 
-  Chỉ nhận `"archived"` (lưu trữ) hoặc `"active"` (khôi phục). Giá trị `"draft"` bị từ chối — chỉ pipeline phân tích được đặt trạng thái đó; cho client gửi sẽ đẩy một Plan đã có đồ thị đầy đủ kẹt vĩnh viễn ở tab "Đang phân tích".
+  Chỉ nhận `"archived"` (lưu trữ) hoặc `"active"` (khôi phục). Giá trị `"draft"` bị từ chối — chỉ pipeline phân tích được đặt trạng thái đó.
 
 - **Response thành công (HTTP 200 OK):**
 
@@ -566,19 +566,35 @@ Cạnh (`ConceptEdge`) thì **dựng lại toàn bộ** theo bản mới — c�
 
 - **Lỗi body sai (HTTP 400 Bad Request):** `code: "VALIDATION_ERROR"`.
 
-- **Lỗi Plan đang ở `draft` (HTTP 409 Conflict):**
+- **Lỗi Plan đang ở `draft` (HTTP 409 Conflict):** một `draft` bị chặn ở **cả hai chiều** — kể từ #265, `draft` không còn là "đang phân tích" thoáng qua mà là trạng thái sống lâu "đã phân tích xong, chờ xác nhận đồ thị", nên message phân biệt rõ theo `status` gửi lên:
 
-  ```json
-  {
-    "success": false,
-    "error": {
-      "code": "STATUS_TRANSITION_NOT_ALLOWED",
-      "message": "A plan that is still being analysed cannot be archived"
+  - `{ "status": "archived" }`:
+
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "STATUS_TRANSITION_NOT_ALLOWED",
+        "message": "An unconfirmed plan cannot be archived — confirm its concept graph, or delete it"
+      }
     }
-  }
-  ```
+    ```
 
-  Lưu trữ là cách cất đi tài liệu đã học xong; một `draft` chưa có nội dung nào để cất — thao tác áp dụng cho nó là retry (mục 5) hoặc xóa (mục 8).
+    Lưu trữ là cách cất đi kế hoạch đã học xong; một draft chưa xác nhận đồ thị chưa có gì để cất — thao tác áp dụng cho nó là xác nhận đồ thị (mục 4), retry (mục 5), hoặc xóa (mục 8).
+
+  - `{ "status": "active" }`:
+
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "STATUS_TRANSITION_NOT_ALLOWED",
+        "message": "A draft plan becomes active by confirming its concept graph"
+      }
+    }
+    ```
+
+    `draft → active` chỉ đi qua một cửa duy nhất: `PUT /plans/:id/graph {confirm: true}` (mục 4). Endpoint này không phải lối tắt cho bước xác nhận đó.
 
 - **Lỗi ID không đúng định dạng UUID (HTTP 400)**, **không tìm thấy Plan (HTTP 404)** và **truy cập Plan người khác (HTTP 403)**: giống hệt mục 3.
 
