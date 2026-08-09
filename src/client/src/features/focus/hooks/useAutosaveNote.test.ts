@@ -127,4 +127,64 @@ describe('useAutosaveNote', () => {
 
     Object.defineProperty(navigator, 'onLine', { value: original, configurable: true });
   });
+
+  it('does not fire a second create while one is already in flight', async () => {
+    let resolveCreate: (n: SessionNote) => void = () => {};
+    api.create.mockReturnValue(
+      new Promise<SessionNote>((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    api.update.mockResolvedValue(note({ id: 'n-1', body: 'ab' }));
+    const { result } = mount();
+    await flush();
+
+    act(() => result.current.setDraft('a'));
+    await act(async () => void (await vi.advanceTimersByTimeAsync(800)));
+    expect(api.create).toHaveBeenCalledTimes(1); // in flight
+
+    // Edit again while the create is still pending — the debounce fires but the in-flight guard
+    // must skip, so no second create goes out.
+    act(() => result.current.setDraft('ab'));
+    await act(async () => void (await vi.advanceTimersByTimeAsync(800)));
+    expect(api.create).toHaveBeenCalledTimes(1);
+
+    // Resolve the create → the newer body is saved via PATCH on the reschedule.
+    await act(async () => {
+      resolveCreate(note({ id: 'n-1', body: 'a' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => void (await vi.advanceTimersByTimeAsync(800)));
+    expect(api.create).toHaveBeenCalledTimes(1);
+    expect(api.update).toHaveBeenCalledWith(SESSION, 'n-1', 'ab');
+  });
+
+  it('resends the kept draft when the connection returns', async () => {
+    const original = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    api.create
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValueOnce(note({ id: 'n-1', body: 'x' }));
+
+    const { result } = mount();
+    await flush();
+    act(() => result.current.setDraft('x'));
+    await act(async () => void (await vi.advanceTimersByTimeAsync(800)));
+    expect(result.current.status).toBe('offline');
+    expect(localStorage.getItem(`recall.sessionNote.draft.${SESSION}`)).toBeTruthy();
+
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.create).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe('saved');
+    expect(localStorage.getItem(`recall.sessionNote.draft.${SESSION}`)).toBeNull();
+
+    Object.defineProperty(navigator, 'onLine', { value: original, configurable: true });
+  });
 });
