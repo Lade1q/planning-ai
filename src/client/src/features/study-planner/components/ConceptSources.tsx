@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { planApi } from '../api/plan.api';
+import { fetchDocumentObjectUrl } from '../utils/documentFile';
 import { ConceptSourceExcerpt } from '../types/concept';
 
 // Tên khái niệm là dữ liệu người dùng/AI sinh ra ("Mảng & Con trỏ", "Cây AVL (tự cân bằng)"),
@@ -89,8 +90,8 @@ const FAILURE_MESSAGE: Record<OpenFailure, string> = {
  *
  * Là `<button>` chứ không phải `<a href>`, và đó là điều bắt buộc chứ không phải lựa chọn thẩm
  * mỹ: app xác thực bằng Bearer token trong header (`apiClient`), không phải cookie — một link
- * trần mở tab mới sẽ không mang theo token và chỉ nhận về 401. Nên phải tải blob qua apiClient
- * rồi mới mở.
+ * trần mở tab mới sẽ không mang theo token và chỉ nhận về 401. Phần lấy bytes → object URL nằm
+ * ở `fetchDocumentObjectUrl`; component này chỉ quyết định *cách bày* (mở tab + `#page=N`).
  *
  * Số trang chỉ hiện cho PDF. Tài liệu `text`/`image` VẪN có thể mang `pageFrom` trong DB (văn
  * bản dán vào được đánh trang lúc phân tích), nhưng không có trình xem nào nhảy tới trang đó
@@ -126,16 +127,15 @@ function OpenDocumentButton({ planId, source }: { planId: string; source: Concep
     setIsOpening(true);
 
     try {
-      const blob = await planApi.getDocumentFile(planId, source.documentId);
-      const objectUrl = URL.createObjectURL(blob);
+      const { url, revoke } = await fetchDocumentObjectUrl(planId, source.documentId);
       // `#page=N` là best-effort đúng như ràng buộc #203: trình xem PDF của Chrome/Edge hiểu,
       // trình khác bỏ qua và mở từ đầu tệp.
-      tab.location.href = page !== null ? `${objectUrl}#page=${page}` : objectUrl;
+      tab.location.href = page !== null ? `${url}#page=${page}` : url;
 
-      // Thu hồi sớm thì tab kia chưa kịp tải; không thu hồi thì giữ nguyên tệp trong bộ nhớ
-      // tới lúc rời trang. Hoãn lại là đủ cho lượt tải đầu — đánh đổi ở đây là bấm F5 trong
-      // tab tài liệu sau một phút sẽ hỏng.
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      // Tab kia giờ nằm ngoài tầm với, nên chỉ còn cách hẹn giờ: thu hồi sớm thì nó chưa kịp
+      // tải, không thu hồi thì giữ nguyên tệp trong bộ nhớ tới lúc rời trang. Hoãn lại là đủ
+      // cho lượt tải đầu — đánh đổi là bấm F5 trong tab tài liệu sau một phút sẽ hỏng.
+      setTimeout(revoke, 60000);
     } catch {
       tab.close();
       setFailure('fetch-failed');
