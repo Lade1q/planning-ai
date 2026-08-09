@@ -283,7 +283,7 @@ describe('getSessionSummary', () => {
 
     const result = await getSessionSummary(SESSION_ID, USER_ID);
 
-    expect(result.traceback).toEqual([
+    expect(result.reviewSchedule).toEqual([
       {
         conceptId: 'prereq-uuid',
         name: 'Giới hạn hàm số',
@@ -350,14 +350,14 @@ describe('getSessionSummary', () => {
 
     const result = await getSessionSummary(SESSION_ID, USER_ID);
 
-    expect(result.traceback.map((item) => [item.reason, item.name])).toEqual([
+    expect(result.reviewSchedule.map((item) => [item.reason, item.name])).toEqual([
       ['traceback', 'Giới hạn hàm số'],
       ['traceback', 'Đệ quy nền'],
       ['spaced_repetition', 'Stack'],
       ['spaced_repetition', 'Recursion'],
     ]);
     // The dates the "Phiên kế tiếp" section counts days from must survive the read.
-    expect(result.traceback.map((item) => item.scheduledFor)).toEqual([
+    expect(result.reviewSchedule.map((item) => item.scheduledFor)).toEqual([
       TRACEBACK_DUE,
       TRACEBACK_DUE,
       new Date('2026-08-06T10:00:00.000Z'),
@@ -385,7 +385,7 @@ describe('getSessionSummary', () => {
     const result = await getSessionSummary(SESSION_ID, USER_ID);
 
     // The whole point of the widening: a student who did well used to get [] here.
-    expect(result.traceback).toEqual([
+    expect(result.reviewSchedule).toEqual([
       {
         conceptId: CONCEPT_A,
         name: 'Stack',
@@ -410,7 +410,7 @@ describe('getSessionSummary', () => {
 
     const result = await getSessionSummary(SESSION_ID, USER_ID);
 
-    expect(result.traceback).toEqual([]);
+    expect(result.reviewSchedule).toEqual([]);
     // No source-concept lookup to make, so only loadConceptSummaries' own query ran.
     expect(mockedPrisma.concept.findMany).toHaveBeenCalledTimes(1);
   });

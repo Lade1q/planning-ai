@@ -267,14 +267,14 @@ export interface SessionSummaryResponse {
   concepts: SessionSummaryConceptResponse[];
   summary: SessionSummaryReport;
   /**
-   * Every review row this session queued, traceback prerequisites first (by `depth`), then the
-   * per-concept spaced-repetition schedule (by `scheduledFor`) — the order the mockup's queue
-   * reads in, "hai khái niệm nền lên đầu hàng đợi". Split it by `reason`, not by position: a
-   * session that triggered no traceback returns only `spaced_repetition` rows, and that is the
-   * whole content of the summary screen's schedule section rather than an empty state.
+   * Every review row this session queued, as one queue: traceback prerequisites first (by
+   * `depth`), then the per-concept spaced-repetition schedule (by `scheduledFor`). That is the
+   * order the summary screen reads it in — "hai khái niệm nền lên đầu hàng đợi" — and the
+   * traceback block is this same list filtered to `reason === 'traceback'`, not a second array.
    *
-   * Named `traceback` for the field that used to hold only those rows; kept as-is so the
-   * in-flight I6.7 client (#119) does not have to be rewritten around a rename.
+   * Split it by `reason`, never by position: a session that triggered no traceback returns only
+   * `spaced_repetition` rows, and those are the whole content of the schedule section rather
+   * than an empty state.
    */
-  traceback: SessionSummaryReviewItemResponse[];
+  reviewSchedule: SessionSummaryReviewItemResponse[];
 }

@@ -237,7 +237,7 @@ export async function getSessionSummary(
   }
 
   const queue = parseConceptQueue(session.conceptQueue);
-  const [concepts, traceback] = await Promise.all([
+  const [concepts, reviewSchedule] = await Promise.all([
     loadConceptSummaries(sessionId, queue),
     loadReviewScheduleForSession(sessionId),
   ]);
@@ -302,6 +302,6 @@ export async function getSessionSummary(
     durationMinutes,
     concepts,
     summary,
-    traceback,
+    reviewSchedule,
   };
 }

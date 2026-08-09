@@ -57,14 +57,24 @@ Header `Authorization: Bearer <TOKEN>`.
         "generatedByAi": true,
         "message": null
       },
-      "traceback": [
+      "reviewSchedule": [
         {
           "conceptId": "c4e5f6a7-...-uuid",
           "name": "Giới hạn hàm số",
           "reason": "traceback",
           "depth": 1,
           "sourceConceptName": "Đạo hàm riêng",
-          "status": "pending"
+          "status": "pending",
+          "scheduledFor": "2026-08-09T09:35:31.435Z"
+        },
+        {
+          "conceptId": "b2d3e4f5-...-uuid",
+          "name": "Đạo hàm riêng",
+          "reason": "spaced_repetition",
+          "depth": null,
+          "sourceConceptName": null,
+          "status": "pending",
+          "scheduledFor": "2026-08-21T09:35:31.435Z"
         }
       ]
     }
@@ -76,8 +86,22 @@ Header `Authorization: Bearer <TOKEN>`.
   `summary.message` chứa nguyên văn: _"Không thể tổng hợp nhận xét lúc này."_ Bảng điểm
   (`concepts`) vẫn luôn đầy đủ và chính xác trong mọi trường hợp.
 
-  `traceback` đọc thẳng từ `ReviewQueueItem` (đã ghi bởi I7.2 khi từng khái niệm kết thúc trong
-  phiên này) — không tính lại. Rỗng nếu phiên không có khái niệm nào cần truy ngược.
+  `reviewSchedule` đọc thẳng từ `ReviewQueueItem` (đã ghi bởi I7.2 khi từng khái niệm kết thúc
+  trong phiên này) — không tính lại. Đây là **một hàng đợi duy nhất** chứa cả hai loại, phân biệt
+  bằng `reason`:
+
+  - `traceback` — khái niệm nền mà AE-08 chèn lên trước khi khái niệm vừa học bị chấm yếu.
+    `depth` là `1`/`2`, `sourceConceptName` là khái niệm đã kích hoạt truy ngược, và
+    `scheduledFor` là **ngay lập tức** (AE-07 bước 6).
+  - `spaced_repetition` — dòng lịch ôn mà **mọi** khái niệm chấm xong đều có. `depth` và
+    `sourceConceptName` luôn `null`; `scheduledFor` là ngày quay lại theo mức độ ghi nhớ.
+
+  Thứ tự trả về: nhóm `traceback` trước (theo `depth` tăng dần), rồi nhóm `spaced_repetition`
+  (theo `scheduledFor` tăng dần). Client lọc theo `reason` chứ **không** theo vị trí. Khối
+  Traceback trên màn kết quả chính là mảng này lọc `reason === 'traceback'`.
+
+  Chỉ rỗng khi phiên không xếp lịch được cho khái niệm nào (ví dụ không khái niệm nào chấm được
+  điểm). Phiên không kích hoạt truy ngược **vẫn** trả về đầy đủ các dòng `spaced_repetition`.
 
 - **Response lỗi:**
 
