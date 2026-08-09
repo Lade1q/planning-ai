@@ -154,3 +154,47 @@ export interface AbandonInterviewResponse {
   session: InterviewSessionState;
   conceptCompleted: ConceptCompletedResponse | null;
 }
+
+/** One graded turn of a concept, stripped to what the summary screen charts. */
+export interface SessionSummaryTurnResponse {
+  turnIndex: number;
+  score: number | null;
+  verdict: TurnVerdict | null;
+}
+
+/** One concept's full result for the session, oldest turn first. */
+export interface SessionSummaryConceptResponse {
+  conceptId: string;
+  name: string;
+  /** `null` if the queue reached `completed` before this concept was ever asked. */
+  masteryScore: number | null;
+  turns: SessionSummaryTurnResponse[];
+}
+
+export interface SessionSummaryReviewItemResponse {
+  conceptId: string;
+  name: string;
+  reason: 'traceback' | 'spaced_repetition' | 'deadline_priority' | 'manual';
+  depth: number | null;
+  sourceConceptName: string | null;
+  status: 'pending' | 'skipped';
+  scheduledFor: string | null;
+}
+
+export interface SessionSummaryReport {
+  text: string | null;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  generatedByAi: boolean;
+  message: string | null;
+}
+
+export interface SessionSummaryResponse {
+  sessionId: string;
+  status: InterviewSessionStatus;
+  durationMinutes: number;
+  concepts: SessionSummaryConceptResponse[];
+  summary: SessionSummaryReport;
+  reviewSchedule: SessionSummaryReviewItemResponse[];
+}
