@@ -2,6 +2,7 @@ import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { loadSession, parseConceptQueue } from './interview.service';
 import { summarizeSession, type SessionConceptSummaryInput } from './gemini.service';
+import { sessionMasteryScore } from '../utils/mastery';
 import type { Verdict } from '../schemas/ai-interview.schema';
 import type {
   SessionSummaryConceptResponse,
@@ -96,7 +97,7 @@ async function loadConceptSummaries(
   const [concepts, turns] = await Promise.all([
     prisma.concept.findMany({
       where: { id: { in: queue } },
-      select: { id: true, name: true, masteryScore: true },
+      select: { id: true, name: true },
     }),
     prisma.interviewTurn.findMany({
       where: { sessionId },
@@ -124,11 +125,14 @@ async function loadConceptSummaries(
     // Concept row gone since (re-analysis, SP-05) — nothing left to report for it.
     if (!concept) continue;
 
+    const conceptTurns = turnsByConcept.get(conceptId) ?? [];
     summaries.push({
       conceptId,
       name: concept.name,
-      masteryScore: concept.masteryScore,
-      turns: (turnsByConcept.get(conceptId) ?? []).map((turn) => ({
+      // Suy điểm từ turns của chính phiên này — không đọc Concept.masteryScore (có thể đã bị
+      // một phiên sau đè lên). Xem sessionMasteryScore() / mastery.ts.
+      masteryScore: sessionMasteryScore(conceptTurns),
+      turns: conceptTurns.map((turn) => ({
         turnIndex: turn.turnIndex,
         score: turn.score,
         verdict: turn.verdict,

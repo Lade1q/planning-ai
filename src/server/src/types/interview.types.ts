@@ -219,7 +219,15 @@ export interface SessionSummaryTurnResponse {
 export interface SessionSummaryConceptResponse {
   conceptId: string;
   name: string;
-  /** `null` if the queue reached `completed` (e.g. via UC-12 E1) before this concept was ever asked. */
+  /**
+   * The mastery score THIS session produced for the concept — the weighted average of its own
+   * graded turns (see `sessionMasteryScore` in `utils/mastery.ts`), never the concept's live
+   * `mastery_score`, which a later session may since have overwritten.
+   *
+   * `null` means this session could not grade the concept at all: the queue reached `completed`
+   * before it was ever asked (UC-12 E1), or every turn asked about it failed grading. This is
+   * NOT the same as `0` (graded, answered completely wrong).
+   */
   masteryScore: number | null;
   turns: SessionSummaryTurnResponse[];
 }

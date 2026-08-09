@@ -87,9 +87,13 @@ function baseSession(overrides: Record<string, unknown> = {}) {
 describe('getSessionSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Concept.masteryScore is deliberately a decoy, unrelated to the turn scores below: the
+    // live concept score can belong to a *later* session by the time an old summary is read,
+    // so every assertion in this file that still expects 0.85 / 0.4 only passes if the code
+    // derives masteryScore from this session's own turns, not from this mock field.
     mockedPrisma.concept.findMany.mockResolvedValue([
-      { id: CONCEPT_A, name: 'Stack', masteryScore: 0.85 },
-      { id: CONCEPT_B, name: 'Recursion', masteryScore: 0.4 },
+      { id: CONCEPT_A, name: 'Stack', masteryScore: 0.01 },
+      { id: CONCEPT_B, name: 'Recursion', masteryScore: 0.99 },
     ]);
     mockedPrisma.interviewTurn.findMany.mockResolvedValue([
       { conceptId: CONCEPT_A, turnIndex: 1, score: 0.85, verdict: 'deep' },
@@ -235,12 +239,14 @@ describe('getSessionSummary', () => {
     expect(mockedSummarizeSession).not.toHaveBeenCalled();
     expect(result.summary.generatedByAi).toBe(false);
     expect(result.concepts.every((c) => c.turns.length === 0)).toBe(true);
+    // No turn to grade -> null, never the decoy live Concept.masteryScore from the mock above.
+    expect(result.concepts.every((c) => c.masteryScore === null)).toBe(true);
   });
 
   it('skips a concept whose row was deleted since (re-analysis) without crashing', async () => {
     mockedLoadSession.mockResolvedValue(baseSession());
     mockedPrisma.concept.findMany.mockResolvedValue([
-      { id: CONCEPT_A, name: 'Stack', masteryScore: 0.85 },
+      { id: CONCEPT_A, name: 'Stack', masteryScore: 0.01 },
       // CONCEPT_B missing entirely.
     ]);
     mockedSummarizeSession.mockResolvedValue({
@@ -270,8 +276,8 @@ describe('getSessionSummary', () => {
     ]);
     mockedPrisma.concept.findMany
       .mockResolvedValueOnce([
-        { id: CONCEPT_A, name: 'Stack', masteryScore: 0.85 },
-        { id: CONCEPT_B, name: 'Recursion', masteryScore: 0.4 },
+        { id: CONCEPT_A, name: 'Stack', masteryScore: 0.01 },
+        { id: CONCEPT_B, name: 'Recursion', masteryScore: 0.99 },
       ])
       .mockResolvedValueOnce([{ id: CONCEPT_A, name: 'Stack' }]);
     mockedSummarizeSession.mockResolvedValue({
@@ -455,5 +461,92 @@ describe('getSessionSummary', () => {
       expect.any(Error)
     );
     consoleSpy.mockRestore();
+  });
+
+  /**
+   * masteryScore staleness bug (Sprint 5, DB-03 prep): loadConceptSummaries used to return
+   * Concept.masteryScore — the concept's *live* score — instead of deriving it from this
+   * session's own turns. The cases below pin the fix.
+   */
+  describe("masteryScore is derived from this session's own turns", () => {
+    it("weights this session's 3 graded turns [0.2, 0.3, 0.5]", async () => {
+      mockedLoadSession.mockResolvedValue(baseSession({ conceptQueue: [CONCEPT_A] }));
+      mockedPrisma.interviewTurn.findMany.mockResolvedValue([
+        { conceptId: CONCEPT_A, turnIndex: 1, score: 1.0, verdict: 'deep' },
+        { conceptId: CONCEPT_A, turnIndex: 2, score: 0.5, verdict: 'shallow' },
+        { conceptId: CONCEPT_A, turnIndex: 3, score: 0.0, verdict: 'wrong' },
+      ]);
+      mockedSummarizeSession.mockResolvedValue({
+        summary_text: 'ok',
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+      });
+
+      const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+      expect(result.concepts).toHaveLength(1);
+      expect(result.concepts[0]?.masteryScore).toBe(0.35);
+    });
+
+    it('renormalises to [0.4, 0.6] for a session with 2 graded turns', async () => {
+      mockedLoadSession.mockResolvedValue(baseSession({ conceptQueue: [CONCEPT_A] }));
+      mockedPrisma.interviewTurn.findMany.mockResolvedValue([
+        { conceptId: CONCEPT_A, turnIndex: 1, score: 1.0, verdict: 'deep' },
+        { conceptId: CONCEPT_A, turnIndex: 2, score: 0.0, verdict: 'wrong' },
+      ]);
+      mockedSummarizeSession.mockResolvedValue({
+        summary_text: 'ok',
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+      });
+
+      const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+      expect(result.concepts).toHaveLength(1);
+      expect(result.concepts[0]?.masteryScore).toBe(0.4);
+    });
+
+    it('returns null, not the live Concept score, when this session graded 0 turns', async () => {
+      mockedLoadSession.mockResolvedValue(baseSession({ conceptQueue: [CONCEPT_A] }));
+      mockedPrisma.interviewTurn.findMany.mockResolvedValue([
+        { conceptId: CONCEPT_A, turnIndex: 1, score: null, verdict: null },
+      ]);
+      mockedSummarizeSession.mockResolvedValue({
+        summary_text: 'ok',
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+      });
+
+      const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+      expect(result.concepts).toHaveLength(1);
+      expect(result.concepts[0]?.masteryScore).toBeNull();
+    });
+
+    it("still reports this session's own score after the concept was re-tested in a later session (bug regression)", async () => {
+      mockedLoadSession.mockResolvedValue(baseSession({ conceptQueue: [CONCEPT_A] }));
+      // Concept.masteryScore already belongs to a session AFTER the one being viewed here.
+      mockedPrisma.concept.findMany.mockResolvedValue([
+        { id: CONCEPT_A, name: 'Stack', masteryScore: 0.95 },
+      ]);
+      // This session's own turn scored much lower.
+      mockedPrisma.interviewTurn.findMany.mockResolvedValue([
+        { conceptId: CONCEPT_A, turnIndex: 1, score: 0.3, verdict: 'wrong' },
+      ]);
+      mockedSummarizeSession.mockResolvedValue({
+        summary_text: 'ok',
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+      });
+
+      const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+      expect(result.concepts).toHaveLength(1);
+      expect(result.concepts[0]?.masteryScore).toBe(0.3);
+    });
   });
 });

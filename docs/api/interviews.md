@@ -86,6 +86,11 @@ Header `Authorization: Bearer <TOKEN>`.
   `summary.message` chứa nguyên văn: _"Không thể tổng hợp nhận xét lúc này."_ Bảng điểm
   (`concepts`) vẫn luôn đầy đủ và chính xác trong mọi trường hợp.
 
+  `concepts[].masteryScore` là điểm **phiên này** tạo ra cho khái niệm — trung bình có trọng số
+  `[0.2, 0.3, 0.5]` trên các turn đã chấm của chính phiên `:id`, không phải điểm live hiện tại của
+  khái niệm (`Concept.mastery_score` có thể đã bị một phiên sau đè lên). `null` nghĩa là phiên này
+  không chấm được khái niệm nào — không phải `0`.
+
   `reviewSchedule` đọc thẳng từ `ReviewQueueItem` (đã ghi bởi I7.2 khi từng khái niệm kết thúc
   trong phiên này) — không tính lại. Đây là **một hàng đợi duy nhất** chứa cả hai loại, phân biệt
   bằng `reason`:
