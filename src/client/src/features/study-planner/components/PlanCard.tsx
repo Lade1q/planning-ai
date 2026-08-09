@@ -95,10 +95,11 @@ function progressHint(distribution: MasteryDistribution, total: number): string 
 /**
  * Chân thẻ SP-03: đường vào hàng đợi ôn của đúng kế hoạch này.
  *
- * Hai nhãn, vì con số đếm hàng `ReviewQueueItem` và **bằng 0** khi kế hoạch chưa từng chạy phiên
- * vấn đáp — trong khi bấm vào lại thấy một danh sách gợi ý (fallback A3 dựng thẳng từ `concepts`).
- * "Hàng đợi ôn · 0 khái niệm" dẫn tới một màn có 8 dòng là đúng thứ mockup gọi là dòng dẫn nói
- * dối, nên ca đó mang nhãn riêng của mockup (`screen-plans.html`, thẻ thứ ba).
+ * Hai nhãn, vì con số là số KHÁI NIỆM distinct đang chờ ôn (`reviewQueueConceptCount`, đếm theo
+ * `conceptId` — KHÔNG phải số dòng `ReviewQueueItem`) và **bằng 0** khi kế hoạch chưa từng chạy
+ * phiên vấn đáp — trong khi bấm vào lại thấy một danh sách gợi ý (fallback A3 dựng thẳng từ
+ * `concepts`). "Hàng đợi ôn · 0 khái niệm" dẫn tới một màn có gợi ý là đúng thứ mockup gọi là
+ * dòng dẫn nói dối, nên ca đó mang nhãn riêng của mockup (`screen-plans.html`, thẻ thứ ba).
  */
 function PlanQueueLink({ plan }: { plan: PlanSummary }) {
   const hasQueue = plan.reviewQueueConceptCount > 0;
@@ -143,6 +144,16 @@ function PlanQueueLink({ plan }: { plan: PlanSummary }) {
   );
 }
 
+/**
+ * Whether a `draft` plan has any previously-tested concept — only possible for a plan that
+ * was `active` before, i.e. a SP-05 re-analyze (#170) dropped it back to `draft` for
+ * reconfirmation (#265), not a brand-new plan whose first analysis never ran a test yet.
+ * No extra backend field needed: a first-time draft always has every concept `untested`.
+ */
+function hasPriorProgress(distribution: MasteryDistribution): boolean {
+  return distribution.strong + distribution.learning + distribution.weak > 0;
+}
+
 interface PlanCardProps {
   plan: PlanSummary;
   /** Ticks once a second so the "Đang phân tích" clock advances. */
@@ -166,6 +177,7 @@ export function PlanCard({
   const isAnalysing = plan.analysisStatus === 'pending' || plan.analysisStatus === 'processing';
   const isDraft = plan.status === 'draft';
   const isArchived = plan.status === 'archived';
+  const isReanalyzeDraft = isDraft && hasPriorProgress(plan.masteryDistribution);
 
   const actions = (
     <DropdownMenu>
@@ -262,9 +274,13 @@ export function PlanCard({
 
         <p className="text-muted-foreground mt-3.5 line-clamp-2 text-pretty text-[12.5px] leading-[1.65]">
           {isAnalysing
-            ? 'AI đang trích xuất khái niệm. Đồ thị sẽ mở được ngay khi xong — bạn không cần chờ ở đây.'
+            ? isReanalyzeDraft
+              ? 'AI đang phân tích lại tài liệu. Lịch ôn tạm dừng, khái niệm đã kiểm tra không mất điểm.'
+              : 'AI đang trích xuất khái niệm. Đồ thị sẽ mở được ngay khi xong — bạn không cần chờ ở đây.'
             : awaitingConfirmation
-              ? 'AI đã trích xuất xong. Đối chiếu các khái niệm với tài liệu rồi xác nhận để kế hoạch bắt đầu chạy.'
+              ? isReanalyzeDraft
+                ? 'AI đã phân tích lại xong. Đối chiếu rồi xác nhận để lịch ôn chạy lại — khái niệm đã kiểm tra vẫn giữ nguyên điểm.'
+                : 'AI đã trích xuất xong. Đối chiếu các khái niệm với tài liệu rồi xác nhận để kế hoạch bắt đầu chạy.'
               : (plan.analysisErrorMessage ??
                 'Không trích xuất được khái niệm từ tài liệu này. Mở kế hoạch để xem chi tiết và thử lại.')}
         </p>
@@ -320,13 +336,12 @@ export function PlanCard({
 
       <MasteryBar distribution={plan.masteryDistribution} total={plan.conceptCount} />
 
+      {/* A re-analyze always drops the plan to `draft` before its job starts (#170, #265),
+          so an `active` card here can never itself be mid-analysis — that state renders via
+          the `isDraft` branch above instead. Archived keeps the old progress line; every other
+          active plan gets the #225 review-queue link. */}
       <div className="border-border text-muted-foreground mt-3.5 flex items-center justify-between gap-2 border-t pt-3 text-[12.5px]">
-        {isAnalysing ? (
-          <span className="inline-flex items-center gap-2">
-            <RefreshCw className="size-3.5 flex-none animate-spin" />
-            Đang phân tích lại — đồ thị hiện tại vẫn dùng được
-          </span>
-        ) : isArchived ? (
+        {isArchived ? (
           // Kế hoạch lưu trữ chưa có hành vi hàng đợi nào được demo — giữ nguyên dòng tiến độ cũ.
           progressHint(plan.masteryDistribution, plan.conceptCount)
         ) : (

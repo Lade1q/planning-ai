@@ -694,9 +694,10 @@ async function advanceToNextQuestion(
 
 /**
  * `advanceToNextQuestion`'s fallback-mode counterpart (AE-05 / I6.4): serves the concept's
- * pre-generated cache instead of calling Gemini, and never falls back to `decideNextStep`'s
- * deep/shallow/wrong branching — a flashcard concept always asks every cached question it has,
- * in order, then finishes, whatever the student self-graded (confirmed product decision).
+ * pre-generated cache instead of calling Gemini. Unlike AI mode, `deep`/`shallow` verdicts do
+ * not steer question selection — a flashcard concept asks every cached question it has, in
+ * order, then finishes. But a `wrong` verdict still ends the concept immediately (CF-03/CF-04),
+ * same rule as `decideNextStep`: the student does not have this material.
  */
 async function advanceFallback(
   view: SessionView,
@@ -709,6 +710,10 @@ async function advanceFallback(
     take: MAX_CACHED_QUESTIONS_PER_CONCEPT,
   });
 
+  // CF-03/CF-04: the last graded turn's verdict drives the `wrong` early-exit in the state
+  // machine. Read it from conceptTurns the same way advanceToNextQuestion does for AI mode.
+  const lastGraded = [...view.conceptTurns].reverse().find((turn) => turn.verdict !== null);
+
   const step = resolveFallbackStep({
     cachedQuestionCount: cached.length,
     // Audit finding (real-Gemini manual test): grading failure — the common trigger for
@@ -718,6 +723,7 @@ async function advanceFallback(
     cachedTurnsServed: view.conceptTurns.filter((turn) => turn.source === 'cache_fallback').length,
     totalTurnsServed: view.conceptTurns.length,
     maxTurns: view.session.maxTurnsPerConcept,
+    lastVerdict: lastGraded?.verdict ?? null,
   });
 
   if (step.type === 'finish_concept') {
@@ -1034,13 +1040,25 @@ export async function submitAnswer(
     });
   } catch (error) {
     if (!isAiFailure(error)) throw error;
-    return gradingUnavailable(view, pending);
+    return gradingUnavailable(view, pending, now);
   }
 
-  await prisma.interviewTurn.update({
-    where: { id: pending.id },
+  // #288: bind the grade write to the exact claim this request took. A slow Gemini call can
+  // outlast ANSWER_CLAIM_STALE_MS, letting a newer identical request reclaim the turn — its
+  // claim moves `answeredAt` to a fresh timestamp. Writing on `id` alone would then overwrite
+  // the winner's verdict AND run the state machine a second time, silently dropping a concept
+  // from a multi-concept session. Anchoring on `answeredAt: now` (the mark set by this
+  // request's own claim above) makes the write a no-op once the claim has been lost.
+  const written = await prisma.interviewTurn.updateMany({
+    where: { id: pending.id, answeredAt: now },
     data: { score: graded.score, feedback: graded.feedback, verdict: graded.verdict },
   });
+
+  if (written.count === 0) {
+    // Lost the claim mid-grade: do not advance the state machine again. Replay whatever the
+    // winning request recorded so this one still resolves coherently instead of double-stepping.
+    return replayAnswer(sessionId, userId, pending.id);
+  }
 
   // The decision itself is re-derived from the turn just stored, so this request and a later
   // GET can never disagree about what comes next.
@@ -1060,15 +1078,37 @@ export async function submitAnswer(
 
 /**
  * The answer was already claimed by an identical request. If that request finished, its result
- * is replayed so a double-click looks like one call; if it is still waiting on Gemini, the
- * client is told to wait rather than being given a half-finished state.
+ * is replayed so a double-click looks like one call; if it is still waiting on Gemini, we poll
+ * until the winner's grade lands — Gemini grading typically takes 10–20s (#115), so the window
+ * has to cover that whole range, not just the first couple of seconds.
+ *
+ * Idempotency fix: the original code threw 409 immediately when `verdict === null`, which made
+ * concurrent double-submits both return 409 (the loser saw the winner's not-yet-graded turn).
+ * Now we wait up to `REPLAY_POLL_ATTEMPTS × REPLAY_POLL_INTERVAL_MS` before giving up.
  */
+
+/** How many times to re-read the turn waiting for the winner's grading to land. */
+const REPLAY_POLL_ATTEMPTS = 10;
+/** Milliseconds between re-reads — 10 × 2s = 20s, covering Gemini's worst-case grading time. */
+const REPLAY_POLL_INTERVAL_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function replayAnswer(
   sessionId: string,
   userId: string,
   turnId: string
 ): Promise<SubmitAnswerResponse> {
-  const turn = await prisma.interviewTurn.findUnique({ where: { id: turnId }, select: turnSelect });
+  let turn = await prisma.interviewTurn.findUnique({ where: { id: turnId }, select: turnSelect });
+
+  // Poll briefly for the winner's grading to finish, so the client gets a result instead of an
+  // opaque 409 that it would have to retry blindly.
+  for (let attempt = 0; attempt < REPLAY_POLL_ATTEMPTS && turn?.verdict === null; attempt++) {
+    await sleep(REPLAY_POLL_INTERVAL_MS);
+    turn = await prisma.interviewTurn.findUnique({ where: { id: turnId }, select: turnSelect });
+  }
 
   if (!turn || turn.verdict === null) {
     throw new AppError(
@@ -1103,19 +1143,37 @@ async function replayAnswer(
  * grade_answer was unavailable. The session survives in fallback mode (#115) and the claim is
  * released so the same turn can be answered again — the typed answer is kept so the student
  * does not have to retype it. I6.4 replaces this branch with flashcard self-grading (AE-05).
+ *
+ * #288: only a request that STILL holds the claim may do this. One whose slow Gemini call let a
+ * newer identical request reclaim the turn (a stale-reclaim) must not flip `fallbackMode` — the
+ * turn now belongs to that other request, which may be grading it successfully; flipping here
+ * would strip AI grading from a healthy session for the rest of it, and clearing `answeredAt`
+ * would wipe the winner's claim mark. So the release is bound to this request's own claim, and
+ * the fallback flip runs only when that release actually wrote a row.
  */
 async function gradingUnavailable(
   view: SessionView,
-  pending: TurnRow
+  pending: TurnRow,
+  claimMark: Date
 ): Promise<SubmitAnswerResponse> {
-  const [session] = await prisma.$transaction([
-    prisma.interviewSession.update({
+  const session = await prisma.$transaction(async (tx) => {
+    const released = await tx.interviewTurn.updateMany({
+      where: { id: pending.id, answeredAt: claimMark },
+      data: { answeredAt: null },
+    });
+    if (released.count === 0) return null;
+    return tx.interviewSession.update({
       where: { id: view.session.id },
       data: { fallbackMode: true },
       select: sessionSelect,
-    }),
-    prisma.interviewTurn.update({ where: { id: pending.id }, data: { answeredAt: null } }),
-  ]);
+    });
+  });
+
+  if (session === null) {
+    // Lost the claim mid-grade: touch nothing, and above all do not flip the session. Replay
+    // whatever the winning request recorded so this one still resolves coherently.
+    return replayAnswer(view.session.id, view.session.userId, pending.id);
+  }
 
   return {
     session: toSessionState({ ...view, session }),
@@ -1169,10 +1227,17 @@ export async function submitSelfGrade(
   const score = SELF_GRADE_SCORE[selfGrade];
   const verdict = SELF_GRADE_VERDICT[selfGrade];
 
-  await prisma.interviewTurn.update({
-    where: { id: pending.id },
+  // #288: same claim-bound write as the AI path. The window is far smaller here (no Gemini
+  // await between claim and write), but the invariant is identical — a request that lost its
+  // claim must neither overwrite the verdict nor advance the state machine a second time.
+  const written = await prisma.interviewTurn.updateMany({
+    where: { id: pending.id, answeredAt: now },
     data: { score, verdict },
   });
+
+  if (written.count === 0) {
+    return replayAnswer(sessionId, userId, pending.id);
+  }
 
   const advance = await advanceToNextQuestion(await reloadView(sessionId, userId));
 
