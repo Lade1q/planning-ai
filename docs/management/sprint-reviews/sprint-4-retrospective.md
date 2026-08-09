@@ -14,6 +14,16 @@ Sprint 4 focused heavily on delivering the core functional epics for PA4:
 
 While the Backend team made excellent progress on complex AI and graph algorithms, the Sprint faced significant bottlenecks in Frontend implementation, Quality Assurance (QA), and Documentation, mirroring some of the systemic issues identified in Sprint 3.
 
+### Aggregate Statistics
+
+| Metric | Value |
+|---|---|
+| Total Sprint 4 issues | 65 |
+| Completed within Sprint 4 (by 09/08) | 48 |
+| Remaining OPEN | 17 |
+| Completed overall (as of 09/08) | 48 / 65 |
+| Actual velocity in Sprint 4 | ~73% |
+
 ---
 
 ## 2. What Went Well
