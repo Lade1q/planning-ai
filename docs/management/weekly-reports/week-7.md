@@ -8,8 +8,6 @@ Project Name: Recall AI
 
 Prepared by: **Thai Nguyen Tuan Kiet**
 
- 
-
 Team members:
 
 24127597 - **Thai Nguyen Tuan Kiet** *Project manager + UI/UX Designer*
@@ -27,7 +25,7 @@ Team members:
 | STT | Description | Due Date | Responsibility | %Complete |
 | ----- | :---- | :---- | :---- | :---- |
 | 1 | I4.2 - [UI] Design System & Component Library (Figma) | 29/07/26 | Thai Nguyen Tuan Kiet | 100% |
-| 2 | I4.3 - [UI] Handoff tài liệu cho Frontend | 29/07/26 | Thai Nguyen Tuan Kiet, Nguyen Phuong Gia Bao | 100% |
+| 2 | I4.3 - [UI] Handoff documentation for Frontend | 29/07/26 | Thai Nguyen Tuan Kiet, Nguyen Phuong Gia Bao | 100% |
 | 3 | [EPIC #4] UI Prototyping - Design Redesign | 29/07/26 | Thai Nguyen Tuan Kiet | 100% |
 | 4 | I4.4 - [DOC] UI Design Document for PA3 | 29/07/26 | Thai Nguyen Tuan Kiet, Nguyen Phuong Gia Bao | 100% |
 | 5 | [EPIC #5] Documentation PA3 - Submission Documents | 29/07/26 | Thai Nguyen Tuan Kiet, Nguyen The Quan, Nguyen Minh Phat, Ngo Van Phong | 100% |
@@ -63,4 +61,4 @@ Team members:
 | 3 | [EPIC #6] AI Examiner - Multi-turn Interview | 09/08/26 | Nguyen The Quan, Nguyen Phuong Gia Bao, Nguyen Minh Phat, Ngo Van Phong |
 | 4 | [EPIC #9] PA4 Delivery - Design, Docs & Beta Release 0.5 | 09/08/26 | Thai Nguyen Tuan Kiet, Nguyen The Quan, Nguyen Minh Phat, Ngo Van Phong |
 | 5 | [EPIC] Immediate review schedule + AE-09 as final state of interview session | 09/08/26 | Nguyen The Quan |
-| 6 | [EPIC] Overview Dashboard (DB-01) — entry point of the learning loop | 09/08/26 | Nguyen Phuong Gia Bao, Ngo Van Phong |
+| 6 | [EPIC] Overview Dashboard (DB-01) - entry point of the learning loop | 09/08/26 | Nguyen Phuong Gia Bao, Ngo Van Phong |

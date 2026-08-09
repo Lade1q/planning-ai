@@ -8,8 +8,6 @@ Project Name: Recall AI
 
 Prepared by: **Thai Nguyen Tuan Kiet**
 
- 
-
 Team members:
 
 24127597 - **Thai Nguyen Tuan Kiet** *Project manager + UI/UX Designer*
@@ -48,22 +46,19 @@ Team members:
 
 # **2. Issues and impacts:**
 
-1. **FE is significantly behind BE (same pattern as Sprint 3).** As of 06/08, major FE issues #118 (UI Interview), #119 (UI Session Result + Traceback Panel), #127 (UI Focus Session), #169 (Dashboard UI) and #166 (Profile page) are all still OPEN.
+1. **FE is significantly behind BE (same pattern as Sprint 3).** As of 08/08, major FE issues #119 (UI Session Result + Traceback Panel), and #166 (Profile page) are still Todo,  #169 (Dashboard UI) is In Progress.
 
-2. **Two active bugs flagged on 06/08:** #267 (State Machine does not Traceback / Spaced Repetition when answer is wrong) and #268 (API Idempotency blocks both requests instead of one). Both remain unresolved.
+2. **Several mid-sprint design changes required rework.** Decisions made on 04/08 (merging AE-09 into the Interview screen as the final session state, changing editable review queue behavior) caused cascading updates to DESIGN mockups (#222, #223, #229), BE endpoints (#224), and pending FE tasks. This extended delivery timelines for impacted tasks.
 
-3. **Several mid-sprint design changes required rework.** Decisions made on 04/08 (merging AE-09 into the Interview screen as the final session state, changing editable review queue behavior) caused cascading updates to DESIGN mockups (#222, #223, #229), BE endpoints (#224), and pending FE tasks. This extended delivery timelines for impacted tasks.
-
-4. **Documentation and QA tasks are partially started but at risk.** Status as of 06/08:
+3. **Documentation and QA tasks are partially started but at risk.** Status as of 06/08:
 
    | Issue | Title | Assignee | Status |
    | :---- | :---- | :---- | :---- |
-   | #249 | TA Feedback Remediation Tracker (PA2 + PA3) | Thai Nguyen Tuan Kiet, Nguyen The Quan, Nguyen Minh Phat | OPEN |
-   | #250 | Revise SAD v2.0 | Nguyen The Quan, Ngo Van Phong | OPEN |
+   | #249 | TA Feedback Remediation Tracker (PA2 + PA3) | Thai Nguyen Tuan Kiet, Nguyen The Quan, Nguyen Minh Phat | Todo |
+   | #250 | Revise SAD v2.0 | Nguyen The Quan, Ngo Van Phong | Todo |
    | #251 | Test Plan + Test Cases (≥5/UC) | Nguyen Minh Phat | In Progress |
-   | #252 | Test Execution Report | Nguyen Minh Phat | In Progress |
-   | #253 | Final UI Design (PA4 item b) | Thai Nguyen Tuan Kiet | OPEN |
-   | #226 | Update SPEC docs per 04/08 decisions | Nguyen The Quan, Thai Nguyen Tuan Kiet | OPEN |
+   | #252 | Test Execution Report | Nguyen Minh Phat | Todo |
+   | #253 | Final UI Design (PA4 item b) | Thai Nguyen Tuan Kiet | Todo |
 
 # **3. Next week's goals:**
 
