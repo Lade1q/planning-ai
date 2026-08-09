@@ -4,6 +4,7 @@ import { CreatePlanInput, UpdatePlanStatusInput } from '../schemas/plan.schema';
 import { createStorageService } from './storage.service';
 import { STALE_JOB_THRESHOLD_MS } from './analysis.service';
 import { ON_SCHEDULE_WHERE } from './scheduling.service';
+import { clearQuestionCacheForPlan } from './question-cache.service';
 import { summariseMasteryDistribution } from '../utils/mastery';
 import {
   CreatePlanResponse,
@@ -515,6 +516,12 @@ export async function changePlanDocument(
       });
     }
 
+    // Issue #216: bước merge tiếp theo giữ nguyên id concept, nên nếu không xoá, câu hỏi cache
+    // sinh từ tài liệu cũ sẽ sống sót qua bước kiểm tra idempotent của pregenerateForPlan. Xoá
+    // trước khi tạo job mới để không ai thấy trạng thái job đã trỏ tới tài liệu mới nhưng cache
+    // vẫn còn mô tả tài liệu cũ.
+    await clearQuestionCacheForPlan(tx, planId);
+
     await tx.analysisJob.create({
       data: { planDraftId: planId, fileKey: document.fileKey, status: 'pending' },
     });
@@ -623,6 +630,14 @@ export async function reanalyzePlan(
         'REANALYZE_NOT_ALLOWED'
       );
     }
+
+    // Issue #216: cùng lý do như changePlanDocument — bước merge giữ nguyên id concept, nên
+    // câu hỏi cache sinh từ trước lần reanalyze này sẽ sống sót qua bước kiểm tra idempotent
+    // của pregenerateForPlan nếu không xoá. Lưu ý: nếu đúng lúc đó có phiên interview đang ở
+    // chế độ fallback trên plan này, deck flashcard của phiên đó có thể bị rỗng giữa chừng —
+    // đây là rủi ro đã tồn tại từ trước (reanalyze vốn đã đổi graph ngay dưới một phiên đang
+    // sống), không phải lỗi mới phát sinh do thay đổi này.
+    await clearQuestionCacheForPlan(tx, planId);
 
     await tx.analysisJob.create({
       data: { planDraftId: planId, fileKey: document.fileKey, status: 'pending' },
