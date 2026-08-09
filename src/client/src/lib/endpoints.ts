@@ -17,6 +17,9 @@ export const ENDPOINTS = {
     DOCUMENT: (id: string) => `/api/v1/plans/${id}/document`,
     REANALYZE: (id: string) => `/api/v1/plans/${id}/reanalyze`,
     CONCEPT: (planId: string, conceptId: string) => `/api/v1/plans/${planId}/concepts/${conceptId}`,
+    /** Reads one stored document back (#203) — plural, unlike DOCUMENT above which replaces it. */
+    DOCUMENT_FILE: (planId: string, documentId: string) =>
+      `/api/v1/plans/${planId}/documents/${documentId}`,
   },
   INTERVIEWS: {
     BASE: '/api/v1/interviews',
