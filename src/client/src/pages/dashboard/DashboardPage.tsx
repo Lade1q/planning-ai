@@ -1,23 +1,34 @@
 import { reviewQueueApi } from '@/features/review-queue/api/review-queue.api';
+import { planApi } from '@/features/study-planner/api/plan.api';
 import { dashboardApi } from '@/features/dashboard/api/dashboard.api';
 import { useAsyncResource } from '@/features/dashboard/hooks/useAsyncResource';
 import { BlockError } from '@/features/dashboard/components/BlockError';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { StatStrip, StatStripSkeleton } from '@/features/dashboard/components/StatStrip';
 import { TodayNudge, TodayNudgeSkeleton } from '@/features/dashboard/components/TodayNudge';
+import { PlanCatalog, PlanCatalogSkeleton } from '@/features/dashboard/components/PlanCatalog';
+import { MiniConceptGraph } from '@/features/dashboard/components/MiniConceptGraph';
+import { DeadlinePanel } from '@/features/dashboard/components/DeadlinePanel';
 
 /**
- * Dashboard tổng quan (`/dashboard`, DB-01) — SLICE 1: điểm vào của vòng lặp học tập.
+ * Dashboard tổng quan (`/dashboard`, DB-01) — điểm vào của vòng lặp học tập.
  *
- * Bốn khối theo thứ tự mockup: (1) header chào, (2) gợi ý hôm nay + hàng đợi (DB-04), (3) dải 3
- * chỉ số (DB-01/#200). Danh mục kế hoạch, mini đồ thị và panel "Sắp đến hạn" thuộc slice 2.
+ * Theo thứ tự mockup: (1) header chào; (2) gợi ý hôm nay + hàng đợi (DB-04); (3) dải 3 chỉ số
+ * (DB-01/#200); (4) danh mục kế hoạch `active`; (5) mini Concept Graph chỉ đọc (DB-02) + panel
+ * "Sắp đến hạn".
  *
- * `/review-queue/today` và `/dashboard/stats` là hai nguồn độc lập: mỗi khối tự quản
- * loading/error qua `useAsyncResource`, một cái hỏng không kéo cái kia thành màn trắng.
+ * Ba nguồn dữ liệu độc lập (`/review-queue/today`, `/dashboard/stats`, `/plans`): mỗi khối tự
+ * quản loading/error qua `useAsyncResource`, một cái hỏng không kéo cái kia thành màn trắng.
  */
 export default function DashboardPage() {
   const today = useAsyncResource(() => reviewQueueApi.getToday());
   const stats = useAsyncResource(() => dashboardApi.getStats());
+  const plans = useAsyncResource(() => planApi.listPlans());
+
+  const activePlans = (plans.data ?? []).filter((plan) => plan.status === 'active');
+  // Kế hoạch chứa khái niệm gợi ý hôm nay — dùng để tô đậm thẻ tương ứng và mở đúng đồ thị đó
+  // trong mini graph. Chỉ là gợi ý trực quan: today hỏng thì không tô, mini graph về plan đầu.
+  const currentPlanId = today.data?.items[0]?.planId ?? null;
 
   // A1 (DB-01 [E1]) — tài khoản hoàn toàn trống: mọi chỉ số bằng 0. Ẩn hẳn dải chỉ số thay vì
   // hiện ba số 0 cạnh khối gợi ý rỗng ("trông như app hỏng", mockup A1). Chỉ ẩn khi đã tải xong
@@ -54,6 +65,30 @@ export default function DashboardPage() {
             <StatStrip stats={stats.data} />
           ) : null}
         </section>
+      )}
+
+      {/* (4) Danh mục kế hoạch `active` (DB-01). */}
+      <section className="mb-10">
+        {plans.loading && plans.data === null ? (
+          <PlanCatalogSkeleton />
+        ) : plans.error && plans.data === null ? (
+          <BlockError message="Không tải được danh mục kế hoạch." onRetry={plans.reload} />
+        ) : plans.data ? (
+          <PlanCatalog
+            activePlans={activePlans}
+            hasAnyPlan={plans.data.length > 0}
+            currentPlanId={currentPlanId}
+          />
+        ) : null}
+      </section>
+
+      {/* (5) Mini Concept Graph (DB-02, chỉ đọc) + "Sắp đến hạn" — chỉ khi có kế hoạch `active`.
+          Không có plan active thì hai khối này không có gì để vẽ; danh mục ở trên đã lo onboarding. */}
+      {plans.data !== null && activePlans.length > 0 && (
+        <div className="mb-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.55fr_1fr] lg:items-start">
+          <MiniConceptGraph plans={activePlans} defaultPlanId={currentPlanId} />
+          <DeadlinePanel plans={activePlans} />
+        </div>
       )}
     </div>
   );
