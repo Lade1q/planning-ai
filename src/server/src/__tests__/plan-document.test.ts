@@ -238,6 +238,9 @@ describe('getPlanDocumentFileController', () => {
       expect.stringContaining('inline;')
     );
     expect(res.setHeader).toHaveBeenCalledWith('Content-Length', BYTES.length);
+    // Pin the declared type at the endpoint too, not only via helmet — this route is the one
+    // that returns raw user bytes and must not depend on middleware ordering.
+    expect(res.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
     // A shared cache must never hand one student's upload to the next request bearing a
     // different token.
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('private'));
