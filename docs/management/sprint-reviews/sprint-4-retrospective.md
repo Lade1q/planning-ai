@@ -47,9 +47,9 @@ While the Backend team made excellent progress on complex AI and graph algorithm
 - **Issue:** Decisions made on 04/08 (Week 8) to change the editable review queue behavior and session states caused cascading updates across DESIGN, BE, and pending FE tasks.
 - **Root Cause:** Incomplete edge-case analysis during Sprint Planning led to design flaws being discovered during actual implementation, extending delivery timelines.
 
-### D. Lingering Bugs
-- **Issue:** Critical bugs like #267 (State Machine Traceback failure) and #268 (API Idempotency blocking) were flagged late in the sprint but remained unresolved.
-- **Root Cause:** Lack of a dedicated bug-triage process during the sprint execution phase; developers were too focused on new features to circle back to bugfixes immediately.
+### D. Late Bug Triage
+- **Issue:** Critical bugs like #267 (State Machine Traceback failure) and #268 (API Idempotency blocking) were flagged late in the sprint and only resolved on 08/08 (PR #281, #289) — one day before the deadline, leaving almost no margin.
+- **Root Cause:** Lack of a dedicated bug-triage process during the sprint execution phase; developers were too focused on new features to circle back to bugfixes until the final days.
 
 ---
 
