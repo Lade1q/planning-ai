@@ -151,6 +151,10 @@ async function loadConceptSummaries(
  * Filtering to `reason: 'traceback'` (as this did until #119) hid the schedule of any session
  * that never triggered a traceback — a student who did well got an empty block where their next
  * review dates belong. The summary screen tells the two apart by `reason`.
+ *
+ * Each row carries its own `id` and its `sourceConceptId` out (#310) so the client addresses rows
+ * by identity: `id` is what `PATCH /review-queue/:itemId` takes, and grouping the traceback block
+ * by `sourceConceptId` survives two concepts sharing a name.
  */
 async function loadReviewScheduleForSession(
   sessionId: string
@@ -158,6 +162,7 @@ async function loadReviewScheduleForSession(
   const items = await prisma.reviewQueueItem.findMany({
     where: { sourceSessionId: sessionId },
     select: {
+      id: true,
       conceptId: true,
       reason: true,
       depth: true,
@@ -185,10 +190,12 @@ async function loadReviewScheduleForSession(
 
   return items
     .map((item) => ({
+      id: item.id,
       conceptId: item.conceptId,
       name: item.concept.name,
       reason: item.reason,
       depth: item.depth,
+      sourceConceptId: item.sourceConceptId,
       sourceConceptName: item.sourceConceptId
         ? (sourceNameById.get(item.sourceConceptId) ?? null)
         : null,

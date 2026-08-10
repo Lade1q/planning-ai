@@ -240,11 +240,25 @@ export interface SessionSummaryConceptResponse {
  * both — a session that triggered no traceback still has a review schedule to show.
  */
 export interface SessionSummaryReviewItemResponse {
+  /**
+   * The `ReviewQueueItem`'s own id — the `itemId` of `PATCH /review-queue/:itemId`, which is how
+   * the summary screen's "Bỏ khỏi lịch" reaches this exact row. Returned so the client never has
+   * to re-fetch the whole queue and match rows back by `conceptId` (#310).
+   */
+  id: string;
   conceptId: string;
   name: string;
   reason: ReviewReason;
   /** `1`/`2` for a traceback prerequisite; `null` for a `spaced_repetition` row. */
   depth: number | null;
+  /**
+   * The id of the concept this prerequisite was traced back *from* — group the Traceback block by
+   * this rather than by `sourceConceptName`, which collides when two concepts share a name.
+   * Same nullability as the name beside it: `null` for `spaced_repetition`, and `null` once the
+   * source concept is deleted (soft reference, no FK). Non-null here with a `null`
+   * `sourceConceptName` therefore means exactly that: the source is gone.
+   */
+  sourceConceptId: string | null;
   /** The concept this prerequisite was traced back *from*; `null` if that concept was deleted since, and always `null` for `spaced_repetition`. */
   sourceConceptName: string | null;
   status: ReviewItemStatus;
