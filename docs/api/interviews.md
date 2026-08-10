@@ -59,19 +59,23 @@ Header `Authorization: Bearer <TOKEN>`.
       },
       "reviewSchedule": [
         {
+          "id": "9f1c2b3d-...-uuid",
           "conceptId": "c4e5f6a7-...-uuid",
           "name": "Giới hạn hàm số",
           "reason": "traceback",
           "depth": 1,
+          "sourceConceptId": "b2d3e4f5-...-uuid",
           "sourceConceptName": "Đạo hàm riêng",
           "status": "pending",
           "scheduledFor": "2026-08-09T09:35:31.435Z"
         },
         {
+          "id": "3a7d8e9f-...-uuid",
           "conceptId": "b2d3e4f5-...-uuid",
           "name": "Đạo hàm riêng",
           "reason": "spaced_repetition",
           "depth": null,
+          "sourceConceptId": null,
           "sourceConceptName": null,
           "status": "pending",
           "scheduledFor": "2026-08-21T09:35:31.435Z"
@@ -96,10 +100,21 @@ Header `Authorization: Bearer <TOKEN>`.
   bằng `reason`:
 
   - `traceback` — khái niệm nền mà AE-08 chèn lên trước khi khái niệm vừa học bị chấm yếu.
-    `depth` là `1`/`2`, `sourceConceptName` là khái niệm đã kích hoạt truy ngược, và
-    `scheduledFor` là **ngay lập tức** (AE-07 bước 6).
-  - `spaced_repetition` — dòng lịch ôn mà **mọi** khái niệm chấm xong đều có. `depth` và
-    `sourceConceptName` luôn `null`; `scheduledFor` là ngày quay lại theo mức độ ghi nhớ.
+    `depth` là `1`/`2`, `sourceConceptId`/`sourceConceptName` là khái niệm đã kích hoạt truy ngược,
+    và `scheduledFor` là **ngay lập tức** (AE-07 bước 6).
+  - `spaced_repetition` — dòng lịch ôn mà **mọi** khái niệm chấm xong đều có. `depth`,
+    `sourceConceptId` và `sourceConceptName` luôn `null`; `scheduledFor` là ngày quay lại theo mức
+    độ ghi nhớ.
+
+  Hai định danh bền của mỗi dòng (#310):
+
+  - `id` là id của chính `ReviewQueueItem` — đây là `:itemId` của
+    [`PATCH /review-queue/:itemId`](./review-queue.md), tức nút "Bỏ khỏi lịch" trên màn kết quả gọi
+    thẳng bằng giá trị này, **không** phải fetch lại `/review-queue` rồi dò theo `conceptId`.
+  - `sourceConceptId` là id của khái niệm đã kích hoạt truy ngược. Gom nhóm khối Traceback theo id
+    này chứ đừng theo `sourceConceptName` — hai khái niệm trùng tên sẽ dính vào một nhóm. Vì
+    `source_concept_id` là tham chiếu mềm (không FK), khái niệm nguồn bị xoá sẽ cho `sourceConceptId`
+    **vẫn có giá trị** trong khi `sourceConceptName` là `null`.
 
   Thứ tự trả về: nhóm `traceback` trước (theo `depth` tăng dần), rồi nhóm `spaced_repetition`
   (theo `scheduledFor` tăng dần). Client lọc theo `reason` chứ **không** theo vị trí. Khối

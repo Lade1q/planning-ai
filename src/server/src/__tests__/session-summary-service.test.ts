@@ -50,6 +50,7 @@ function reviewRow(overrides: {
   conceptId: string;
   name: string;
   reason: 'traceback' | 'spaced_repetition';
+  id?: string;
   depth?: number | null;
   status?: string;
   scheduledFor?: Date | null;
@@ -57,6 +58,8 @@ function reviewRow(overrides: {
 }) {
   const { name, ...rest } = overrides;
   return {
+    // Distinct from `conceptId` on purpose: the two are different ids and #310 must not swap them.
+    id: `item-${overrides.conceptId}`,
     depth: null,
     status: 'pending',
     scheduledFor: overrides.reason === 'traceback' ? TRACEBACK_DUE : null,
@@ -265,6 +268,7 @@ describe('getSessionSummary', () => {
     mockedLoadSession.mockResolvedValue(baseSession());
     mockedPrisma.reviewQueueItem.findMany.mockResolvedValue([
       {
+        id: 'queue-item-uuid',
         conceptId: 'prereq-uuid',
         reason: 'traceback',
         depth: 1,
@@ -291,10 +295,12 @@ describe('getSessionSummary', () => {
 
     expect(result.reviewSchedule).toEqual([
       {
+        id: 'queue-item-uuid',
         conceptId: 'prereq-uuid',
         name: 'Giới hạn hàm số',
         reason: 'traceback',
         depth: 1,
+        sourceConceptId: CONCEPT_A,
         sourceConceptName: 'Stack',
         status: 'pending',
         scheduledFor: TRACEBACK_DUE,
@@ -393,15 +399,89 @@ describe('getSessionSummary', () => {
     // The whole point of the widening: a student who did well used to get [] here.
     expect(result.reviewSchedule).toEqual([
       {
+        id: `item-${CONCEPT_A}`,
         conceptId: CONCEPT_A,
         name: 'Stack',
         reason: 'spaced_repetition',
         depth: null,
+        sourceConceptId: null,
         sourceConceptName: null,
         status: 'pending',
         scheduledFor: new Date('2026-08-16T10:00:00.000Z'),
       },
     ]);
+  });
+
+  /**
+   * #310: the summary screen used to have neither identifier, so it re-fetched the whole
+   * `/review-queue` and matched rows back by `conceptId` to find the `itemId` its "Bỏ khỏi lịch"
+   * button needs. Both ids now come straight out of the row.
+   */
+  it('carries each row own id (the itemId a PATCH takes) and its sourceConceptId', async () => {
+    mockedLoadSession.mockResolvedValue(baseSession());
+    mockedPrisma.reviewQueueItem.findMany.mockResolvedValue([
+      reviewRow({
+        id: 'item-prereq',
+        conceptId: 'prereq-uuid',
+        name: 'Giới hạn hàm số',
+        reason: 'traceback',
+        depth: 1,
+        sourceConceptId: CONCEPT_A,
+      }),
+      reviewRow({ conceptId: CONCEPT_B, name: 'Recursion', reason: 'spaced_repetition' }),
+    ]);
+    mockedSummarizeSession.mockResolvedValue({
+      summary_text: 'ok',
+      strengths: [],
+      weaknesses: [],
+      recommendations: [],
+    });
+
+    const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+    expect(result.reviewSchedule.map((item) => [item.id, item.conceptId])).toEqual([
+      ['item-prereq', 'prereq-uuid'],
+      [`item-${CONCEPT_B}`, CONCEPT_B],
+    ]);
+    // Grouping the traceback block by this id (not by the name) is what survives a name collision.
+    expect(result.reviewSchedule.map((item) => item.sourceConceptId)).toEqual([CONCEPT_A, null]);
+  });
+
+  /**
+   * The two source fields are independent: the id is the row's own column and survives, while the
+   * name is a soft-reference lookup that comes back empty once the source concept is deleted.
+   */
+  it('keeps sourceConceptId when the source concept it points at is gone', async () => {
+    mockedLoadSession.mockResolvedValue(baseSession());
+    mockedPrisma.reviewQueueItem.findMany.mockResolvedValue([
+      reviewRow({
+        conceptId: 'prereq-uuid',
+        name: 'Giới hạn hàm số',
+        reason: 'traceback',
+        depth: 1,
+        sourceConceptId: 'deleted-concept-uuid',
+      }),
+    ]);
+    // Second call is the batched source lookup: the concept no longer exists.
+    mockedPrisma.concept.findMany
+      .mockResolvedValueOnce([
+        { id: CONCEPT_A, name: 'Stack', masteryScore: 0.85 },
+        { id: CONCEPT_B, name: 'Recursion', masteryScore: 0.4 },
+      ])
+      .mockResolvedValueOnce([]);
+    mockedSummarizeSession.mockResolvedValue({
+      summary_text: 'ok',
+      strengths: [],
+      weaknesses: [],
+      recommendations: [],
+    });
+
+    const result = await getSessionSummary(SESSION_ID, USER_ID);
+
+    expect(result.reviewSchedule[0]).toMatchObject({
+      sourceConceptId: 'deleted-concept-uuid',
+      sourceConceptName: null,
+    });
   });
 
   it('returns an empty schedule when the session queued nothing at all', async () => {
