@@ -70,24 +70,26 @@
 
 ### MODULE 5: DASHBOARD & VISUALIZATION (DB)
 
-| ID    | Tên Use-case                                  | Actors                                   | Priority | MVP?          |
-| ----- | --------------------------------------------- | ---------------------------------------- | -------- | ------------- |
-| DB-01 | Xem Dashboard tổng quan                       | Student, Scheduling & Remediation Engine | **High** | ✅            |
-| DB-02 | Tương tác với Concept Graph Visualization     | Student                                  | **High** | ✅            |
-| DB-03 | Xem lịch sử phiên Interview                   | Student                                  | Medium   | ✅ Sprint 5   |
-| DB-04 | Nhận nhắc nhở ôn tập chủ động (Agentic)       | Scheduling & Remediation Engine, Student | **High** | ✅            |
-| DB-05 | Lọc / Tìm kiếm khái niệm trên đồ thị          | Student                                  | **High** | ✅            |
-| DB-06 | Xem chi tiết khái niệm (Concept Detail Panel) | Student                                  | **High** | ✅            |
-| DB-07 | Xem lịch & Deadline sắp tới (Calendar View)   | Student, Scheduling & Remediation Engine | Medium   | ✅ Sprint 4-5 |
-| DB-08 | Xem lịch sử phiên Focus Session               | Student                                  | Medium   | ✅ Sprint 5   |
-| DB-09 | Điều chỉnh gợi ý ôn tập (Dismiss / Snooze)    | Student                                  | Medium   | ✅ Sprint 4   |
+| ID    | Tên Use-case                                  | Actors                                   | Priority | MVP?        |
+| ----- | --------------------------------------------- | ---------------------------------------- | -------- | ----------- |
+| DB-01 | Xem Dashboard tổng quan                       | Student, Scheduling & Remediation Engine | **High** | ✅          |
+| DB-02 | Tương tác với Concept Graph Visualization     | Student                                  | **High** | ✅          |
+| DB-03 | Xem lịch sử phiên Interview                   | Student                                  | Medium   | ✅ Sprint 5 |
+| DB-04 | Nhận nhắc nhở ôn tập chủ động (Agentic)       | Scheduling & Remediation Engine, Student | **High** | ✅          |
+| DB-05 | Lọc / Tìm kiếm khái niệm trên đồ thị          | Student                                  | **High** | ✅          |
+| DB-06 | Xem chi tiết khái niệm (Concept Detail Panel) | Student                                  | **High** | ✅          |
+| DB-07 | Xem lịch & Deadline sắp tới (Calendar View)   | Student, Scheduling & Remediation Engine | Medium   | ⚠️ POST-MVP |
+| DB-08 | Xem lịch sử phiên Focus Session               | Student                                  | Medium   | ✅ Sprint 5 |
+| DB-09 | Điều chỉnh gợi ý ôn tập (Dismiss / Snooze)    | Student                                  | Medium   | ✅ Sprint 4 |
 
 > ⚠️ **Đã sửa nhãn sprint (chốt 2026-08-11):** ba UC dưới đây được gắn nhãn lúc lập kế hoạch rồi **làm xong sớm hơn dự kiến**, nhãn cũ không được cập nhật theo:
 >
 > - **FS-04** và **FS-05**: `✅ Sprint 4-5` → **`✅ Sprint 4`** (#227 và #228, cả hai đã đóng). FS-05 kèm bảng `session_notes` + 4 endpoint ghi chú.
 > - **DB-09**: `✅ Sprint 5` → **`✅ Sprint 4`** (#233 đã đóng).
 >
-> Các nhãn `Sprint 5` còn lại (SP-09, AE-04, AE-10, DB-03, DB-08, FS-07) **chưa kiểm** trong đợt này — đừng suy ra là đã xong chỉ vì ba dòng trên đã đổi.
+> Và một dòng đi ngược lại — **DB-07**: `✅ Sprint 4-5` → **`⚠️ POST-MVP`**. #234 đã chốt **phương án A** cho MVP (PR #313, đã merge): gỡ hẳn liên kết "Xem lịch →" chết trên Dashboard thay vì dựng màn lịch. Không có issue nào được tạo cho màn lịch, nên DB-07 **nằm ngoài MVP**; nếu sau này làm thì đi theo phương án C — một màn riêng, cần issue riêng. Dữ liệu đã sẵn (`GET /plans` có `deadline`) nên hoãn không tốn gì. Quan hệ `<<extend>>` ở §3 đã đánh dấu theo.
+>
+> Các nhãn `Sprint 5` còn lại (SP-09, AE-04, AE-10, DB-03, DB-08, FS-07) **chưa kiểm** trong đợt này — đừng suy ra là đã xong chỉ vì bốn dòng trên đã đổi.
 
 ---
 
@@ -162,7 +164,7 @@ AE-09 (Kết quả tổng hợp)
 DB-01 (Dashboard)
   ├── <<include>> DB-02 (mini Concept Graph)
   ├── <<include>> DB-04 (Gợi ý hôm nay từ Scheduling & Remediation Engine)
-  └── <<extend>> DB-07 (Deadline Calendar - khi click "Xem lịch")
+  └── <<extend>> DB-07 (Deadline Calendar - khi click "Xem lịch") - POST-MVP, liên kết đã gỡ (#234 phương án A)
 
 DB-02 (Concept Graph)
   ├── <<extend>> DB-05 (Lọc/Tìm kiếm - khi Student click filter)
