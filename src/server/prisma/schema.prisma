@@ -117,6 +117,21 @@ enum DocumentKind {
   text
 }
 
+// --- Sprint 5: Interview v2 — AI phát bằng chứng, code chấm (#330) ---
+
+/// Hai trạng thái DUY NHẤT model được phát cho một điểm-kiểm (§2.1).
+///
+/// `not_discussed` **cố ý không có mặt ở đây**: nó là phép suy tất định lúc đóng khái niệm
+/// (`checkpoint đã chốt − checkpoint có evidence`), không phải thứ model khai. Bớt một mẩu
+/// phán xét khỏi AI, thêm một mẩu cho code — đúng hướng C4.
+///
+/// Giá trị ngoài enum (spike S0 đo được `"Running"` dưới async-lag) KHÔNG tới được cột này:
+/// `sanitizeEvidence` drop trước khi có lệnh ghi nào chạy.
+enum EvidenceStatus {
+  covered
+  contradicted
+}
+
 // ============================================
 // Model Definitions
 // ============================================
@@ -178,15 +193,16 @@ model Concept {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  plan             StudyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
-  edgesFrom        ConceptEdge[]       @relation("EdgeFrom")
-  edgesTo          ConceptEdge[]       @relation("EdgeTo")
-  questionCaches   QuestionCache[]
-  interviewTurns   InterviewTurn[]
-  reviewQueueItems ReviewQueueItem[]
-  conceptSources   ConceptSourceRef[]
-  sessionNotes     SessionNote[]
-  checkpoints      ConceptCheckpoint[]
+  plan              StudyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  edgesFrom         ConceptEdge[]       @relation("EdgeFrom")
+  edgesTo           ConceptEdge[]       @relation("EdgeTo")
+  questionCaches    QuestionCache[]
+  interviewTurns    InterviewTurn[]
+  reviewQueueItems  ReviewQueueItem[]
+  conceptSources    ConceptSourceRef[]
+  sessionNotes      SessionNote[]
+  checkpoints       ConceptCheckpoint[]
+  interviewEvidence InterviewEvidence[]
 
   @@index([planId])
   @@map("concepts")
@@ -298,9 +314,10 @@ model InterviewSession {
   createdAt          DateTime               @default(now()) @map("created_at")
   updatedAt          DateTime               @updatedAt @map("updated_at")
 
-  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan  StudyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
-  turns InterviewTurn[]
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     StudyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  turns    InterviewTurn[]
+  evidence InterviewEvidence[]
 
   @@index([userId])
   @@index([planId])
@@ -339,6 +356,66 @@ model InterviewTurn {
   @@index([sessionId])
   @@index([conceptId])
   @@map("interview_turns")
+}
+
+/// Bằng chứng phỏng vấn cho MỘT điểm-kiểm trong MỘT phiên (#330, §2.2 interview-voice-architecture).
+///
+/// Model phát bằng chứng **per-checkpoint** (`covered | contradicted` + trích lời sinh viên),
+/// KHÔNG phát điểm. `masteryScore` trở thành **phép suy tất định** trên bảng này lúc đóng khái
+/// niệm (#331) ⇒ không còn một ô điểm bị nhiều lượt tranh nhau ghi, nên lớp lỗi write-race #288
+/// biến mất **theo cấu trúc** chứ không nhờ một bản vá. Đường claim per-turn hiện tại vẫn chạy
+/// song song cho tới lúc cutover (§7 coexistence) — bảng này chưa có caller ở #330.
+///
+/// `@@unique([sessionId, conceptId, checkpointId])` là thứ làm ghi nhận **idempotent tự nhiên**:
+/// model re-emit sau reconnect/retry chỉ ghi đè đúng ô của nó, không nhân bản. Rớt connection
+/// giữa chừng thì bằng chứng đã nằm ở server — mở lại khái niệm là đi tiếp từ những điểm-kiểm
+/// chưa có hàng.
+///
+/// Không có cột `timestamp` riêng bên cạnh `createdAt`/`updatedAt`: dưới ngữ nghĩa upsert, hai
+/// mốc có người đọc là "ghi lần đầu" (`createdAt`) và "kết luận hiện tại được ghi lúc nào"
+/// (`updatedAt`). Cột thứ ba chỉ tạo thêm một giá trị có thể lệch với `updatedAt` mà không ai đọc.
+model InterviewEvidence {
+  id             String         @id @default(uuid()) @db.Uuid
+  sessionId      String         @map("session_id") @db.Uuid
+  conceptId      String         @map("concept_id") @db.Uuid
+  /// Điểm-kiểm được đo — **tham chiếu, KHÔNG FK** (chốt 13/08). Checkpoint bị XOÁ lúc phân tích
+  /// lại khi câu chữ rơi khỏi lần trích mới (`analysis.service.ts`), mà `reanalyzePlan` chỉ chặn
+  /// `plan.status !== 'active'` — đúng cái trạng thái của một plan đang được phỏng vấn. Không
+  /// guard nào chặn phân tích lại giữa phiên, nên `Cascade` là bug trên **đường thường**: một lần
+  /// phân tích lại xoá thẳng bằng chứng thật của phiên đang chạy. `Restrict` thì mọi plan từng
+  /// phỏng vấn không phân tích lại được nữa (gãy #170).
+  /// Nhưng lý do đứng được của non-FK là **của riêng nó**, không phải vì hai lựa chọn kia hỏng:
+  /// bằng chứng là bản ghi **bất biến** điều sinh viên ĐÃ nói, không phải một mẩu phụ thuộc vòng
+  /// đời của thước đo. Cùng tiền lệ với `InterviewTurn.sourceDocumentId` ngay trên.
+  checkpointId   String         @map("checkpoint_id") @db.Uuid
+  /// Ảnh chụp `ConceptCheckpoint.text` **tại lúc ghi** — NOT NULL (bảng mới, 0 hàng cũ, mọi lần
+  /// ghi đều đang cầm text trong tay, nên không để hở nullable không có ca dùng). Giữ cho hàng mồ
+  /// côi — checkpoint đã bị xoá — vẫn đọc được "sinh viên đã trả lời điều gì".
+  /// Cửa để mở (CHƯA làm): câu chữ quay lại ở lần trích sau sẽ mang `id` MỚI, nhưng
+  /// `(conceptId, checkpointText)` đúng bằng khoá merge `@@unique([conceptId, text])` của
+  /// `ConceptCheckpoint` ⇒ re-anchor về sau khả thi, không cần migration.
+  checkpointText String         @map("checkpoint_text") @db.VarChar(300)
+  status         EvidenceStatus
+  /// Trích lời sinh viên, nguyên văn — cái để người chấm/kiểm tra soi lại một nhãn. `null` hợp lệ:
+  /// guard chỉ bắt buộc có trích dẫn với `contradicted` (không quote thì hạ, không phạt oan).
+  quote          String?
+  /// Lượt đã sinh ra bằng chứng này ở đường text; `null` cho voice (không có lượt hỏi-đáp rời).
+  /// Không FK cùng lý lẽ với `checkpointId` — và cũng không cần: repo không có đường xoá lượt lẻ,
+  /// lượt chỉ chết theo phiên, mà bằng chứng đã cascade theo phiên rồi.
+  turnRef        String?        @map("turn_ref") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  // Cascade cho hai chiều SỞ HỮU thật: xoá phiên hay xoá khái niệm thì bằng chứng không còn chỗ
+  // để thuộc về. Khác hẳn `checkpointId` ở trên — thước đo bị thay không có nghĩa lời sinh viên
+  // đã nói bị xoá.
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  concept Concept          @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, conceptId, checkpointId])
+  @@index([sessionId])
+  @@index([conceptId])
+  @@map("interview_evidence")
 }
 
 /// Phiên học Pomodoro (FS-01, FS-03)
