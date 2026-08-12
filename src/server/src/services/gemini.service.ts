@@ -22,8 +22,14 @@ import { reconcileVerdict } from '../utils/interview-grading';
 import { mockGenerateQuestion, mockGradeAnswer, mockSummarizeSession } from '../utils/mock-ai';
 import { AppError } from '../middleware/errorHandler';
 
-/** Upper bound on any single Gemini SDK call, so a hang degrades instead of blocking forever. */
-export const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 30_000);
+/**
+ * Upper bound on any single Gemini SDK call, so a hang degrades instead of blocking forever.
+ * `??` only catches null/undefined — an empty or non-numeric env value would otherwise become
+ * 0 or NaN, firing every timeout immediately and silently taking down all AI calls.
+ */
+const rawGeminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS);
+export const GEMINI_TIMEOUT_MS =
+  Number.isFinite(rawGeminiTimeoutMs) && rawGeminiTimeoutMs > 0 ? rawGeminiTimeoutMs : 30_000;
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -61,7 +67,14 @@ export type AiMaterial =
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`Gemini ${label} call timed out after ${GEMINI_TIMEOUT_MS}ms`)),
+      () =>
+        reject(
+          new AppError(
+            `Gemini ${label} call timed out after ${GEMINI_TIMEOUT_MS}ms`,
+            504,
+            'AI_TIMEOUT'
+          )
+        ),
       GEMINI_TIMEOUT_MS
     );
     promise.then(
