@@ -4,6 +4,7 @@ import {
   normalizeCheckpointText,
   normalizeCheckpoints,
   planCheckpointMerge,
+  readExtractedCheckpoints,
 } from '../utils/checkpoint';
 
 /**
@@ -61,6 +62,57 @@ describe('normalizeCheckpoints', () => {
 
   it('returns an empty list for an empty extraction — C = 0 is a valid outcome, not an error', () => {
     expect(normalizeCheckpoints([])).toEqual([]);
+  });
+});
+
+describe('readExtractedCheckpoints', () => {
+  it('treats a real list as an answer to act on', () => {
+    expect(readExtractedCheckpoints(['Điểm A', ' điểm  b '])).toEqual({
+      status: 'committed',
+      texts: ['Điểm A', 'điểm b'],
+    });
+  });
+
+  it('treats a deliberate empty list as an answer too — C = 0 is a decision, not a failure', () => {
+    expect(readExtractedCheckpoints([])).toEqual({ status: 'committed', texts: [] });
+  });
+
+  it('treats null as NO answer, so nothing may be concluded from it', () => {
+    // `conceptExtractSchema` produces null for a field that was absent, null, or not an array.
+    expect(readExtractedCheckpoints(null)).toEqual({ status: 'degraded' });
+  });
+
+  it('treats a non-empty list whose entries all died as degraded, not as empty', () => {
+    // The failure mode that is easy to miss: entry-level `.catch('')` empties the CONTENT while
+    // leaving the array non-empty, so length is what tells "all malformed" from "none given".
+    expect(readExtractedCheckpoints(['', '', '   '])).toEqual({ status: 'degraded' });
+  });
+
+  it('still commits the survivors when only SOME entries died', () => {
+    expect(readExtractedCheckpoints(['', 'Điểm A', ''])).toEqual({
+      status: 'committed',
+      texts: ['Điểm A'],
+    });
+  });
+
+  it('never reports degraded for input that carries at least one usable checkpoint', () => {
+    // The property that matters at the call site: `degraded` must mean "nothing to act on", so a
+    // caller skipping it can never be dropping real checkpoints on the floor.
+    const inputs: (readonly string[] | null)[] = [
+      null,
+      [],
+      [''],
+      ['Điểm A'],
+      ['', 'Điểm A'],
+      ['Điểm A', 'điểm a'],
+    ];
+
+    for (const raw of inputs) {
+      const commitment = readExtractedCheckpoints(raw);
+      if (commitment.status === 'degraded') {
+        expect(normalizeCheckpoints(raw ?? [])).toEqual([]);
+      }
+    }
   });
 });
 

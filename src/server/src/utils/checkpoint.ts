@@ -79,6 +79,44 @@ export function normalizeCheckpoints(raw: readonly string[]): string[] {
   return texts;
 }
 
+/**
+ * What a concept's extracted `checkpoints` field actually told us.
+ *
+ * `committed` carries an answer to act on — INCLUDING an empty one, which legitimately clears a
+ * concept's ruler (`C = 0`). `degraded` means the model produced no readable answer, which is not
+ * the same thing and must not be acted on.
+ */
+export type CheckpointCommitment =
+  { status: 'committed'; texts: string[] } | { status: 'degraded' };
+
+/**
+ * Classifies one concept's raw `checkpoints` field, keeping "the model said none" apart from
+ * "the model said nothing usable".
+ *
+ * The distinction exists because the write path is DESTRUCTIVE: an empty answer deletes every
+ * stored checkpoint of that concept (and, once #330 lands, the evidence pointing at them). A
+ * deletion that large must rest on a positive signal, never on the absence of one — otherwise a
+ * single malformed re-analysis silently drops a concept out of voice assessment, taking the
+ * student's answers with it. Spike S0 established that the model's output cannot be trusted to
+ * satisfy a declared constraint; that same finding forbids reading its failures as statements.
+ *
+ * Two shapes are degraded, and the second is easy to miss:
+ *   - `null` — the field was absent, null, or not an array (`conceptExtractSchema` caught it).
+ *   - a NON-EMPTY array in which every entry was unusable, so normalisation empties it. Entry
+ *     failures leave `''` placeholders rather than removing elements, so the raw length is what
+ *     separates "the model listed four checkpoints, all malformed" from "the model listed none".
+ */
+export function readExtractedCheckpoints(raw: readonly string[] | null): CheckpointCommitment {
+  if (raw === null) {
+    return { status: 'degraded' };
+  }
+  const texts = normalizeCheckpoints(raw);
+  if (texts.length === 0 && raw.length > 0) {
+    return { status: 'degraded' };
+  }
+  return { status: 'committed', texts };
+}
+
 /** The columns of an already-stored checkpoint this merge needs to make its decision. */
 export interface ExistingCheckpoint {
   id: string;
@@ -120,6 +158,11 @@ export interface CheckpointMergePlan {
  * material that is no longer there (a C5 problem) and would inflate `C` against coverage the
  * student can no longer reach. An empty extraction therefore clears the list — `C = 0`, the
  * concept falls back to the text path, which is a defined state rather than a failure.
+ *
+ * Because clearing is destructive, a caller may only reach it with an answer the model actually
+ * gave: classify the field with `readExtractedCheckpoints` first and skip the concept on
+ * `degraded`. This function cannot make that call itself — by the time a list is `[]` it no
+ * longer remembers whether it was empty or emptied.
  */
 export function planCheckpointMerge(
   existing: readonly ExistingCheckpoint[],

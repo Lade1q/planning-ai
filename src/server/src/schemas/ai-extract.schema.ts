@@ -23,11 +23,26 @@ export const conceptExtractSchema = z.object({
   // (INV-1, #329). No weight field by design: a harder checkpoint is simply written as more
   // lines, so scoring keeps one constant in one place (§2.3).
   //
-  // Degrades in two independent steps, because an empty list is a legal answer (`C = 0`, a
-  // concept routed to the text path) while a lost list is not worth failing an extraction over:
-  // a single bad entry becomes `''` and is dropped by `normalizeCheckpoints`; a missing or
-  // non-array field becomes `[]`.
-  checkpoints: z.array(z.string().min(1).max(CHECKPOINT_MAX_LENGTH).catch('')).catch([]),
+  // `null` here is NOT "no checkpoints" — it is "the model did not answer", and the two must
+  // never be collapsed:
+  //   - `[]`   the model deliberately returned none. A real answer: `C = 0`, a concept the
+  //            §2.4 guard routes to the text path.
+  //   - `null` the field was absent, null, or not an array. NO answer, so nothing may be
+  //            concluded from it — `persistCheckpoints` keeps whatever is already stored.
+  // Collapsing them is what would let one malformed re-analysis wipe a concept's whole ruler
+  // (and, once #330 lands, the evidence hanging off it). Spike S0 is why this schema tolerates a
+  // malformed answer at all; it is equally why a malformed answer must not be read as an
+  // authoritative empty one. Nullable rather than a bare `.catch` so the two states are distinct
+  // in the TYPE as well — the same shape `source_page`/`source_excerpt` above already use.
+  //
+  // A single unusable ENTRY is separate and cheaper: it becomes `''`, dropped by
+  // `normalizeCheckpoints`, costing that entry alone. Entry-level failure still leaves a
+  // NON-EMPTY array, which is how `readExtractedCheckpoints` tells "every entry died" (degraded)
+  // apart from a deliberate `[]`.
+  checkpoints: z
+    .array(z.string().min(1).max(CHECKPOINT_MAX_LENGTH).catch(''))
+    .nullable()
+    .catch(null),
 });
 
 export const edgeExtractSchema = z.object({

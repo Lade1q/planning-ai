@@ -53,8 +53,8 @@ Rules:
   checkable on its own. Take them from the material only — never from outside knowledge.
   Give 3 to 6 for a typical concept. A harder or broader concept simply gets MORE of them (up
   to 8); there is no difficulty or weight field on a checkpoint, so extra depth is expressed by
-  writing extra lines. If the material does not support any, return an empty list rather than
-  inventing one.
+  writing extra lines. If the material does not support any, return an empty list — never null,
+  and never a checkpoint you invented to fill the field.
 - Return ONLY the JSON object matching the provided schema.`;
 
 const EXTRACT_PROMPT = 'Extract the concept prerequisite graph from this document.';

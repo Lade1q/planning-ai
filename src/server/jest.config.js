@@ -6,6 +6,7 @@ module.exports = {
   // Only the deterministic Concept Graph Engine logic is covered here — it must stay
   // provable without a DB or an API key (SDP risk R05).
   collectCoverageFrom: [
+    'src/utils/checkpoint.ts',
     'src/utils/dag.ts',
     'src/utils/evidence-guard.ts',
     'src/utils/mastery.ts',

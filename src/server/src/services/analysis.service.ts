@@ -6,7 +6,7 @@ import { extractConcepts, uploadFile } from './gemini.service';
 import { MOCK_EXTRACT_RESULT } from '../utils/mock-ai';
 import { validateAndFixDag } from '../utils/dag';
 import { buildConceptSourceRows } from '../utils/concept-source';
-import { planCheckpointMerge } from '../utils/checkpoint';
+import { planCheckpointMerge, readExtractedCheckpoints } from '../utils/checkpoint';
 import { planConceptMerge, normalizeConceptKey } from '../utils/concept-merge';
 import { toSafeErrorMessage } from '../utils/error-message';
 import { UPLOAD_DIR, resolveMaterialSource } from '../utils/material';
@@ -70,9 +70,11 @@ async function callAiWithRetry(fileKey: string, onPhase: OnPhase): Promise<AiExt
  * examiner can't mint the marks it then measures the student by (C4 at the micro scale).
  *
  * Merged onto the stored rows rather than replaced, so a checkpoint that survives a re-analysis
- * keeps its id and the evidence recorded against it stays attached. Deletes run before inserts:
- * the `(concept_id, text)` unique index would otherwise reject a row re-created in the same
- * transaction as its near-duplicate is removed.
+ * keeps its id and the evidence recorded against it stays attached. The three statements run in
+ * the order delete → update → create, and that order is load-bearing: the `(concept_id, text)`
+ * unique index rejects a row created or renamed onto text a not-yet-deleted duplicate still
+ * holds. `process-analysis-job.test.ts` pins the order, because the mocked client has no unique
+ * index to fail on and would happily let a reordering look green.
  *
  * Concepts the extraction dropped are untouched — `planConceptMerge` deprecated rather than
  * deleted them, and a concept revived by a later re-analysis should find its checkpoints where
@@ -87,10 +89,25 @@ async function persistCheckpoints(
   // and merging that row twice would let the second pass delete what the first just committed.
   // First occurrence wins, matching `planConceptMerge`.
   const checkpointsByConceptId = new Map<string, string[]>();
+  const seenConceptIds = new Set<string>();
   for (const concept of extracted) {
     const conceptId = conceptIdByKey.get(normalizeConceptKey(concept.name));
-    if (!conceptId || checkpointsByConceptId.has(conceptId)) continue;
-    checkpointsByConceptId.set(conceptId, concept.checkpoints);
+    if (!conceptId || seenConceptIds.has(conceptId)) continue;
+    seenConceptIds.add(conceptId);
+
+    // A concept whose checkpoints came back unreadable is left exactly as it was. Merging it
+    // would read a model failure as "this concept has no checkpoints" and delete the whole
+    // ruler — a re-analysis that hiccups once must not cost a concept its stored checkpoints
+    // (and, from #330 on, the evidence recorded against their ids). Warned rather than failed:
+    // the extraction itself is fine, and the stored checkpoints remain valid.
+    const commitment = readExtractedCheckpoints(concept.checkpoints);
+    if (commitment.status === 'degraded') {
+      console.warn(
+        `[analysis] concept ${conceptId} ("${concept.name}"): unreadable checkpoints in this extraction, keeping the stored ones`
+      );
+      continue;
+    }
+    checkpointsByConceptId.set(conceptId, commitment.texts);
   }
   if (checkpointsByConceptId.size === 0) return;
 
