@@ -1,4 +1,8 @@
-import { sanitizeEvidence } from '../utils/evidence-guard';
+import {
+  sanitizeEvidence,
+  type RawEvidence,
+  type SanitizedEvidence,
+} from '../utils/evidence-guard';
 
 // Cases spec'd by the co-planning session from the spike S0 findings. Every marker added to
 // UNCERTAINTY_MARKERS must gain a case here — that is the guarantee the list stays phrase-level.
@@ -19,9 +23,19 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     expect(result).toEqual({ kind: 'kept', status: 'contradicted' });
   });
 
-  it('3. a confident assertion is kept — "chắc chắn" must not match the marker "chắc là"', () => {
-    const result = sanitizeEvidence({ status: 'covered', quote: 'chắc chắn là 2 mũ m trừ 2' });
-    expect(result).toEqual({ kind: 'kept', status: 'covered' });
+  it('3. the four §2.5 mandatory exclusions stay kept — a confident phrase must not match a marker', () => {
+    const confident = [
+      'chắc chắn là 2 mũ m trừ 2', // "chắc chắn" must not match "chắc là"
+      'tôi nhớ rõ là phải trừ đi hai địa chỉ',
+      'em biết rõ lớp B là 128 tới 191',
+      'rõ ràng là phải trừ 2 địa chỉ đặc biệt',
+    ];
+    for (const quote of confident) {
+      expect(sanitizeEvidence({ status: 'covered', quote })).toEqual({
+        kind: 'kept',
+        status: 'covered',
+      });
+    }
   });
 
   it('4. symmetric: a covered fire with an uncertain quote is downgraded too', () => {
@@ -32,22 +46,25 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     expect(result).toEqual({ kind: 'downgraded' });
   });
 
-  it('5. one-directional: kept preserves status exactly; never upgrades, never flips', () => {
-    const inputs = [
-      { status: 'covered', quote: 'đúng rồi, hai octet đầu là mạng' },
-      { status: 'contradicted', quote: 'lớp B là 192 tới 223' },
-      { status: 'covered', quote: 'không nhớ' },
-      { status: 'contradicted', quote: 'hình như vậy' },
-      { status: 'Running', quote: 'bất kỳ' },
-      { status: 'covered' },
+  it('5. never upgrades, never manufactures a penalty; enum-garbage drops, uncertainty downgrades', () => {
+    const cases: { fire: RawEvidence; expected: SanitizedEvidence }[] = [
+      {
+        fire: { status: 'covered', quote: 'đúng rồi, hai octet đầu là mạng' },
+        expected: { kind: 'kept', status: 'covered' },
+      },
+      {
+        fire: { status: 'contradicted', quote: 'lớp B là 192 tới 223' },
+        expected: { kind: 'kept', status: 'contradicted' },
+      },
+      { fire: { status: 'covered', quote: 'không nhớ' }, expected: { kind: 'downgraded' } },
+      { fire: { status: 'contradicted', quote: 'hình như vậy' }, expected: { kind: 'downgraded' } },
+      // enum garbage `dropped` and uncertainty `downgraded` are distinct outcomes (audit counts
+      // enum leakage apart from downgrades) — assert the exact kind, not just "not kept".
+      { fire: { status: 'Running', quote: 'bất kỳ' }, expected: { kind: 'dropped' } },
+      { fire: { status: 'covered' }, expected: { kind: 'kept', status: 'covered' } },
     ];
-    for (const fire of inputs) {
-      const result = sanitizeEvidence(fire);
-      if (result.kind === 'kept') {
-        expect(result.status).toBe(fire.status); // covered stays covered, contradicted stays contradicted
-      } else {
-        expect(['downgraded', 'dropped']).toContain(result.kind);
-      }
+    for (const { fire, expected } of cases) {
+      expect(sanitizeEvidence(fire)).toEqual(expected);
     }
   });
 
@@ -56,11 +73,72 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     expect(result).toEqual({ kind: 'dropped' });
   });
 
-  it('a missing quote is treated as empty, never a crash', () => {
+  it('7. accented matching: a confident answer must not collide with a marker after diacritics', () => {
+    // "không nhỏ" (≥) must not read as the marker "không nhớ" (I don't remember) — the collision a
+    // diacritic-stripping matcher created. This exact phrasing is in the spike's own fixture domain.
+    expect(
+      sanitizeEvidence({
+        status: 'covered',
+        quote: 'số host mỗi subnet không nhỏ hơn 2 mũ m trừ 2',
+      })
+    ).toEqual({ kind: 'kept', status: 'covered' });
+    // "chắc lắm" / "chắc lại" (assertions) must not be swallowed by the marker "chắc là" (maybe).
+    expect(sanitizeEvidence({ status: 'covered', quote: 'cái này em chắc lắm' })).toEqual({
+      kind: 'kept',
+      status: 'covered',
+    });
+    expect(sanitizeEvidence({ status: 'covered', quote: 'em nói chắc lại một lần nữa' })).toEqual({
+      kind: 'kept',
+      status: 'covered',
+    });
+  });
+
+  it('8. the real uncertainty answer from the spike still downgrades', () => {
+    // p3-evidence transcript, fully accented as Gemini Live returns it.
+    expect(
+      sanitizeEvidence({
+        status: 'contradicted',
+        quote: 'thật ra tôi vẫn không nhớ, chắc có trừ gì đó mà tôi cũng không chắc nữa',
+      })
+    ).toEqual({ kind: 'downgraded' });
+  });
+
+  it('9. status is trimmed and case-folded before the enum test: legit fires survive, garbage drops', () => {
+    expect(sanitizeEvidence({ status: 'Covered', quote: 'đúng rồi' })).toEqual({
+      kind: 'kept',
+      status: 'covered',
+    });
+    expect(sanitizeEvidence({ status: ' contradicted ', quote: 'lớp B là 192 tới 223' })).toEqual({
+      kind: 'kept',
+      status: 'contradicted',
+    });
+    expect(sanitizeEvidence({ status: 'Running', quote: 'câu hợp lệ' })).toEqual({
+      kind: 'dropped',
+    });
+  });
+
+  it('10. word boundary: a marker does not fire inside a longer word — "gì đó" ⊄ "gì đóng"', () => {
+    // "gì đóng" (…plays the role…) contains the marker "gì đó" as an accented prefix, so accent
+    // alone would not save this confident answer — only the Unicode letter-boundary fence does.
+    expect(
+      sanitizeEvidence({ status: 'covered', quote: 'router là cái gì đóng vai trò định tuyến' })
+    ).toEqual({ kind: 'kept', status: 'covered' });
+  });
+
+  it('a missing quote: covered stays generous (kept), contradicted must not punish (downgraded)', () => {
+    // covered with no quote to inspect is the generous direction — over-credit, never a penalty.
     expect(sanitizeEvidence({ status: 'covered' })).toEqual({ kind: 'kept', status: 'covered' });
     expect(sanitizeEvidence({ status: 'covered', quote: null })).toEqual({
       kind: 'kept',
       status: 'covered',
+    });
+    // contradicted with no quote is an UNVERIFIABLE penalty — one-directional safety downgrades it.
+    expect(sanitizeEvidence({ status: 'contradicted' })).toEqual({ kind: 'downgraded' });
+    expect(sanitizeEvidence({ status: 'contradicted', quote: null })).toEqual({
+      kind: 'downgraded',
+    });
+    expect(sanitizeEvidence({ status: 'contradicted', quote: '   ' })).toEqual({
+      kind: 'downgraded',
     });
   });
 });

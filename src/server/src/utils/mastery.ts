@@ -100,21 +100,35 @@ export const MIN_COVERAGE = 0.7;
  * eventually replace, which also takes `number | null`. Counts here are of KEPT evidence only —
  * run every fire through `sanitizeEvidence` (`evidence-guard.ts`) first.
  *
- * `committed <= 0` returns `null`: a concept with no checkpoints is not voice-assessable and is
- * routed to the text path upstream (§2.4 guard), never scored here.
+ * A malformed tally returns `null` (unassessable), never a manufactured score: `committed <= 0`
+ * (a concept with no checkpoints is routed to the text path upstream, §2.4 guard, never scored
+ * here), a non-integer or negative count, or more resolved than committed — all upstream bugs.
  */
 export function coverageMasteryScore(
   evCovered: number,
   evContradicted: number,
   committed: number
 ): number | null {
-  if (committed <= 0) {
+  const resolved = evCovered + evContradicted;
+  // These are counts, fed from DB `_count` once the pipeline is wired — guard the whole domain
+  // here rather than trust the caller. Anything non-integer / negative / NaN, or more resolved
+  // than were committed, is an upstream bug, not "the 0.7 floor passed": `NaN < 0.7` is false, so
+  // both gates would otherwise fall open and manufacture a 1.0. Unassessable → null, never a score.
+  if (
+    !Number.isInteger(evCovered) ||
+    !Number.isInteger(evContradicted) ||
+    !Number.isInteger(committed) ||
+    evCovered < 0 ||
+    evContradicted < 0 ||
+    committed <= 0 ||
+    resolved > committed
+  ) {
     return null;
   }
-  const resolved = evCovered + evContradicted;
   if (resolved / committed < MIN_COVERAGE) {
     return null;
   }
+  // covered ≤ resolved and both ≥ 0 by the guard above, so the ratio is already in [0, 1].
   return round2(evCovered / resolved);
 }
 

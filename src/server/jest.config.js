@@ -7,6 +7,7 @@ module.exports = {
   // provable without a DB or an API key (SDP risk R05).
   collectCoverageFrom: [
     'src/utils/dag.ts',
+    'src/utils/evidence-guard.ts',
     'src/utils/mastery.ts',
     'src/utils/interview-state.ts',
     'src/utils/dashboard-stats.ts',

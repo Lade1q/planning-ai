@@ -28,4 +28,11 @@ describe('coverageMasteryScore — checkpoint-coverage grain (§2.3)', () => {
     expect(coverageMasteryScore(4, 0, 4)).toBe(1); // all correct
     expect(coverageMasteryScore(0, 4, 4)).toBe(0); // coverage 1.0, 0/4 = 0 — assessed and wrong
   });
+
+  it('a malformed tally is unassessable (null), never a manufactured 1.0 — matters once fed from DB _count', () => {
+    expect(coverageMasteryScore(2, 0, Number.NaN)).toBeNull(); // NaN slips both gates otherwise (NaN<0.7 is false)
+    expect(coverageMasteryScore(7, 0, 4)).toBeNull(); // resolved 7 > committed 4
+    expect(coverageMasteryScore(5, -2, 4)).toBeNull(); // negative tally → not 1.67 out of range
+    expect(coverageMasteryScore(2, 0, 2.5)).toBeNull(); // non-integer committed
+  });
 });
