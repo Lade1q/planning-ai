@@ -29,8 +29,10 @@
  *     remember vs "nhỏ" small), so a confident "không nhỏ" (≥) is never taken for "không nhớ".
  *   - a `contradicted` fire (the text path, §2.1 fallback, quotes what the student TYPED — often
  *     without diacritics) is matched on accented markers PLUS a diacritic-STRIPPED pass over the
- *     SAFE markers only — those whose stripped form has no confident homograph — so an un-accented
- *     or mixed "khong chac" is still caught, with no false positive.
+ *     SAFE markers, run over ANY quote (accented too), so an un-accented or mixed "khong chac" is
+ *     caught. The safe set is homograph-free, so this pass does not false-positive — bar two
+ *     marginal markers kept for catch value (see the SAFE note), which can rarely downgrade a
+ *     confident look-alike (a phantom credit), an accepted tradeoff to tune at ②.
  *   - the HOMOGRAPH markers are NEVER stripped (accented-only, both statuses): "không nhớ" →
  *     "khong nho" == "không nhỏ" (≥); "không nắm" → "khong nam" == "không nằm … trong khoảng"
  *     (in range, verbatim in the spike transcript); the "quên" (forget) family → "quen"
@@ -116,11 +118,16 @@ const HOMOGRAPH_MARKER_PHRASES: readonly string[] = [
 ];
 
 /**
- * SAFE markers: no confident homograph after stripping, so they match on stripped text too — a
- * gateless lenient pass catching un-accented and mixed text-fallback quotes with no phantom-credit
- * risk. Two marginal collisions kept deliberately for their high catch value, flagged for corpus
- * tuning at ②: "gì đó" ↔ "cái gì đo được" (measurable) and "đoán đại" ↔ "đoạn dài" (long segment) —
- * both low-frequency and not standard IP terms.
+ * SAFE markers: matched on the stripped quote — which is stripped UNCONDITIONALLY, so this pass
+ * also sees accented voice quotes, not just un-accented text-fallback ones. Eleven of these have no
+ * confident homograph, so they never false-positive. TWO are kept in this set deliberately for
+ * their high catch value ("gì đó" is the frequent hedge in the cp_7 fixture): "gì đó" ↔
+ * "cái gì đo được" (measurable) and "đoán đại" ↔ "đoạn dài" (segment) / "đoàn đại biểu"
+ * (delegation). These DO have a low-frequency confident homograph, so they can downgrade a real
+ * misconception (a phantom credit — score up, band flip, traceback off) even on an accented quote —
+ * a one-directional cost (covered never strips, so never a deny-credit). An accepted tradeoff, all
+ * collisions rare in the IP domain; "đoán đại" has several look-alikes and is the first candidate to
+ * reclassify as HOMOGRAPH once a real corpus at ② shows the true frequencies.
  */
 const SAFE_MARKER_PHRASES: readonly string[] = [
   'không chắc',
@@ -176,10 +183,11 @@ export type SanitizedEvidence =
  *     idiom still fires (e.g. "không biết" in "không biết bao nhiêu" = countless, "ai mà không
  *     biết" = everyone knows); low frequency, tune the lexicon at ②.
  * (c) a `contradicted` with no quote, or whose quote carries a marker → downgrade. Markers match on
- *     the accented quote (all of them), and additionally on the diacritic-stripped quote for the
- *     SAFE markers only (catching un-accented / mixed text-fallback input). Homograph markers are
- *     accented-only, so a stripped false positive can never drop a real misconception from the
- *     coverage denominator. Otherwise keep.
+ *     the accented quote (all of them), and the SAFE markers additionally on the diacritic-stripped
+ *     quote — stripped UNCONDITIONALLY, so this pass also sees accented voice quotes. The 8
+ *     homograph markers are accented-only, so THEY can never drop a real misconception from the
+ *     denominator; 11 of the 13 safe markers are homograph-free too, and the 2 marginal ones can
+ *     (see the SAFE note). Otherwise keep.
  *
  * (a) runs before the rest: a `Running` fire is dropped regardless of its quote. Composes with
  * the `(sessionId, conceptId, checkpointId)` upsert — a dropped `Running` leaves the row
