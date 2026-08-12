@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+/**
+ * Longest a single checkpoint may be. A checkpoint is one thing to demonstrate, not a
+ * paragraph — matching `ConceptCheckpoint.text`'s column width, so a value that parses here
+ * always fits the row. An over-long one degrades to `''` and is dropped downstream
+ * (`normalizeCheckpoints`) rather than failing the concept's whole checkpoint list.
+ */
+export const CHECKPOINT_MAX_LENGTH = 300;
+
 export const conceptExtractSchema = z.object({
   name: z.string().min(1).max(255),
   difficulty: z.number().int().min(1).max(5).catch(1),
@@ -10,6 +18,16 @@ export const conceptExtractSchema = z.object({
   // (plain text/images); `source_excerpt` is the verbatim passage used to ground it (C5).
   source_page: z.number().int().min(1).nullish().catch(null),
   source_excerpt: z.string().min(1).max(2000).nullish().catch(null),
+  // What the student must demonstrate to be counted as understanding this concept — the ruler
+  // Interview v2 grades against, committed HERE at analysis time and immutable while grading
+  // (INV-1, #329). No weight field by design: a harder checkpoint is simply written as more
+  // lines, so scoring keeps one constant in one place (§2.3).
+  //
+  // Degrades in two independent steps, because an empty list is a legal answer (`C = 0`, a
+  // concept routed to the text path) while a lost list is not worth failing an extraction over:
+  // a single bad entry becomes `''` and is dropped by `normalizeCheckpoints`; a missing or
+  // non-array field becomes `[]`.
+  checkpoints: z.array(z.string().min(1).max(CHECKPOINT_MAX_LENGTH).catch('')).catch([]),
 });
 
 export const edgeExtractSchema = z.object({

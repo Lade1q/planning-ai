@@ -48,6 +48,13 @@ Rules:
   exactly from the material where this concept is defined or introduced. Do not paraphrase.
 - "source_page": the 1-based page number where that excerpt appears. For PDFs give the real page;
   for plain text or images with no page structure, use null.
+- "checkpoints": the specific things a student must demonstrate to be counted as understanding
+  this concept. One short statement each, written in the language of the material, each one
+  checkable on its own. Take them from the material only — never from outside knowledge.
+  Give 3 to 6 for a typical concept. A harder or broader concept simply gets MORE of them (up
+  to 8); there is no difficulty or weight field on a checkpoint, so extra depth is expressed by
+  writing extra lines. If the material does not support any, return an empty list rather than
+  inventing one.
 - Return ONLY the JSON object matching the provided schema.`;
 
 const EXTRACT_PROMPT = 'Extract the concept prerequisite graph from this document.';
