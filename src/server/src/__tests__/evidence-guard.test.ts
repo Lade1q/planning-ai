@@ -142,18 +142,19 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     });
   });
 
-  it('11. asymmetric — un-accented uncertainty on a contradicted still downgrades (text-path INV-2)', () => {
-    // A student typing without diacritics on the text fallback: these must not stand as a
-    // misconception. contradicted matches diacritic-stripped, so they are caught.
-    expect(sanitizeEvidence({ status: 'contradicted', quote: 'that ra toi khong nho' })).toEqual({
-      kind: 'downgraded',
-    });
-    expect(sanitizeEvidence({ status: 'contradicted', quote: 'em khong chac lam' })).toEqual({
-      kind: 'downgraded',
-    });
-    expect(sanitizeEvidence({ status: 'contradicted', quote: 'hinh nhu vay thoi' })).toEqual({
-      kind: 'downgraded',
-    });
+  it('11. SAFE markers catch un-accented AND mixed-accent text-fallback quotes (gateless)', () => {
+    // The text path quotes what a student typed, often without diacritics. Safe markers (no
+    // confident homograph) match on stripped text with no whole-quote gate, so a mixed-accent quote
+    // is caught too — the regression the input-gate had is gone.
+    for (const quote of [
+      'em khong chac lam', // fully un-accented
+      'toi khong chac về lớp B', // mixed accent — one accented word must not switch the pass off
+      'hinh nhu vay thoi',
+      'chac gi dung',
+      'noi dai khai thoi',
+    ]) {
+      expect(sanitizeEvidence({ status: 'contradicted', quote })).toEqual({ kind: 'downgraded' });
+    }
   });
 
   it('12. asymmetric — a covered stays strict: "không nhỏ" keeps its credit (accented-only match)', () => {
@@ -167,39 +168,50 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     ).toEqual({ kind: 'kept', status: 'covered' });
   });
 
-  it('13. stripped path folds đ→d and case, so un-accented đ-markers still fire (guards the đ line)', () => {
-    // A student types plain "d" for "đ" and may not capitalize consistently. đ (U+0111) is NOT a
-    // combining mark, so a naive NFD+strip would leave it — the explicit đ→d + toLowerCase must
-    // hold, or these un-accented markers silently stop firing (failing toward punishing).
+  it('13. stripped folds đ→d and case for SAFE markers (guards the đ line + toLowerCase)', () => {
+    // A student types plain "d" for "đ" and may not capitalise. đ (U+0111) is NOT a combining mark,
+    // so a naive NFD+strip would leave it — the explicit đ→d + toLowerCase must hold for safe markers.
     for (const quote of [
       'nói gì đó thôi', // gì đó, accented
       'noi gi do thoi', // gì đó, plain-d un-accented
       'thoi dai khai vay', // đại khái, plain-d
-      'chac doan dai thoi', // đoán đại, plain-d
-      'KHONG NHO', // uppercase, no đ
-      'Khong Chac', // title case
+      'KHONG CHAC LAM', // uppercase safe marker
+      'Hinh Nhu Vay', // title case
     ]) {
       expect(sanitizeEvidence({ status: 'contradicted', quote })).toEqual({ kind: 'downgraded' });
     }
   });
 
-  it('14. lenient stripping is gated by un-accented INPUT — a real misconception keeps its penalty', () => {
-    // An ACCENTED contradicted whose quote merely CONTAINS a collision word is not downgraded: it
-    // stays a misconception, keeping its slot in the coverage denominator so it cannot inflate the
-    // score to a phantom 1.0. "không nhỏ" (>=) must not read as the marker "không nhớ".
+  it('14. HOMOGRAPH markers are accented-only: confident look-alikes keep their status', () => {
+    // "không nhỏ" (≥) — a real contradicted misconception must NOT be downgraded (that would drop it
+    // from the denominator and inflate the score to a phantom 1.0).
     expect(
       sanitizeEvidence({ status: 'contradicted', quote: 'địa chỉ host không nhỏ hơn 2 mũ m' })
     ).toEqual({ kind: 'kept', status: 'contradicted' });
-    // "quen" (familiar) vs "quên" (forget) differ by one diacritic; a normally-typed answer (some
-    // diacritics present) counts as accented, so "em quen" is not read as the marker "em quên".
-    expect(sanitizeEvidence({ status: 'contradicted', quote: 'em quen dạng bài này rồi' })).toEqual(
-      { kind: 'kept', status: 'contradicted' }
-    );
-    // Accepted residual: a FULLY un-accented confident homograph still downgrades — phantom credit,
-    // never a penalty, and no lexical rule separates "em quen" from "em quên" without diacritics.
+    // "không nằm … trong khoảng" (in range, verbatim in the spike) must not match "không nắm" —
+    // even fully un-accented, where "khong nam" is ambiguous, it stays kept (never a deny-credit).
+    expect(
+      sanitizeEvidence({ status: 'covered', quote: 'octet đầu không nằm ngoài khoảng 128 đến 191' })
+    ).toEqual({ kind: 'kept', status: 'covered' });
+    expect(
+      sanitizeEvidence({ status: 'contradicted', quote: 'gia tri nay khong nam trong dai private' })
+    ).toEqual({ kind: 'kept', status: 'contradicted' });
+    // "quen" (familiar) un-accented must not match the marker "em quên" — no phantom credit.
     expect(sanitizeEvidence({ status: 'contradicted', quote: 'em quen dang bai nay roi' })).toEqual(
-      { kind: 'downgraded' }
+      {
+        kind: 'kept',
+        status: 'contradicted',
+      }
     );
+  });
+
+  it('15. bounded gap: un-accented HOMOGRAPH markers are not caught (irreducible ambiguity, tune ②)', () => {
+    // "khong nho" un-accented is ambiguous — "không nhớ" (unsure) vs "không nhỏ" (≥) — so it stays
+    // accented-only and its un-accented uncertain form is missed here. The ACCENTED form IS caught
+    // (tests 8 and B). Documented, not papered over; revisit with a real corpus at ②.
+    expect(
+      sanitizeEvidence({ status: 'contradicted', quote: 'that ra toi khong nho cong thuc' })
+    ).toEqual({ kind: 'kept', status: 'contradicted' });
   });
 
   it('B. every uncertainty marker fires on a natural sentence — a typo (dead) marker fails here', () => {
