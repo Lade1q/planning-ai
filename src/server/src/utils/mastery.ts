@@ -71,6 +71,54 @@ export function calculateMasteryScore(turnScores: number[]): number | null {
 }
 
 /**
+ * The coverage floor for the Interview v2 grain (§2.3 architecture): a concept scores only when
+ * at least this fraction of its checkpoints were actually resolved.
+ *
+ * 0.7, not 0.5, and it must not drop. The conductor now closes a concept early only on budget,
+ * so the only way coverage lands in `(MIN_COVERAGE, 1.0)` is the student stalling mid-concept — a
+ * case the design must handle (INV-2), not a rare one. At 0.5 a `C = 4` concept solved 2 then
+ * stalled would pass the floor and score `2/2 = 1.0` — full mastery, no traceback, for half a
+ * concept. The fix is the threshold, not the denominator: scoring `covered / C` would punish
+ * `not_discussed` as wrong and break INV-2.
+ */
+export const MIN_COVERAGE = 0.7;
+
+/**
+ * The mastery score for ONE concept under the checkpoint-coverage grain, or `null` when too few
+ * checkpoints were resolved to judge it.
+ *
+ * `resolved = evCovered + evContradicted` (checkpoints the student actually settled, right or
+ * wrong); `committed` is how many checkpoints the concept was given at analysis time. Below
+ * `MIN_COVERAGE` the concept is `null` — "not assessed", the same `null ≠ 0` rule the rest of
+ * this file lives by — so it returns to the review queue instead of reading as a low score. At
+ * or above it, the score is the share of resolved checkpoints that were correct; `contradicted`
+ * pulls it down, and `not_discussed` (the `committed − resolved` remainder) never counts against
+ * it.
+ *
+ * Pure — no Prisma, no Gemini, no clock (R05). Feeds the same engine downstream
+ * (`classifyMastery`, `reviewIntervalDays`, `reviewPriority`) as the weighted-turn score it will
+ * eventually replace, which also takes `number | null`. Counts here are of KEPT evidence only —
+ * run every fire through `sanitizeEvidence` (`evidence-guard.ts`) first.
+ *
+ * `committed <= 0` returns `null`: a concept with no checkpoints is not voice-assessable and is
+ * routed to the text path upstream (§2.4 guard), never scored here.
+ */
+export function coverageMasteryScore(
+  evCovered: number,
+  evContradicted: number,
+  committed: number
+): number | null {
+  if (committed <= 0) {
+    return null;
+  }
+  const resolved = evCovered + evContradicted;
+  if (resolved / committed < MIN_COVERAGE) {
+    return null;
+  }
+  return round2(evCovered / resolved);
+}
+
+/**
  * The turn scores of one concept that count towards its mastery, in the order they were asked —
  * exactly what `calculateMasteryScore` above takes.
  *
