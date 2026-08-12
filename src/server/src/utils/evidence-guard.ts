@@ -23,14 +23,19 @@
  *
  * Marker precision is therefore load-bearing, and it is ASYMMETRIC because the two failure
  * directions are not equal:
- *   - a `contradicted` fire is the dangerous one — a MISSED uncertainty marker leaves a penalty
- *     standing on an unresolved answer (INV-2 violated). So it is matched leniently, on
- *     diacritic-STRIPPED text, to also catch an un-accented "khong nho" typed on the text path
- *     (§2.1 fallback); a false positive here only ever downgrades a `contradicted`, which never
- *     manufactures a penalty.
  *   - a `covered` fire is matched strictly, on ACCENTED text, so a confident "không nhỏ" (≥) is
  *     never taken for the marker "không nhớ" (I don't remember). A false positive here would cost
  *     a correct answer its credit; a false negative merely over-credits (the generous direction).
+ *   - a `contradicted` fire is the dangerous one — a MISSED uncertainty marker leaves a penalty
+ *     standing on an unresolved answer (INV-2 violated). It is matched on accented markers, PLUS a
+ *     lenient diacritic-STRIPPED pass — but only when the quote is ITSELF un-accented, the
+ *     text-fallback population where a student typed "khong nho" without diacritics (§2.1). The
+ *     lenient pass is gated by INPUT, not status, for a reason: a false positive on it does not
+ *     manufacture a *penalty*, but it is NOT free — downgrading a `contradicted` drops it from the
+ *     coverage denominator while the covered numerator stays, so the score moves UP (it can reach
+ *     1.0, flip a band, switch traceback off — the "2/4 → 1.0" that §2.3's floor exists to stop,
+ *     by another door). Fencing the lenient pass to un-accented input keeps a genuine misconception
+ *     on the accented voice path from ever reaching it, so it keeps its slot in the denominator.
  *
  * Boundary: this guards against punishing-the-uncertain (INV-2) and enum garbage. It does NOT
  * police status fidelity of the covered↔contradicted kind on a CONFIDENT answer — that is grain
@@ -92,6 +97,13 @@ function compileMarker(normalized: string): RegExp {
  * keep the confident phrases "chắc chắn" / "nhớ rõ" / "biết rõ" / "rõ ràng" clear of a downgrade.
  * First-person forms carry the pronoun a student uses with a teacher ("em"/"mình"/"con"), not
  * just "tôi". Every marker here must come with a fixture test — see `evidence-guard.test.ts`.
+ *
+ * Known residual on the strict (covered) path: a marker that is a genuine prefix of a confident
+ * idiom still fires — e.g. "không biết" inside "không biết bao nhiêu" (countless). Word boundaries
+ * do not cut it (the idiom continues past a space) and accents do not (same letters), so it would
+ * downgrade a confident answer. Low frequency in exam answers, where a covered claim states a
+ * number rather than the idiom — tune this lexicon against real transcripts when the pipeline is
+ * wired (②) rather than growing idiom exclusions here on invented sentences.
  */
 const MARKER_PHRASES: readonly string[] = [
   'không nhớ',
@@ -117,12 +129,13 @@ const MARKER_PHRASES: readonly string[] = [
   'chịu, không',
 ];
 
-/** Strict, accented markers — for `covered` fires. */
+/** Strict, accented markers — the `covered` path, and the primary pass on `contradicted`. */
 const ACCENTED_MARKERS: readonly RegExp[] = MARKER_PHRASES.map((phrase) =>
   compileMarker(normalizeAccented(phrase))
 );
 
-/** Lenient, diacritic-stripped markers — for `contradicted` fires. */
+/** Lenient, diacritic-stripped markers — the fallback pass on a `contradicted` whose quote is
+ *  itself un-accented (text fallback). */
 const STRIPPED_MARKERS: readonly RegExp[] = MARKER_PHRASES.map((phrase) =>
   compileMarker(normalizeStripped(phrase))
 );
@@ -144,16 +157,19 @@ export type SanitizedEvidence =
   | { kind: 'dropped' }; //   status outside the enum → treat as never fired
 
 /**
- * (a) status outside `{covered, contradicted}` → DROP (garbage, e.g. "Running"). The status is
- *     trimmed and case-folded first, because the same spike that produced `Running` shows the
- *     model reshaping the field — a legitimate `Covered` / `contradicted ` is rescued, while real
- *     garbage is still dropped.
+ * (a) status outside `{covered, contradicted}` → DROP (garbage, e.g. "Running"). Trim + case-fold
+ *     first as cheap defence: the spike proved the model can leave the enum (`Running`), so
+ *     rescuing a case/space variant of a real status (`Covered` / `contradicted `) is prudent —
+ *     though the observed run only produced lowercase in-enum values plus `Running`, so this is
+ *     precaution, not a fix for a case that was actually seen.
  * (b) a `covered` whose quote carries an ACCENTED uncertainty marker → downgrade (strict, so a
  *     confident "không nhỏ" keeps its credit). Otherwise keep.
- * (c) a `contradicted` with no quote to inspect, or whose STRIPPED quote carries an uncertainty
- *     marker → downgrade. An unverifiable or uncertain misconception is a penalty with nothing
- *     behind it; downgrading it is the not-punishing direction, which for a `contradicted` never
- *     manufactures a penalty. Otherwise keep.
+ * (c) a `contradicted` with no quote to inspect, or whose quote carries an uncertainty marker →
+ *     downgrade. Markers match on the accented quote always, and additionally on a stripped form
+ *     WHEN THE QUOTE IS ALREADY UN-ACCENTED (a student typing "khong nho" on the text fallback).
+ *     Downgrading never manufactures a penalty, but it drops the checkpoint from the coverage
+ *     denominator (phantom credit, score up), so the lenient stripped pass is fenced to un-accented
+ *     input — an accented voice quote with a real misconception keeps its status. Otherwise keep.
  *
  * (a) runs before the rest: a `Running` fire is dropped regardless of its quote. Composes with
  * the `(sessionId, conceptId, checkpointId)` upsert — a dropped `Running` leaves the row
@@ -174,8 +190,15 @@ export function sanitizeEvidence(fire: RawEvidence): SanitizedEvidence {
   }
 
   // status === 'contradicted'
+  const accented = normalizeAccented(raw);
+  if (accented.trim() === '' || ACCENTED_MARKERS.some((marker) => marker.test(accented))) {
+    return { kind: 'downgraded' };
+  }
+  // Lenient stripped pass ONLY when the quote is already un-accented (text fallback): fencing it to
+  // un-accented input keeps a real misconception on the accented voice path from being downgraded,
+  // which would inflate the score by dropping it from the coverage denominator.
   const stripped = normalizeStripped(raw);
-  if (stripped.trim() === '' || STRIPPED_MARKERS.some((marker) => marker.test(stripped))) {
+  if (accented === stripped && STRIPPED_MARKERS.some((marker) => marker.test(stripped))) {
     return { kind: 'downgraded' };
   }
   return { kind: 'kept', status };

@@ -167,6 +167,41 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
     ).toEqual({ kind: 'kept', status: 'covered' });
   });
 
+  it('13. stripped path folds đ→d and case, so un-accented đ-markers still fire (guards the đ line)', () => {
+    // A student types plain "d" for "đ" and may not capitalize consistently. đ (U+0111) is NOT a
+    // combining mark, so a naive NFD+strip would leave it — the explicit đ→d + toLowerCase must
+    // hold, or these un-accented markers silently stop firing (failing toward punishing).
+    for (const quote of [
+      'nói gì đó thôi', // gì đó, accented
+      'noi gi do thoi', // gì đó, plain-d un-accented
+      'thoi dai khai vay', // đại khái, plain-d
+      'chac doan dai thoi', // đoán đại, plain-d
+      'KHONG NHO', // uppercase, no đ
+      'Khong Chac', // title case
+    ]) {
+      expect(sanitizeEvidence({ status: 'contradicted', quote })).toEqual({ kind: 'downgraded' });
+    }
+  });
+
+  it('14. lenient stripping is gated by un-accented INPUT — a real misconception keeps its penalty', () => {
+    // An ACCENTED contradicted whose quote merely CONTAINS a collision word is not downgraded: it
+    // stays a misconception, keeping its slot in the coverage denominator so it cannot inflate the
+    // score to a phantom 1.0. "không nhỏ" (>=) must not read as the marker "không nhớ".
+    expect(
+      sanitizeEvidence({ status: 'contradicted', quote: 'địa chỉ host không nhỏ hơn 2 mũ m' })
+    ).toEqual({ kind: 'kept', status: 'contradicted' });
+    // "quen" (familiar) vs "quên" (forget) differ by one diacritic; a normally-typed answer (some
+    // diacritics present) counts as accented, so "em quen" is not read as the marker "em quên".
+    expect(sanitizeEvidence({ status: 'contradicted', quote: 'em quen dạng bài này rồi' })).toEqual(
+      { kind: 'kept', status: 'contradicted' }
+    );
+    // Accepted residual: a FULLY un-accented confident homograph still downgrades — phantom credit,
+    // never a penalty, and no lexical rule separates "em quen" from "em quên" without diacritics.
+    expect(sanitizeEvidence({ status: 'contradicted', quote: 'em quen dang bai nay roi' })).toEqual(
+      { kind: 'downgraded' }
+    );
+  });
+
   it('B. every uncertainty marker fires on a natural sentence — a typo (dead) marker fails here', () => {
     // One realistic student sentence per marker, each targeting a single marker. A marker with a
     // typo would silently never match real phrasing (failing toward punishing) — and break a row.
