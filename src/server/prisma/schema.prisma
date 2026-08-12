@@ -178,17 +178,50 @@ model Concept {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  plan             StudyPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
-  edgesFrom        ConceptEdge[]      @relation("EdgeFrom")
-  edgesTo          ConceptEdge[]      @relation("EdgeTo")
+  plan             StudyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  edgesFrom        ConceptEdge[]       @relation("EdgeFrom")
+  edgesTo          ConceptEdge[]       @relation("EdgeTo")
   questionCaches   QuestionCache[]
   interviewTurns   InterviewTurn[]
   reviewQueueItems ReviewQueueItem[]
   conceptSources   ConceptSourceRef[]
   sessionNotes     SessionNote[]
+  checkpoints      ConceptCheckpoint[]
 
   @@index([planId])
   @@map("concepts")
+}
+
+/// Điểm-kiểm của một khái niệm — thước đo của Interview v2 (#329, INV-1).
+///
+/// Mỗi hàng là MỘT điều sinh viên phải thể hiện được để coi là nắm khái niệm này. Danh sách
+/// được sinh + CHỐT lúc phân tích tài liệu (`extract_concepts`), **bất biến khi chấm**: model
+/// dẫn phiên chỉ được phát bằng chứng theo `id` có sẵn ở đây, không được tự chế checkpoint
+/// giữa chừng (model tự đúc thước rồi tự đo mình — đúng thứ v2 loại bỏ). Đây là C4 ở tầng vi
+/// mô: bên tất định sở hữu cái thước.
+///
+/// `id` phải **ổn định** qua mỗi lần phân tích lại: bằng chứng phỏng vấn (#330) trỏ vào nó,
+/// nên checkpoint trùng nội dung được giữ nguyên hàng thay vì xoá-tạo-lại (`planCheckpointMerge`).
+/// Số hàng của một khái niệm chính là `C` trong `coverageMasteryScore` — `C = 0` (khái niệm
+/// không có checkpoint) là **đầu ra hợp lệ**, không phải lỗi.
+///
+/// Không có cột trọng số: checkpoint khó thì lúc trích **đếm thành nhiều dòng hơn**, để công
+/// thức chấm giữ đúng một hằng số ở đúng một chỗ (§2.3 interview-voice-architecture.md).
+model ConceptCheckpoint {
+  id         String   @id @default(uuid()) @db.Uuid
+  conceptId  String   @map("concept_id") @db.Uuid
+  /// Câu mô tả điểm-kiểm, đã chuẩn hoá khoảng trắng. Ngôn ngữ theo tài liệu của sinh viên.
+  text       String   @db.VarChar(300)
+  /// Thứ tự trong lần trích gần nhất — chỉ để đọc/hiển thị, không tham gia định danh.
+  orderIndex Int      @map("order_index")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([conceptId, text])
+  @@index([conceptId])
+  @@map("concept_checkpoints")
 }
 
 /// Cạnh trong đồ thị DAG - biểu diễn quan hệ prerequisite
