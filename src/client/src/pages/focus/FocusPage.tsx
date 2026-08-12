@@ -27,6 +27,7 @@ import type {
   PomodoroConfig,
 } from '@/features/focus/types/focus.types';
 import { cyclesToWords, formatClock, formatMinutesPhrase } from '@/features/focus/utils/format';
+import { sessionLockName } from '@/features/focus/utils/sessionLock';
 import { reviewQueueApi } from '@/features/review-queue/api/review-queue.api';
 import type { ReviewQueueItem } from '@/features/review-queue/types/review-queue.types';
 
@@ -50,12 +51,6 @@ const DEFAULT_CONFIG: PomodoroConfig = {
 };
 
 const STRICT_MODE_KEY = 'recall.focusStrictMode';
-
-/** M3 — tên khoá liveness Web Locks của một phiên. Tab đang chạy phiên giữ khoá này suốt vòng
- *  đời (RunningSession); tab khác dùng `locks.query()` (CHỈ ĐỌC bảng khoá) để biết phiên còn sống
- *  hay không. KHÔNG dò bằng `request({ifAvailable})`: chiếm-để-dò tự tạo trạng thái giữ tạm khiến
- *  prober khác soi nhầm (và đua với chính mình dưới React StrictMode) — xem chú thích ở prober. */
-const sessionLockName = (sessionId: string) => `recall.focus.session.${sessionId}`;
 
 type EntryBranch =
   | { kind: 'has-item'; item: ReviewQueueItem }
@@ -231,30 +226,40 @@ export default function FocusPage() {
      * lên, nên KHÔNG ghi mastery hay lịch ôn — hủy phiên không có tác dụng phụ nào ngoài đóng hàng.
      *
      * Gửi `focusedSeconds` THẬT (không phải 0): server vẫn lưu nguyên trường này để giữ số liệu
-     * thô, và đây đúng bằng cái mà đường hủy thủ công (`RunningSession.finalizeSession('cancelled')`
-     * qua `getFinalStats()`) gửi — nên một phiên 12s dù hủy tay hay dọn-sau-reload để lại row y
-     * hệt nhau. Luôn ≤ elapsed thật (thời gian tập trung không thể vượt wall-clock) nên qua được
-     * validator `focusedSeconds ≤ elapsedSeconds` của server.
+     * thô, khớp cách đường hủy thủ công (`RunningSession.finalizeSession('cancelled')` qua
+     * `getFinalStats()`) ghi trường đó. Chỉ RIÊNG `focusedSeconds` là khớp — lối này CỐ Ý không
+     * gửi `awayCount`/`pomodorosCompleted` (server mặc định 0), nên `away_count` có thể lệch với
+     * một phiên hủy tay từng rời tab; chấp nhận được vì phiên đã bị hủy, không tính vào lịch sử.
+     * `focusedSeconds` luôn ≤ elapsed thật (thời gian tập trung không thể vượt wall-clock) nên qua
+     * được validator `focusedSeconds ≤ elapsedSeconds` của server.
      *
      * Trả về promise để người gọi GIỮ được khoá liveness suốt lúc PATCH (xem chỗ gọi) — chống
      * gọi trùng nằm ở CHÍNH cái khoá đó, không phải ở một cờ riêng. Fire-and-forget với người
      * dùng: màn setup do effect entry phía dưới dựng độc lập, không ai phải đợi request dọn dẹp
      * này mới thấy màn hình.
      */
+    // Chỉ xoá snapshot nếu nó VẪN là của phiên mình vừa dọn. PATCH dọn bay bất đồng bộ; nếu trong
+    // lúc đó user bấm "Bắt đầu" một phiên MỚI, `localStorage` đã mang snapshot của phiên mới —
+    // xoá vô điều kiện ở đây sẽ vứt manh mối khôi phục của nó, tái lập đúng orphan #311 cho phiên
+    // mới nếu nó reload/crash trong ~10s trước lần ghi snapshot kế. So theo `sessionId` (không phải
+    // sự tồn tại) vì phiên mới cũng ghi vào cùng một khoá `recall.focusSession`.
+    const clearIfStillOurs = () => {
+      if (readFocusSessionSnapshot()?.sessionId === snapshot.sessionId) clearFocusSessionSnapshot();
+    };
     const discardOrphan = () =>
       focusSessionApi
         .end(snapshot.sessionId, {
           status: 'cancelled',
           focusedSeconds: Math.floor(snapshot.focusedMs / 1000),
         })
-        .then(() => clearFocusSessionSnapshot())
+        .then(clearIfStillOurs)
         .catch((error: unknown) => {
           // Cùng lý lẽ M4 của `handleResumeCommit`: 4xx (`ALREADY_ENDED` do reap 8h đã chạy hoặc
           // tab khác vừa đóng phiên / phiên không còn) ⇒ chẳng còn gì để dọn, xoá snapshot. Lỗi
           // TẠM THỜI (mất mạng, 5xx) thì GIỮ snapshot để lần mở màn sau dọn lại — xoá ở đây là tự
           // bỏ mất manh mối duy nhất về hàng orphan, tức rơi lại về đúng cảnh chờ reap 8h.
           // Im lặng với người dùng: họ không yêu cầu việc dọn này và không có gì để họ quyết.
-          if (isTerminalFocusSessionError(error)) clearFocusSessionSnapshot();
+          if (isTerminalFocusSessionError(error)) clearIfStillOurs();
         });
 
     // M3 — liveness qua Web Locks: tab đang chạy phiên GIỮ khoá `sessionLockName(id)` suốt vòng

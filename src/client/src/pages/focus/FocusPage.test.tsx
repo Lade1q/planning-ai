@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/utils/test-utils';
 import FocusPage from './FocusPage';
 import { reviewQueueApi } from '@/features/review-queue/api/review-queue.api';
-import { focusSessionApi, pomodoroConfigApi } from '@/features/focus/api/focus.api';
+import {
+  focusSessionApi,
+  isTerminalFocusSessionError,
+  pomodoroConfigApi,
+} from '@/features/focus/api/focus.api';
 import { planApi } from '@/features/study-planner/api/plan.api';
 import type { ReviewQueueItem } from '@/features/review-queue/types/review-queue.types';
 
@@ -21,7 +25,9 @@ vi.mock('@/features/focus/api/focus.api', () => ({
       .mockResolvedValue({ work: 25, short_break: 5, long_break: 15, cycles: 4, sound: true }),
   },
   getFocusSessionErrorMessage: () => 'err',
-  isTerminalFocusSessionError: () => false,
+  // vi.fn (not a bare arrow) so a test can flip a single call to `true` and exercise the
+  // terminal-4xx → clear-snapshot half of invariant #4.
+  isTerminalFocusSessionError: vi.fn(() => false),
 }));
 
 vi.mock('@/features/study-planner/api/plan.api', () => ({
@@ -320,6 +326,46 @@ describe('FocusPage — orphan cleanup for sessions too short to offer (#311)', 
     await waitFor(() => expect(focusSessionApi.end).toHaveBeenCalledTimes(1));
     await screen.findByText(/chưa có lịch ôn tập/i);
     expect(localStorage.getItem(SNAPSHOT_KEY)).not.toBeNull();
+  });
+
+  it('clears the snapshot when the cancel fails with a terminal 4xx (nothing left to clean)', async () => {
+    writeSnapshot(12_000, 's-terminal');
+    vi.mocked(focusSessionApi.end).mockRejectedValue(new Error('already ended'));
+    // 4xx: e.g. ALREADY_ENDED because the 8h reap beat us to it, or the row is simply gone.
+    vi.mocked(isTerminalFocusSessionError).mockReturnValueOnce(true);
+
+    render(<FocusPage />, { ...LOGGED_IN });
+
+    await waitFor(() => expect(focusSessionApi.end).toHaveBeenCalledTimes(1));
+    // Retrying a 4xx just fails again, so drop the snapshot rather than loop the cleanup PATCH on
+    // every /focus mount — the other half of invariant #4 from the transient test above.
+    await waitFor(() => expect(localStorage.getItem(SNAPSHOT_KEY)).toBeNull());
+  });
+
+  it('does not clear a NEWER session snapshot if one was started before cleanup resolved (F1)', async () => {
+    writeSnapshot(12_000, 's-old');
+
+    // Hold the cleanup PATCH open so a new session can claim the shared snapshot key mid-flight.
+    let resolveEnd!: (value: unknown) => void;
+    vi.mocked(focusSessionApi.end).mockReturnValue(
+      new Promise((resolve) => {
+        resolveEnd = resolve;
+      }) as never
+    );
+
+    render(<FocusPage />, { ...LOGGED_IN });
+    await waitFor(() => expect(focusSessionApi.end).toHaveBeenCalledTimes(1));
+
+    // User taps "Bắt đầu": a brand-new session overwrites `recall.focusSession` (one shared key).
+    writeSnapshot(0, 's-new');
+
+    // Only now does the orphan cleanup for s-old come back 200.
+    resolveEnd({});
+    await waitFor(() => {});
+
+    // The clear is guarded by sessionId, so s-new survives. An unconditional clear here would wipe
+    // it and re-create exactly the #311 orphan for the new session on its next reload.
+    expect(JSON.parse(localStorage.getItem(SNAPSHOT_KEY)!).sessionId).toBe('s-new');
   });
 
   it('fires ONE cleanup PATCH per session even when the effect runs several times', async () => {
