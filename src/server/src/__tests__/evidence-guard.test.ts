@@ -141,4 +141,61 @@ describe('sanitizeEvidence — deterministic INV-2 + enum backstop (spike S0)', 
       kind: 'downgraded',
     });
   });
+
+  it('11. asymmetric — un-accented uncertainty on a contradicted still downgrades (text-path INV-2)', () => {
+    // A student typing without diacritics on the text fallback: these must not stand as a
+    // misconception. contradicted matches diacritic-stripped, so they are caught.
+    expect(sanitizeEvidence({ status: 'contradicted', quote: 'that ra toi khong nho' })).toEqual({
+      kind: 'downgraded',
+    });
+    expect(sanitizeEvidence({ status: 'contradicted', quote: 'em khong chac lam' })).toEqual({
+      kind: 'downgraded',
+    });
+    expect(sanitizeEvidence({ status: 'contradicted', quote: 'hinh nhu vay thoi' })).toEqual({
+      kind: 'downgraded',
+    });
+  });
+
+  it('12. asymmetric — a covered stays strict: "không nhỏ" keeps its credit (accented-only match)', () => {
+    // covered matches ACCENTED markers only, so the confident "không nhỏ" (>=) — and even its
+    // un-accented form — is never mistaken for the marker "không nhớ".
+    expect(
+      sanitizeEvidence({ status: 'covered', quote: 'số host không nhỏ hơn 2 mũ m trừ 2' })
+    ).toEqual({ kind: 'kept', status: 'covered' });
+    expect(
+      sanitizeEvidence({ status: 'covered', quote: 'so host khong nho hon 2 mu m tru 2' })
+    ).toEqual({ kind: 'kept', status: 'covered' });
+  });
+
+  it('B. every uncertainty marker fires on a natural sentence — a typo (dead) marker fails here', () => {
+    // One realistic student sentence per marker, each targeting a single marker. A marker with a
+    // typo would silently never match real phrasing (failing toward punishing) — and break a row.
+    const perMarker: string[] = [
+      'thầy ơi em không nhớ đoạn này',
+      'cái này em không chắc luôn',
+      'thật sự không biết chỗ đó',
+      'không rõ lắm thầy',
+      'phần này em không nắm',
+      'quên rồi thầy ơi',
+      'quên mất tiêu rồi',
+      'tôi quên trừ đi hai địa chỉ',
+      'em quên trừ đi hai địa chỉ',
+      'mình quên trừ đi hai địa chỉ',
+      'con quên trừ đi hai địa chỉ',
+      'hình như là như vậy',
+      'chắc là như thế',
+      'chắc gì đã đúng',
+      'đại khái là thế thôi',
+      'đại loại gì đó thôi',
+      'khái niệm này hơi mơ hồ',
+      'đầu óc đang lơ mơ',
+      'thôi hên xui vậy',
+      'thôi đoán đại cho nhanh',
+      'thôi chịu, không hiểu nổi',
+    ];
+    expect(perMarker).toHaveLength(21);
+    for (const quote of perMarker) {
+      expect(sanitizeEvidence({ status: 'contradicted', quote })).toEqual({ kind: 'downgraded' });
+    }
+  });
 });
