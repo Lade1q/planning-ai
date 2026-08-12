@@ -11,6 +11,7 @@ import {
   generateQuestion,
   gradeAnswer,
   summarizeSession,
+  GEMINI_TIMEOUT_MS,
   AiMaterial,
 } from '../services/gemini.service';
 import { AppError } from '../middleware/errorHandler';
@@ -95,6 +96,25 @@ describe('AI Examiner Gemini calls', () => {
         code: 'AI_UNAVAILABLE',
       });
       expect(mockCreate).toHaveBeenCalledTimes(2);
+    });
+
+    it('times out instead of hanging forever, and reports it as AI_UNAVAILABLE', async () => {
+      jest.useFakeTimers();
+      mockCreate.mockImplementation(() => new Promise(() => {})); // never resolves
+
+      // Attach the rejection assertion before advancing timers, so the eventual reject
+      // always has a handler already in place (an attach-after-reject window here would
+      // surface as a Node unhandledRejection and fail the test even though this passes).
+      const pending = expect(generateQuestion(QUESTION_PARAMS)).rejects.toMatchObject({
+        code: 'AI_UNAVAILABLE',
+      });
+      // 2 attempts, each bounded by GEMINI_TIMEOUT_MS — advance past both.
+      await jest.advanceTimersByTimeAsync(GEMINI_TIMEOUT_MS * 2);
+      await pending;
+
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+
+      jest.useRealTimers();
     });
 
     it('passes the concept and mode steer in the prompt without asking the AI to route (C4)', async () => {

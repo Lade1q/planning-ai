@@ -22,7 +22,13 @@ import { reconcileVerdict } from '../utils/interview-grading';
 import { mockGenerateQuestion, mockGradeAnswer, mockSummarizeSession } from '../utils/mock-ai';
 import { AppError } from '../middleware/errorHandler';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+/** Upper bound on any single Gemini SDK call, so a hang degrades instead of blocking forever. */
+export const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 30_000);
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: { timeout: GEMINI_TIMEOUT_MS },
+});
 const MODEL = process.env.GEMINI_MODEL_EXTRACT ?? 'gemini-2.5-flash';
 const MODEL_INTERVIEW = process.env.GEMINI_MODEL_INTERVIEW ?? 'gemini-flash-latest';
 
@@ -47,6 +53,31 @@ export type AiMaterial =
   | { kind: 'document'; uri: string; mimeType: string };
 
 /**
+ * Application-level backstop: guarantees no Gemini call can hang forever, independent of
+ * whatever the SDK/mock actually does — this is what makes the "call never resolves" case
+ * testable (fake timers), and what turns a hang into an AI_* error the existing retry/
+ * fallback logic (AE-02 E2 / AE-05) already knows how to handle.
+ */
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Gemini ${label} call timed out after ${GEMINI_TIMEOUT_MS}ms`)),
+      GEMINI_TIMEOUT_MS
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+/**
  * Uploaded files start in PROCESSING and can't be referenced by an interaction
  * until they reach ACTIVE — poll with a short bound instead of racing it.
  */
@@ -55,7 +86,7 @@ async function waitForFileActive(fileName: string): Promise<void> {
   const DELAY_MS = 1000;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const file = await ai.files.get({ name: fileName });
+    const file = await withTimeout(ai.files.get({ name: fileName }), 'files.get');
     if (file.state === 'ACTIVE') return;
     if (file.state === 'FAILED') {
       throw new AppError('Gemini file processing failed', 502, 'AI_FILE_FAILED');
@@ -70,7 +101,10 @@ export async function uploadFile(
   absolutePath: string,
   mimeType: string
 ): Promise<{ uri: string; mimeType: string }> {
-  const file = await ai.files.upload({ file: absolutePath, config: { mimeType } });
+  const file = await withTimeout(
+    ai.files.upload({ file: absolutePath, config: { mimeType } }),
+    'files.upload'
+  );
   if (file.name) {
     await waitForFileActive(file.name);
   }
@@ -94,17 +128,23 @@ export async function extractConcepts(source: AiMaterial): Promise<AiExtractResp
           },
         ];
 
-  const interaction = await ai.interactions.create({
-    model: MODEL,
-    input,
-    system_instruction: SYSTEM_INSTRUCTION,
-    response_format: {
-      type: 'text',
-      mime_type: 'application/json',
-      schema: aiExtractJsonSchema,
-    },
-    generation_config: { thinking_level: 'low' },
-  });
+  const interaction = await withTimeout(
+    ai.interactions.create(
+      {
+        model: MODEL,
+        input,
+        system_instruction: SYSTEM_INSTRUCTION,
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: aiExtractJsonSchema,
+        },
+        generation_config: { thinking_level: 'low' },
+      },
+      { timeout: GEMINI_TIMEOUT_MS }
+    ),
+    'extract_concepts'
+  );
 
   if (!interaction.output_text) {
     throw new AppError('AI returned an empty response', 502, 'AI_EMPTY_RESPONSE');
@@ -203,18 +243,24 @@ async function callStructured<T>(
 
   for (let attempt = 0; attempt < INTERVIEW_ATTEMPTS; attempt++) {
     try {
-      const interaction = await ai.interactions.create({
-        model: MODEL_INTERVIEW,
-        input,
-        system_instruction: systemInstruction,
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: jsonSchema,
-        },
-        // Both calls sit inside a live conversation, so latency beats depth here.
-        generation_config: { thinking_level: 'low' },
-      });
+      const interaction = await withTimeout(
+        ai.interactions.create(
+          {
+            model: MODEL_INTERVIEW,
+            input,
+            system_instruction: systemInstruction,
+            response_format: {
+              type: 'text',
+              mime_type: 'application/json',
+              schema: jsonSchema,
+            },
+            // Both calls sit inside a live conversation, so latency beats depth here.
+            generation_config: { thinking_level: 'low' },
+          },
+          { timeout: GEMINI_TIMEOUT_MS }
+        ),
+        'interactions.create'
+      );
 
       if (!interaction.output_text) {
         throw new AiFormatError('AI returned an empty response');
