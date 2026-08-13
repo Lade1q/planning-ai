@@ -1,4 +1,4 @@
-import { finalizeConceptCoverage } from '../services/concept-coverage.service';
+import { scoreConceptFromEvidence } from '../services/concept-coverage.service';
 import prisma from '../config/prisma';
 
 jest.mock('../config/prisma', () => ({
@@ -29,7 +29,7 @@ function ruler(count = 4) {
 }
 
 /** Deriving and storing a concept's score at close (#331). */
-describe('finalizeConceptCoverage', () => {
+describe('scoreConceptFromEvidence', () => {
   let warn: jest.SpyInstance;
 
   beforeEach(() => {
@@ -47,7 +47,7 @@ describe('finalizeConceptCoverage', () => {
       { checkpointId: 'cp-3', status: 'contradicted' },
     ]);
 
-    const result = await finalizeConceptCoverage(SESSION, CONCEPT);
+    const result = await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     // coverage 3/4 = 0.75 ≥ 0.7 → score is the share resolved correctly, 2/3.
     expect(result.masteryScore).toBe(0.67);
@@ -73,7 +73,7 @@ describe('finalizeConceptCoverage', () => {
       { checkpointId: 'cp-2', status: 'covered' },
     ]);
 
-    const result = await finalizeConceptCoverage(SESSION, CONCEPT);
+    const result = await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     expect(result.masteryScore).toBeNull();
     expect(result.tally.notDiscussed).toBe(2);
@@ -86,7 +86,7 @@ describe('finalizeConceptCoverage', () => {
     checkpointFindMany().mockResolvedValue(ruler(3));
     evidenceFindMany().mockResolvedValue([{ checkpointId: 'cp-1', status: 'covered' }]);
 
-    const result = await finalizeConceptCoverage(SESSION, CONCEPT);
+    const result = await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     expect(result.tally.committed).toBe(3);
     // A separate countConceptCheckpoints() is the same number from a different statement — a
@@ -105,13 +105,13 @@ describe('finalizeConceptCoverage', () => {
       { checkpointId: 'cp-deleted', status: 'contradicted' },
     ]);
 
-    const result = await finalizeConceptCoverage(SESSION, CONCEPT);
+    const result = await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     // The stale row neither counts as coverage nor is charged: 3 of 3, not 3 of 4 or 4 of 3.
     expect(result.tally).toMatchObject({ committed: 3, evCovered: 3, evContradicted: 0 });
     expect(result.masteryScore).toBe(1);
 
-    // The join drops it silently; this line is the only thing that says drift is happening.
+    // The join drops it silently; this line is the only thing that says evidence fell off the ruler.
     expect(warn).toHaveBeenCalledTimes(1);
     const message = warn.mock.calls[0][0] as string;
     expect(message).toContain(CONCEPT);
@@ -122,7 +122,7 @@ describe('finalizeConceptCoverage', () => {
     checkpointFindMany().mockResolvedValue(ruler(2));
     evidenceFindMany().mockResolvedValue([{ checkpointId: 'cp-1', status: 'covered' }]);
 
-    await finalizeConceptCoverage(SESSION, CONCEPT);
+    await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     expect(warn).not.toHaveBeenCalled();
   });
@@ -131,7 +131,7 @@ describe('finalizeConceptCoverage', () => {
     checkpointFindMany().mockResolvedValue([]);
     evidenceFindMany().mockResolvedValue([]);
 
-    const result = await finalizeConceptCoverage(SESSION, CONCEPT);
+    const result = await scoreConceptFromEvidence(SESSION, CONCEPT);
 
     expect(result.masteryScore).toBeNull();
     expect(result.tally.committed).toBe(0);

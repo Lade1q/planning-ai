@@ -30,12 +30,20 @@ export async function listConceptCheckpoints(conceptId: string): Promise<Concept
 }
 
 /**
- * `C` for one concept — the `committed` argument of `coverageMasteryScore` (`utils/mastery.ts`).
+ * `C` for one concept, as a standalone count.
  *
- * Deliberately a COUNT OF STORED ROWS, read at the moment it is scored: never a number the model
- * reports, and never a length carried over from extraction time. Either of those could put a
- * stale or AI-chosen denominator under a mastery score, which is the whole thing INV-1 exists to
- * prevent. `0` is a valid answer, not a missing one.
+ * What `C` means has not changed: a COUNT OF STORED ROWS, read at the moment it is used — never a
+ * number the model reports, never a length carried over from extraction time. Either of those
+ * would put a stale or AI-chosen denominator under a mastery score, which is the whole thing INV-1
+ * exists to prevent. `0` is a valid answer, not a missing one.
+ *
+ * ⚠️ Scoring does NOT call this, and currently nothing else does either. `scoreConceptFromEvidence`
+ * (`concept-coverage.service.ts`) takes `C` from the length of the checkpoint set it already read,
+ * so the denominator and the ids the evidence is joined against come out of ONE statement — a
+ * second query here would be the same number from a different moment, and the two disagreeing is
+ * precisely how a concept ends up scored against a `C` its own checkpoint set never had. Kept as
+ * the plain reading of `C` for a caller that needs the count without the rows; delete it if none
+ * appears.
  */
 export async function countConceptCheckpoints(conceptId: string): Promise<number> {
   return prisma.conceptCheckpoint.count({ where: { conceptId } });

@@ -56,7 +56,7 @@ export interface CoverageTally {
  * Both counts come from checkpoints in the committed set, each id counted once, so
  * `resolved <= committed` holds BY CONSTRUCTION. That is what turns the `resolved > committed`
  * guard in `coverageMasteryScore` into a backstop for other callers rather than a live check —
- * and it is why the orphan list, not that guard, is the signal that drift is happening.
+ * and it is why the orphan list, not that guard, is what says evidence fell off the ruler.
  *
  * A duplicate row for one checkpoint cannot come out of the table (the unique key forbids it) and
  * cannot inflate anything here either: the last one read wins its cell. A status outside the enum
