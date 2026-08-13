@@ -532,7 +532,7 @@ async function toResponseItems(
 interface PlanQueueResolution {
   items: ReviewQueueItemResponse[];
   /** `false` only when the plan has never had a `ReviewQueueItem` row (A3 fallback path). */
-  hasHistory: boolean;
+  hasLiveQueue: boolean;
 }
 
 /**
@@ -562,8 +562,8 @@ interface PlanQueueResolution {
  * #343: `ACTIVE_CONCEPT_WHERE` sits on **both** reads, and the two are not the same decision.
  * On `findMany` it just keeps tombstones out of the list. On `count` it picks *which empty
  * state shows*: filtered, a plan whose whole queue history points at deprecated concepts reads
- * as `hasHistory: false` and falls to the A3 suggestion list; unfiltered it would read as
- * `hasHistory: true` and answer `COMPLETED_PLAN_MESSAGE` — congratulating the student for
+ * as `hasLiveQueue: false` and falls to the A3 suggestion list; unfiltered it would read as
+ * `hasLiveQueue: true` and answer `COMPLETED_PLAN_MESSAGE` — congratulating the student for
  * finishing a plan they never finished. The wording of neither sentence changes here, only
  * which branch is taken (#231/#232-phần-4 still owns the words).
  */
@@ -579,7 +579,7 @@ async function resolvePlanQueue(
   if (totalCount === 0) {
     return {
       items: options.dueOnly ? [] : await buildFallbackItems(plan, now),
-      hasHistory: false,
+      hasLiveQueue: false,
     };
   }
 
@@ -595,7 +595,7 @@ async function resolvePlanQueue(
 
   const items = await toResponseItems(rows, plan, now);
 
-  return { items: dedupeByConcept(items), hasHistory: true };
+  return { items: dedupeByConcept(items), hasLiveQueue: true };
 }
 
 /**
@@ -641,13 +641,13 @@ async function resolveSkippedItems(
  */
 function resolveEmptyMessage(
   items: readonly ReviewQueueItemResponse[],
-  hasHistory: boolean,
+  hasLiveQueue: boolean,
   completedMessage: string
 ): string | null {
   if (items.length > 0) {
     return null;
   }
-  return hasHistory ? completedMessage : null;
+  return hasLiveQueue ? completedMessage : null;
 }
 
 /**
@@ -684,12 +684,12 @@ export async function getReviewQueueForPlan(
   }
 
   const now = new Date();
-  const { items, hasHistory } = await resolvePlanQueue(plan, now, { dueOnly: false });
+  const { items, hasLiveQueue } = await resolvePlanQueue(plan, now, { dueOnly: false });
   const sorted = sortReviewItems(items).slice(0, limit);
 
   return {
     items: sorted,
-    message: resolveEmptyMessage(sorted, hasHistory, COMPLETED_PLAN_MESSAGE),
+    message: resolveEmptyMessage(sorted, hasLiveQueue, COMPLETED_PLAN_MESSAGE),
     totalEstimatedMinutes: sorted.reduce((total, item) => total + item.estimatedMinutes, 0),
     ...(options.includeSkipped
       ? { skippedItems: await resolveSkippedItems(plan, now, limit) }
@@ -730,12 +730,12 @@ export async function getTodayReviewQueue(
   );
 
   const allItems = resolutions.flatMap((resolution) => resolution.items);
-  const hasHistory = resolutions.some((resolution) => resolution.hasHistory);
+  const hasLiveQueue = resolutions.some((resolution) => resolution.hasLiveQueue);
   const sorted = sortReviewItems(allItems).slice(0, limit);
 
   return {
     items: sorted,
-    message: resolveEmptyMessage(sorted, hasHistory, COMPLETED_TODAY_MESSAGE),
+    message: resolveEmptyMessage(sorted, hasLiveQueue, COMPLETED_TODAY_MESSAGE),
     totalEstimatedMinutes: sorted.reduce((total, item) => total + item.estimatedMinutes, 0),
   };
 }
