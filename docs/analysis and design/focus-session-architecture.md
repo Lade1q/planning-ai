@@ -1,9 +1,10 @@
 # Focus Session — Architecture (Component: Focus Session)
 
 > **SAD placement.** Content for **Section 4.8** of the Software Architecture Document
-> (_Logical View → Component: Focus Session_). Closes the PA3-feedback gap that only 4 of the 5
-> use-case modules (AM, SP, AE, and DB — but not FS) had a dedicated §4 subsection. Fulfils
-> issue **#111** (PA4 mục a) and feeds the full SAD assembly (**#84 / I5.1**).
+> (_Logical View → Component: Focus Session_). Closes the PA3-feedback gap that only 3 of the 5
+> use-case modules (AM, SP, and AE — but not FS or DB) had a dedicated §4 subsection; this PR
+> adds both missing ones (FS here, DB in `dashboard-architecture.md`). Fulfils issue **#111**
+> (PA4 mục a) and feeds the full SAD assembly (**#84 / I5.1**).
 >
 > **Source of truth:** the actual code under
 > [`src/server/src/services/focus-session.service.ts`](../../src/server/src/services/focus-session.service.ts),
@@ -17,11 +18,14 @@
 
 ## 4.8.1 Overview
 
-Focus Session covers **FS-01** (Pomodoro study session), **FS-03** (session history), and
-**FS-05** (quick notes during a session). Architecturally it is a thin, self-contained
-CRUD-plus-timer component: the server persists session lifecycle and notes; the Pomodoro clock
-itself is **entirely client-side** (no server ticking) so the study timer keeps running through
-network blips.
+Focus Session covers **FS-01** (Pomodoro study session), **FS-02** (Pomodoro configuration —
+`PomodoroConfigPanel`, `pomodoroConfigApi`, `users.pomodoro_config` via
+`GET/PATCH /me/pomodoro-config`), **FS-03** (session history), **FS-04** (source document view
+during a session — `SessionDocument`, `DocumentExcerpt`, `DocumentFullText`,
+`useSessionDocument`), and **FS-05** (quick notes during a session). Architecturally it is a
+thin, self-contained CRUD-plus-timer component: the server persists session lifecycle and notes;
+the Pomodoro clock itself is **entirely client-side** (no server ticking) so the study timer
+keeps running through network blips.
 
 Two backend services share one ownership gate: `SessionNoteService` calls
 `FocusSessionService.getOwnedFocusSessionOrThrow()` before touching any note, so the "session
@@ -120,13 +124,21 @@ classDiagram
 - **One ownership gate for 5 endpoints.** `getOwnedFocusSessionOrThrow` is exported specifically
   so `session-note.service.ts` reuses it rather than re-implementing the "not found vs not yours"
   check (both collapse to a `404`, never a `403`, to avoid leaking session existence).
+- **Single-tab liveness via Web Locks (#319).** `sessionLock.ts` acquires a Web Locks API lock
+  scoped to the active session id when `RunningSession` mounts, so a session accidentally opened
+  in a second tab is detected client-side instead of silently double-counting `focusedSeconds`;
+  this is a client-only liveness guard and does not change the server's single `create`/`end`
+  contract described above.
 
 ## 4.8.4 Traceability
 
 | Element                            | Requirement                 | Code                                                           |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------- |
 | Pomodoro session start/end         | FS-01                       | `focus-session.service.ts`                                     |
+| Pomodoro configuration             | FS-02                       | `PomodoroConfigPanel.tsx`, `GET/PATCH /me/pomodoro-config`     |
 | Session history                    | FS-03                       | `listFocusSessions`                                            |
+| Source document during session     | FS-04, #227                 | `SessionDocument.tsx`, `useSessionDocument.ts`                 |
 | Quick notes, auto-save             | FS-05, #228                 | `session-note.service.ts`, `useAutosaveNote.ts`                |
+| Single-tab liveness guard          | #319                        | `sessionLock.ts`                                               |
 | `session_notes` table              | #111 ER redraw              | `schema.prisma` `SessionNote`                                  |
 | `mastery_score` never written here | AI-Examiner boundary (#128) | `focus-session.service.ts` (absence of the field in any write) |

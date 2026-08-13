@@ -4,7 +4,9 @@
 ' Recall AI — Entity-Relationship Model (PlantUML, crow's-foot)
 ' SAD Database component. Issue #86 / I5.3, updated for #111 (PA4).
 ' Source: schema.prisma, authoritative as of main (13 tables, incl. Sprint-5 session_notes).
-' Render:  java -jar plantuml.jar -tpng -Sdpi=200 er-model.puml
+' Render:  java -DPLANTUML_LIMIT_SIZE=16384 -jar plantuml.jar -tpng -Sdpi=200 er-model.puml
+' (limit-size override needed: "left to right direction" widens the layout past the
+' default 4096px cap and silently truncates the right edge otherwise)
 ' =====================================================================
 hide circle
 left to right direction
@@ -15,7 +17,7 @@ skinparam entity {
   BackgroundColor #FDFDFF
   BorderColor #6A6AC0
 }
-title Recall AI — Database ER Model (PostgreSQL, 13 tables)\n\n
+title Recall AI — Database ER Model (PostgreSQL, 13 tables)\n\nReflects the #111 (PA4) scope; excludes Sprint 5 / Interview v2 tables not yet part of this deliverable (concept_checkpoints — #329, InterviewEvidence — #330).\n\n
 
 entity "users" as users {
   * id : uuid <<PK>>
@@ -224,8 +226,8 @@ review_queue_items }o..|| interview_sessions : soft (source)
 
 legend right
   |= Notation |= Meaning |
-  | ||--o{ | one to zero-or-many (FK, cascade) |
-  | |o--o{ | zero-or-one to zero-or-many |
+  | &#124;&#124;--o{ | one to zero-or-many (FK, cascade) |
+  | &#124;o--o{ | zero-or-one to zero-or-many |
   | ..     | soft reference (no FK) |
   | <<PK>> / <<FK>> / <<UK>> | primary / foreign / unique key |
   | *      | NOT NULL |

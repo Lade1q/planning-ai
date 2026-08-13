@@ -25,6 +25,11 @@
 Recall AI persists all state in a single **PostgreSQL** database accessed through the **Prisma
 ORM**. The physical model below is generated 1:1 from the Prisma schema.
 
+> **Scope cut-off.** This model reflects the **#111 (PA4)** deliverable scope — the 13 tables
+> listed below. It does **not** include tables added for Sprint 5 / Interview v2, which was still
+> in development at the time of this revision: `concept_checkpoints` (#329) and the upcoming
+> `InterviewEvidence` (#330 / PR #338). Those land in a later SAD revision, not this one.
+
 | Convention            | Rule                                                                                                                         |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Primary keys          | `uuid` (`@db.Uuid`), application-generated (`uuid()`)                                                                        |

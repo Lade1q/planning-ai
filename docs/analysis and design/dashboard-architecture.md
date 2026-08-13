@@ -2,7 +2,8 @@
 
 > **SAD placement.** Content for **Section 4.9** of the Software Architecture Document
 > (_Logical View → Component: Dashboard & Visualization_). Closes the PA3-feedback gap that only
-> 4 of the 5 use-case modules (AM, SP, AE, and FS — but not DB) had a dedicated §4 subsection.
+> 3 of the 5 use-case modules (AM, SP, and AE — but not FS or DB) had a dedicated §4 subsection;
+> this PR adds both missing ones (DB here, FS in `focus-session-architecture.md`).
 > Fulfils issue **#111** (PA4 mục a) and feeds the full SAD assembly (**#84 / I5.1**).
 >
 > **Source of truth:** the actual code under
