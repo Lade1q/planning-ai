@@ -545,6 +545,7 @@ function tick() {
     /* Segment finished */
     if (state === 'running') {
       /* work done -> go to break */
+      secsLeft = (pomo % CFG.cycles === 0 ? CFG.longBreak : CFG.shortBreak) * 60;
       goState('break');
     } else {
       /* break done -> next pomo */
