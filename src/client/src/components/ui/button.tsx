@@ -14,7 +14,8 @@ import { Spinner } from '@/components/ui/spinner';
  * ở bốn điểm, đều là điều components.html nói rõ:
  *   · bo góc 0.8×radius (`rounded-md`), không phải 1×
  *   · nhấn = `scale(0.98)`, không phải dịch xuống 1px
- *   · focus = viền ngoài 2px cách 1px, không phải ring 3px mờ
+ *   · focus = viền ngoài 2px cách 1px (`[outline-style:none]` dùng thay cho `outline-none`/`outline-hidden`
+ *     vì Tailwind v4 gán `--tw-outline-style: none` làm triệt tiêu `focus-visible:outline-*` ring, #271)
  *   · hover đổi độ sáng của chính token, không phải hạ opacity — nút mờ đi khi
  *     rê chuột trông như đang bị vô hiệu hoá
  */
