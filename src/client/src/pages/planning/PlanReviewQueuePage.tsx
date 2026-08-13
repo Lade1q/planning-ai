@@ -33,6 +33,8 @@ export default function PlanReviewQueuePage() {
     items,
     skippedItems,
     message,
+    noScheduleNote,
+    hasActiveConcepts,
     isLoading,
     hasError,
     pendingConceptIds,
@@ -172,6 +174,7 @@ export default function PlanReviewQueuePage() {
           planId={planId}
           message={message ?? ''}
           planStatus={plan?.status ?? null}
+          hasActiveConcepts={hasActiveConcepts}
         />
       ) : (
         <>
@@ -185,8 +188,14 @@ export default function PlanReviewQueuePage() {
                 <b className="text-foreground font-medium">
                   Đây là gợi ý, chưa phải lịch ôn của bạn.
                 </b>{' '}
-                Kế hoạch này chưa có phiên vấn đáp nào, nên hệ thống chưa biết bạn yếu chỗ nào. Làm
-                một phiên là lịch thật được xếp và sửa được ngay tại đây.
+                {/* Cùng một banner, hai lý do khác nhau (#345). Thân câu do server cấp khi kế
+                    hoạch ĐÃ vấn đáp mà lịch cũ đã mất hiệu lực; câu dưới đây là ca "chưa có kết
+                    quả nào", vẫn do client giữ (ngoại lệ #273/#124). Client KHÔNG dò chuỗi để
+                    biết mình ở ca nào — `noScheduleNote !== null` chính là dấu hiệu.
+                    "kết quả" chứ không phải "phiên": hàng đợi chỉ sinh khi có kết quả chấm, nên
+                    một phiên bỏ dở trước câu trả lời đầu tiên vẫn đúng là "chưa có kết quả". */}
+                {noScheduleNote ??
+                  'Kế hoạch này chưa có kết quả vấn đáp nào, nên hệ thống chưa biết bạn yếu chỗ nào. Làm một phiên là lịch thật được xếp và sửa được ngay tại đây.'}
               </p>
             </div>
           )}

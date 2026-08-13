@@ -239,7 +239,10 @@ export function TodayNudge({
       <EmptyNudge
         badge={{ tone: 'ai', label: 'Sẵn sàng' }}
         heading="Đồ thị đã sẵn sàng — bắt đầu phiên đầu tiên"
-        body="Hệ thống chưa biết bạn đang nắm vững chỗ nào, vì kế hoạch này chưa có phiên vấn đáp nào. Làm một phiên để bắt đầu — kết quả sẽ xếp lịch ôn cho những lần sau."
+        // "kết quả" chứ không phải "phiên" (#345): tín hiệu bật nhánh này là hàng đợi rỗng, mà
+        // hàng đợi chỉ sinh dòng khi có KẾT QUẢ chấm. Một phiên bỏ dở trước câu trả lời đầu tiên
+        // (AE-03) là phiên thật nhưng không để lại kết quả nào — câu cũ nói dối đúng ca đó.
+        body="Hệ thống chưa biết bạn đang nắm vững chỗ nào, vì kế hoạch này chưa có kết quả vấn đáp nào. Làm một phiên để bắt đầu — kết quả sẽ xếp lịch ôn cho những lần sau."
         cta={{ to: '/interview', label: 'Bắt đầu phiên vấn đáp', primary: true }}
       />
     );
