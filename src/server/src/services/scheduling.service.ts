@@ -128,6 +128,29 @@ export const OFF_SCHEDULE_STATUSES: ReviewItemStatus[] = ['skipped', 'done'];
 /** `where` fragment dùng chung cho mọi truy vấn "mục còn nằm trên lịch" — xem trên. */
 export const ON_SCHEDULE_WHERE = { status: { notIn: OFF_SCHEDULE_STATUSES } } as const;
 
+/**
+ * "Khái niệm còn thuộc kế hoạch" (#343). Đi kèm `ON_SCHEDULE_WHERE` ở mọi đường **đọc** hàng
+ * đợi: hai điều kiện khác trục nhau — cái trên là trạng thái *của mục* (sinh viên đã gỡ chưa),
+ * cái này là trạng thái *của khái niệm* (tài liệu còn dạy nó không).
+ *
+ * SP-05 re-analyze gỡ một khái niệm khỏi kế hoạch bằng `status: 'deprecated'`, **không xoá**
+ * (`analysis.service.ts` `mergePlan`). Hàng đợi thì chỉ lọc item-status, nên mọi khái niệm từng
+ * được ôn rồi bị gỡ sau vẫn nổi lên — và hàng đợi chảy thẳng vào nhánh auto-pick của
+ * `interview.service.ts`, dựng cả một phiên phỏng vấn trên thứ đã rời cả kế hoạch lẫn đồ thị
+ * (`graph.service` render active-only).
+ *
+ * **Sửa ở đường đọc chứ không đụng data**, vì deprecate là cửa **hai chiều**: `mergePlan.toKeep`
+ * set `status: 'active'` vô điều kiện, nên tài liệu nhắc lại tên là tombstone sống lại **cùng
+ * `id`**; `ReviewQueueItem.concept` là relation **bắt buộc** (FK Cascade), nên hàng đợi tự gắn
+ * lại, giữ nguyên `scheduledFor`, priority và cả quyết định `skipped` của sinh viên. Bộ lọc này
+ * là một **view**: hồi sinh khôi phục hiển thị miễn phí, còn mọi bản vá ghi vào data sẽ là cửa
+ * một chiều bắc qua một trạng thái hai chiều.
+ *
+ * Vì relation là bắt buộc, thêm fragment này **không** âm thầm làm rụng hàng: mọi
+ * `ReviewQueueItem` đều có đúng một `Concept`, nên phép lọc chỉ loại đúng hàng trỏ tombstone.
+ */
+export const ACTIVE_CONCEPT_WHERE = { concept: { status: 'active' } } as const;
+
 export interface CalculatePriorityInput {
   masteryScore: number | null;
   daysUntilDeadline: number | null;
@@ -535,13 +558,23 @@ interface PlanQueueResolution {
  * belongs on `/today` — the same reason a `draft` plan contributes nothing there (#265). The
  * empty state this opens ("has plans, nothing due yet") is left to `resolveEmptyMessage` to
  * answer with `null`; its wording is #231/#232-phần-4's call, not this function's.
+ *
+ * #343: `ACTIVE_CONCEPT_WHERE` sits on **both** reads, and the two are not the same decision.
+ * On `findMany` it just keeps tombstones out of the list. On `count` it picks *which empty
+ * state shows*: filtered, a plan whose whole queue history points at deprecated concepts reads
+ * as `hasHistory: false` and falls to the A3 suggestion list; unfiltered it would read as
+ * `hasHistory: true` and answer `COMPLETED_PLAN_MESSAGE` — congratulating the student for
+ * finishing a plan they never finished. The wording of neither sentence changes here, only
+ * which branch is taken (#231/#232-phần-4 still owns the words).
  */
 async function resolvePlanQueue(
   plan: QueuePlan,
   now: Date,
   options: { dueOnly: boolean }
 ): Promise<PlanQueueResolution> {
-  const totalCount = await prisma.reviewQueueItem.count({ where: { planId: plan.id } });
+  const totalCount = await prisma.reviewQueueItem.count({
+    where: { planId: plan.id, ...ACTIVE_CONCEPT_WHERE },
+  });
 
   if (totalCount === 0) {
     return {
@@ -554,6 +587,7 @@ async function resolvePlanQueue(
     where: {
       planId: plan.id,
       ...ON_SCHEDULE_WHERE,
+      ...ACTIVE_CONCEPT_WHERE,
       ...(options.dueOnly ? { scheduledFor: { lte: now } } : {}),
     },
     include: QUEUE_ROW_INCLUDE,
@@ -576,6 +610,11 @@ async function resolvePlanQueue(
  * Folded to one row per concept for the same reason the live queue is (#232): the student
  * removed a *concept* from the schedule, and `updateReviewQueueItemStatus()` moves all of its
  * rows together, so listing the concept once is what actually happened.
+ *
+ * #343: this list needs `ACTIVE_CONCEPT_WHERE` more than the live queue does, not less. Every
+ * row here is drawn with a **"Đưa lại vào lịch"** button, so an unfiltered tombstone is not a
+ * stale line the student can ignore — it is a one-click way to put a concept the plan no longer
+ * contains back onto the schedule.
  */
 async function resolveSkippedItems(
   plan: QueuePlan,
@@ -583,7 +622,7 @@ async function resolveSkippedItems(
   limit: number
 ): Promise<ReviewQueueItemResponse[]> {
   const rows = await prisma.reviewQueueItem.findMany({
-    where: { planId: plan.id, status: 'skipped' },
+    where: { planId: plan.id, status: 'skipped', ...ACTIVE_CONCEPT_WHERE },
     include: QUEUE_ROW_INCLUDE,
   });
 
