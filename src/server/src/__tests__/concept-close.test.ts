@@ -10,8 +10,9 @@ import prisma from '../config/prisma';
  * against — pass every assertion here. No DATABASE_URL and no GEMINI_API_KEY: scoring from stored
  * evidence never asks the AI anything (C4 / risk R05).
  *
- * The plan has NO deadline, so `reviewIntervalDays` is a function of the mastery score alone and
- * the day counts below say which score was actually used.
+ * By default the plan has NO deadline, so `reviewIntervalDays` is a function of the mastery score
+ * alone and the day counts below say which score was actually used. One case sets a near deadline
+ * on purpose, to pin the clamp.
  */
 jest.mock('../config/prisma', () => ({
   __esModule: true,
@@ -36,10 +37,29 @@ const mockedPrisma = prisma as unknown as {
   $transaction: jest.Mock;
 };
 
-const conceptUpdate = () => mockedPrisma.concept.update;
-const checkpointFindMany = () => mockedPrisma.conceptCheckpoint.findMany;
-const evidenceFindMany = () => mockedPrisma.interviewEvidence.findMany;
-const reviewUpsert = () => mockedPrisma.reviewQueueItem.upsert;
+/**
+ * The client `$transaction` hands the callback — a DISTINCT object from the base client, with its
+ * own spies over the same fakes.
+ *
+ * Handing back `mockedPrisma` itself would make "read inside the transaction" and "read on a fresh
+ * connection" indistinguishable, and both would pass. They are not the same thing: the isolation
+ * level a future caller sets on this transaction only covers statements issued ON it, so a read
+ * that quietly escapes to the base client is exactly the "looks patched but isn't" trap #340 warns
+ * about. The base fakes stay wired and working, so an escaped read still returns the right data —
+ * it just gets recorded on the wrong object, which is what the assertions catch.
+ */
+let tx: {
+  concept: { findFirst: jest.Mock; update: jest.Mock; findMany: jest.Mock };
+  conceptEdge: { findMany: jest.Mock };
+  conceptCheckpoint: { findMany: jest.Mock };
+  interviewEvidence: { findMany: jest.Mock };
+  reviewQueueItem: { upsert: jest.Mock };
+};
+
+const conceptUpdate = () => tx.concept.update;
+const checkpointFindMany = () => tx.conceptCheckpoint.findMany;
+const evidenceFindMany = () => tx.interviewEvidence.findMany;
+const reviewUpsert = () => tx.reviewQueueItem.upsert;
 
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 const PLAN_ID = '33333333-3333-4333-8333-333333333333';
@@ -63,6 +83,8 @@ interface FakeConcept {
 let concepts: FakeConcept[];
 let edges: Array<{ fromConceptId: string; toConceptId: string }>;
 let evidence: Array<{ checkpointId: string; status: string }>;
+/** The plan's deadline. `null` in most cases, so the review interval is a function of the score. */
+let deadline: Date | null;
 
 /** Four committed checkpoints — the ruler the evidence is scored against. */
 function ruler(count = 4) {
@@ -103,6 +125,38 @@ function tick(): void {
   jest.advanceTimersByTime(1000);
 }
 
+/* One fake per table, shared by the base client and the transaction client so that only WHICH
+ * object recorded the call distinguishes them. */
+const fakes = {
+  sessionFindUnique: ({ where }: { where: { id: string } }) =>
+    Promise.resolve(
+      where.id === SESSION_ID
+        ? { planId: PLAN_ID, plan: { deadline, tracebackEnabled: true } }
+        : null
+    ),
+  conceptFindFirst: ({ where }: { where: { id: string; planId: string } }) => {
+    tick();
+    return Promise.resolve(
+      concepts.find((concept) => concept.id === where.id && concept.planId === where.planId) ?? null
+    );
+  },
+  conceptUpdate: ({ where, data }: { where: { id: string }; data: Partial<FakeConcept> }) => {
+    tick();
+    const concept = concepts.find((candidate) => candidate.id === where.id);
+    Object.assign(concept as FakeConcept, data);
+    return Promise.resolve({ ...(concept as FakeConcept) });
+  },
+  conceptFindMany: ({ where }: { where: { planId: string } }) =>
+    Promise.resolve(concepts.filter((concept) => concept.planId === where.planId)),
+  edgeFindMany: () => Promise.resolve(edges),
+  checkpointFindMany: () => Promise.resolve(ruler()),
+  evidenceFindMany: () => Promise.resolve(evidence),
+  reviewUpsert: () => {
+    tick();
+    return Promise.resolve({});
+  },
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
@@ -112,6 +166,7 @@ beforeEach(() => {
 
   edges = [];
   evidence = [];
+  deadline = null;
   concepts = [
     {
       id: CONCEPT_ID,
@@ -131,45 +186,31 @@ beforeEach(() => {
     },
   ];
 
-  mockedPrisma.interviewSession.findUnique.mockImplementation(
-    ({ where }: { where: { id: string } }) =>
-      Promise.resolve(
-        where.id === SESSION_ID
-          ? { planId: PLAN_ID, plan: { deadline: null, tracebackEnabled: true } }
-          : null
-      )
-  );
-  mockedPrisma.concept.findFirst.mockImplementation(
-    ({ where }: { where: { id: string; planId: string } }) => {
-      tick();
-      return Promise.resolve(
-        concepts.find((concept) => concept.id === where.id && concept.planId === where.planId) ??
-          null
-      );
-    }
-  );
-  mockedPrisma.concept.update.mockImplementation(
-    ({ where, data }: { where: { id: string }; data: Partial<FakeConcept> }) => {
-      tick();
-      const concept = concepts.find((candidate) => candidate.id === where.id);
-      Object.assign(concept as FakeConcept, data);
-      return Promise.resolve({ ...(concept as FakeConcept) });
-    }
-  );
-  mockedPrisma.concept.findMany.mockImplementation(({ where }: { where: { planId: string } }) =>
-    Promise.resolve(concepts.filter((concept) => concept.planId === where.planId))
-  );
-  mockedPrisma.conceptEdge.findMany.mockImplementation(() => Promise.resolve(edges));
-  mockedPrisma.conceptCheckpoint.findMany.mockImplementation(() => Promise.resolve(ruler()));
-  mockedPrisma.interviewEvidence.findMany.mockImplementation(() => Promise.resolve(evidence));
-  mockedPrisma.reviewQueueItem.upsert.mockImplementation(() => {
-    tick();
-    return Promise.resolve({});
-  });
-  // The real close runs inside a transaction; the fake hands it the same client, which is enough
-  // because nothing here tests rollback.
-  mockedPrisma.$transaction.mockImplementation((fn: (tx: unknown) => Promise<unknown>) =>
-    fn(mockedPrisma)
+  tx = {
+    concept: {
+      findFirst: jest.fn(fakes.conceptFindFirst),
+      update: jest.fn(fakes.conceptUpdate),
+      findMany: jest.fn(fakes.conceptFindMany),
+    },
+    conceptEdge: { findMany: jest.fn(fakes.edgeFindMany) },
+    conceptCheckpoint: { findMany: jest.fn(fakes.checkpointFindMany) },
+    interviewEvidence: { findMany: jest.fn(fakes.evidenceFindMany) },
+    reviewQueueItem: { upsert: jest.fn(fakes.reviewUpsert) },
+  };
+
+  // The session read happens BEFORE the transaction opens; everything else must not.
+  mockedPrisma.interviewSession.findUnique.mockImplementation(fakes.sessionFindUnique);
+  mockedPrisma.concept.findFirst.mockImplementation(fakes.conceptFindFirst);
+  mockedPrisma.concept.update.mockImplementation(fakes.conceptUpdate);
+  mockedPrisma.concept.findMany.mockImplementation(fakes.conceptFindMany);
+  mockedPrisma.conceptEdge.findMany.mockImplementation(fakes.edgeFindMany);
+  mockedPrisma.conceptCheckpoint.findMany.mockImplementation(fakes.checkpointFindMany);
+  mockedPrisma.interviewEvidence.findMany.mockImplementation(fakes.evidenceFindMany);
+  mockedPrisma.reviewQueueItem.upsert.mockImplementation(fakes.reviewUpsert);
+  // Nothing here tests rollback; what the separate client buys is telling apart a statement issued
+  // ON the transaction from one that escaped to a fresh connection.
+  mockedPrisma.$transaction.mockImplementation((fn: (client: unknown) => Promise<unknown>) =>
+    fn(tx)
   );
 });
 
@@ -208,6 +249,25 @@ describe('finalizeConceptCoverage — a concept it could measure', () => {
     // the transaction opened. Two clocks would date the assessment and its follow-up apart.
     expect((written.lastTestedAt as Date).getTime()).toBe(t0);
     expect(result.schedule.scheduledFor.getTime()).toBe(t0 + 10 * MS_PER_DAY);
+  });
+
+  it('clamps the interval to a near deadline instead of scheduling past it', async () => {
+    // Three days and an hour out. The hour matters: `daysUntil` FLOORS, so a deadline of exactly
+    // `now + 3d` would be read as 3 only if not a microsecond had passed since — padding past the
+    // day boundary makes the expectation say what it means instead of racing the clock.
+    deadline = new Date(Date.now() + 3 * MS_PER_DAY + 60 * 60 * 1000);
+    evidence = [
+      { checkpointId: 'cp-1', status: 'covered' },
+      { checkpointId: 'cp-2', status: 'covered' },
+      { checkpointId: 'cp-3', status: 'contradicted' },
+    ];
+
+    const result = await finalizeConceptCoverage({ sessionId: SESSION_ID, conceptId: CONCEPT_ID });
+
+    if (result.outcome !== 'closed') throw new Error('expected the concept to be closed');
+    // The score alone would say 10 days. Dropping the plan's deadline on the way into the
+    // scheduler is not a rounding difference — it books the review a week AFTER the exam.
+    expect(result.schedule.reviewInDays).toBe(3);
   });
 
   it('traces back weak prerequisites when the score is below the mastery threshold', async () => {
@@ -295,6 +355,48 @@ describe('finalizeConceptCoverage — a concept it could NOT measure', () => {
   });
 });
 
+/**
+ * Both the reads and the writes of a close have to be issued ON the transaction, not merely
+ * inside the callback that has one. Today the difference is invisible — Postgres reads at READ
+ * COMMITTED either way — but `db`/`tx` is the thread a future REPEATABLE READ hangs on, and a read
+ * that escapes to a fresh connection would leave the isolation level set on statements it no
+ * longer covers: patched on paper, unpatched in fact.
+ */
+describe('finalizeConceptCoverage — everything runs on the transaction client', () => {
+  it('issues the ruler and evidence reads on the transaction, not on a fresh connection', async () => {
+    evidence = [
+      { checkpointId: 'cp-1', status: 'covered' },
+      { checkpointId: 'cp-2', status: 'covered' },
+      { checkpointId: 'cp-3', status: 'covered' },
+    ];
+
+    await finalizeConceptCoverage({ sessionId: SESSION_ID, conceptId: CONCEPT_ID });
+
+    expect(tx.conceptCheckpoint.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.interviewEvidence.findMany).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.conceptCheckpoint.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.interviewEvidence.findMany).not.toHaveBeenCalled();
+  });
+
+  it('issues the score write and the queue row on the transaction too', async () => {
+    evidence = [
+      { checkpointId: 'cp-1', status: 'covered' },
+      { checkpointId: 'cp-2', status: 'covered' },
+      { checkpointId: 'cp-3', status: 'covered' },
+    ];
+
+    await finalizeConceptCoverage({ sessionId: SESSION_ID, conceptId: CONCEPT_ID });
+
+    expect(tx.concept.update).toHaveBeenCalledTimes(1);
+    expect(tx.reviewQueueItem.upsert).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.concept.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.reviewQueueItem.upsert).not.toHaveBeenCalled();
+    // The session read is the one statement that belongs OUTSIDE: it decides whether there is
+    // anything to open a transaction for.
+    expect(mockedPrisma.interviewSession.findUnique).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('finalizeConceptCoverage — concepts it must not touch', () => {
   it('skips a concept deprecated mid-session instead of scoring it', async () => {
     underTest().status = 'deprecated';
@@ -314,6 +416,8 @@ describe('finalizeConceptCoverage — concepts it must not touch', () => {
     expect(reviewUpsert()).not.toHaveBeenCalled();
     expect(checkpointFindMany()).not.toHaveBeenCalled();
     expect(evidenceFindMany()).not.toHaveBeenCalled();
+    expect(mockedPrisma.conceptCheckpoint.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.interviewEvidence.findMany).not.toHaveBeenCalled();
   });
 
   it('refuses a concept belonging to somebody else’s plan', async () => {
