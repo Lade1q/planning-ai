@@ -28,7 +28,14 @@ function ruler(count = 4) {
   }));
 }
 
-/** Deriving and storing a concept's score at close (#331). */
+/**
+ * Deriving a concept's score from its stored evidence (#331).
+ *
+ * Since #340 this function only READS: the write moved into `scheduleConceptReview`, so that
+ * reading the previous score and overwriting it is one function's internal business. Every case
+ * below therefore asserts `concept.update` was never called — not as bookkeeping, but because a
+ * write escaping back to here would put the score outside the transaction that schedules it.
+ */
 describe('scoreConceptFromEvidence', () => {
   let warn: jest.SpyInstance;
 
@@ -39,7 +46,7 @@ describe('scoreConceptFromEvidence', () => {
 
   afterEach(() => warn.mockRestore());
 
-  it('scores the concept from its own evidence and writes the result down', async () => {
+  it('scores the concept from its own evidence, and writes nothing itself', async () => {
     checkpointFindMany().mockResolvedValue(ruler());
     evidenceFindMany().mockResolvedValue([
       { checkpointId: 'cp-1', status: 'covered' },
@@ -59,14 +66,12 @@ describe('scoreConceptFromEvidence', () => {
       expect.objectContaining({ where: { sessionId: SESSION, conceptId: CONCEPT } })
     );
 
-    expect(conceptUpdate()).toHaveBeenCalledTimes(1);
-    const update = conceptUpdate().mock.calls[0][0];
-    expect(update.where).toEqual({ id: CONCEPT });
-    expect(update.data.masteryScore).toBe(0.67);
-    expect(update.data.lastTestedAt).toBeInstanceOf(Date);
+    // Storing 0.67 is `finalizeConceptCoverage`'s job, in the transaction that also schedules the
+    // review. A write here would commit on its own and could outlive a rolled-back schedule.
+    expect(conceptUpdate()).not.toHaveBeenCalled();
   });
 
-  it('below the coverage floor it writes NOTHING — null must not erase a score already proven', async () => {
+  it('below the coverage floor the answer is null — "not assessed", not a low score', async () => {
     checkpointFindMany().mockResolvedValue(ruler());
     evidenceFindMany().mockResolvedValue([
       { checkpointId: 'cp-1', status: 'covered' },
@@ -77,8 +82,6 @@ describe('scoreConceptFromEvidence', () => {
 
     expect(result.masteryScore).toBeNull();
     expect(result.tally.notDiscussed).toBe(2);
-    // Not "wrote null" and not "wrote 0": the stored score and lastTestedAt stay as they were,
-    // and getting the concept back in front of the student is the review queue's job.
     expect(conceptUpdate()).not.toHaveBeenCalled();
   });
 

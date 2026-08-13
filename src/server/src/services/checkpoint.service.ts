@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 
 /**
@@ -20,9 +21,16 @@ export interface ConceptCheckpointRow {
  *
  * An empty array means the concept has no ruler (`C = 0`); the §2.4 guard routes it to the text
  * path rather than treating it as an error.
+ *
+ * `db` lets a caller read on its own transaction client instead of a fresh connection (#340):
+ * closing a concept reads the ruler and writes the score it implies inside one transaction, and a
+ * read outside it would be a different snapshot from the write it justifies.
  */
-export async function listConceptCheckpoints(conceptId: string): Promise<ConceptCheckpointRow[]> {
-  return prisma.conceptCheckpoint.findMany({
+export async function listConceptCheckpoints(
+  conceptId: string,
+  db: Prisma.TransactionClient = prisma
+): Promise<ConceptCheckpointRow[]> {
+  return db.conceptCheckpoint.findMany({
     where: { conceptId },
     select: { id: true, text: true, orderIndex: true },
     orderBy: { orderIndex: 'asc' },
