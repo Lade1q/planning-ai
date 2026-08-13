@@ -220,6 +220,16 @@ Rules:
 - score and verdict must agree: "deep" requires score >= 0.7, "wrong" requires score < 0.4.
 - feedback: 1-3 sentences, in the same language as the material, addressed to the student.
 - Do not decide whether the interview should continue — you are only grading this answer.
+- "evidence": what this answer showed about the numbered checkpoints listed in the prompt.
+  One entry per checkpoint the answer actually addresses; omit the ones it does not touch, and
+  return an empty list if it touches none. Never report a checkpoint that was not listed.
+  - "checkpoint": the NUMBER of the checkpoint exactly as listed. Never a title, never an id.
+  - "status": "covered" = the answer demonstrates that checkpoint; "contradicted" = the answer
+    asserts something that conflicts with it. If the student was unsure or did not remember,
+    that is neither — omit the checkpoint.
+  - "quote": a span copied WORD FOR WORD from the student's answer above, exactly as they wrote
+    it. Do not paraphrase, do not translate, do not shorten it with "...", do not fix spelling or
+    punctuation. If you cannot copy such a span from their answer, omit that entry entirely.
 - Return ONLY the JSON object matching the provided schema.`;
 
 /** Per-mode steer for the next question. The caller picks the mode, never the model (C4). */
@@ -374,14 +384,38 @@ export interface GradeAnswerParams {
   answerText: string;
   /** From extract_concepts' `language_detected`; falls back to the material's language. */
   language?: string;
+  /**
+   * The concept's committed checkpoints (#346), in the order they will be numbered for the model.
+   *
+   * ⚠️ The caller must keep THIS array and resolve `evidence[].checkpoint` against it — the number
+   * the model returns means "the n-th line I was shown" and nothing more. Optional and defaulting
+   * to empty so a caller with no ruler (or none to spend) simply gets no evidence asked for; the
+   * response schema is unchanged either way, since `grade_answer` is one fixed schema, not two.
+   */
+  checkpoints?: readonly { text: string }[];
+}
+
+/**
+ * Renders the checkpoint list the `evidence` field indexes into. 1-based, in array order — the
+ * numbering here IS the contract, so this must not sort, filter or de-duplicate.
+ */
+function formatCheckpoints(checkpoints: readonly { text: string }[]): string {
+  if (checkpoints.length === 0) {
+    return '\n\nThis concept has no checkpoints; return an empty "evidence" list.';
+  }
+  const lines = checkpoints.map((checkpoint, index) => `${index + 1}. ${checkpoint.text}`);
+  return `\n\nCheckpoints for this concept (use these numbers in "evidence"):\n${lines.join('\n')}`;
 }
 
 /**
  * Calls the grade_answer schema (AE-03). The returned verdict is reconciled against the
  * score before it leaves this function, so callers can rely on the two agreeing.
+ *
+ * `evidence` comes back unvalidated on purpose (`gradeAnswerResponseSchema`): a malformed entry
+ * must not turn a good grade into `AI_BAD_FORMAT`. The caller runs it through `mapGradeEvidence`.
  */
 export async function gradeAnswer(params: GradeAnswerParams): Promise<GradeAnswerResponse> {
-  const { conceptName, material, questionText, answerText, language } = params;
+  const { conceptName, material, questionText, answerText, language, checkpoints = [] } = params;
 
   if (process.env.USE_MOCK_AI === 'true') {
     return mockGradeAnswer(answerText);
@@ -392,7 +426,8 @@ export async function gradeAnswer(params: GradeAnswerParams): Promise<GradeAnswe
     `Concept under examination: "${conceptName}".\n` +
     `Question asked:\n${questionText}\n\n` +
     `The student answered:\n${answerText}\n\n` +
-    `Grade this answer against the material.${languageLine}`;
+    `Grade this answer against the material.${languageLine}` +
+    formatCheckpoints(checkpoints);
 
   const graded = await callStructured(
     GRADE_SYSTEM_INSTRUCTION,

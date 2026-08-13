@@ -71,6 +71,9 @@ function normalizeAccented(text: string): string {
  * typed on the text fallback is still caught, with no false-positive risk. Combining marks
  * (U+0300–U+036F, left by NFD) are filtered by code point rather than a regex holding literal
  * combining characters, which source tooling can mangle.
+ *
+ * 🚫 Marker matching ONLY. `isQuoteGrounded` below must not use this — see the note there for why
+ * the same operation is correct for one job in this file and wrong for the other.
  */
 function normalizeStripped(text: string): string {
   const decomposed = text.toLowerCase().normalize('NFD');
@@ -81,6 +84,45 @@ function normalizeStripped(text: string): string {
     out += ch === 'đ' ? 'd' : ch;
   }
   return out;
+}
+
+/**
+ * Whether a quote is really the student's own words: `quote` must appear VERBATIM inside
+ * `answerText` (#346, §④). A quote that does not is not a sloppy citation — it is text the MODEL
+ * wrote, which is the thing C5 forbids. The precedent is on file: this project already refused to
+ * put `section_title` in an AI schema because letting the model name a chapter is the same shape.
+ * So the strictness here is not a knob to tune; C5 fixed it, this only enforces it in code.
+ *
+ * Applied to BOTH statuses. Every rejection removes a checkpoint from `coverage`'s numerator AND
+ * denominator, pushing the concept towards `null` = "not assessed yet" → back to the queue, never
+ * towards a confident wrong number. The residual asymmetry is real and stated rather than hidden:
+ * dropping a `covered` lowers the ratio (costs the student), dropping a `contradicted` raises it
+ * (a phantom credit). INV-2 settles which way to fall: an unanchored quote is UNCONFIRMED evidence,
+ * and INV-2 forbids punishing on unconfirmed evidence — so a `contradicted` is dropped too.
+ *
+ * Normalisation is LOSSLESS-ish on purpose — case-fold + NFC (`normalizeAccented`) plus the same
+ * whitespace collapse `normalizeCheckpointText` applies. NFC is not optional: Vietnamese renders
+ * identically in NFC and NFD but differs byte for byte, so skipping it would reject REAL quotes for
+ * an invisible reason — a false negative with no signal at all. The collapse is written out here
+ * rather than imported because it is the same RULE, not the same SUBJECT: checkpoint identity is
+ * free to move without dragging quote grounding with it.
+ *
+ * 🚫 `normalizeStripped` must NEVER be used here, and the two requirements sit in this one file so
+ * the contradiction is visible. Stripping diacritics for a MARKER is deliberate (it catches a hedge
+ * typed without accents). Stripping them for GROUNDING would accept an invented quote that means
+ * something else — "ma" would match "má". Same file, opposite requirements; do not "unify" them.
+ *
+ * An empty (or whitespace-only) quote returns `false`. `''` is a substring of everything, so the
+ * naive check would wave through exactly the entries carrying no evidence at all.
+ */
+export function isQuoteGrounded(quote: string, answerText: string): boolean {
+  const needle = normalizeForGrounding(quote);
+  if (needle === '') return false;
+  return normalizeForGrounding(answerText).includes(needle);
+}
+
+function normalizeForGrounding(text: string): string {
+  return normalizeAccented(text).replace(/\s+/g, ' ').trim();
 }
 
 function escapeRegExp(literal: string): string {

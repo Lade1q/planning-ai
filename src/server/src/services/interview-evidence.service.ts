@@ -1,6 +1,8 @@
 import prisma from '../config/prisma';
 import { decideEvidenceWrite } from '../utils/evidence-write';
 import type { EvidenceStatus, RawEvidence } from '../utils/evidence-guard';
+import { mapGradeEvidence, tallyUnmapped } from '../utils/grade-evidence';
+import type { EvidenceRuler, UnmappedReason } from '../utils/grade-evidence';
 
 /**
  * Writing down what a student demonstrated, one checkpoint at a time (#330, §2.2).
@@ -11,11 +13,13 @@ import type { EvidenceStatus, RawEvidence } from '../utils/evidence-guard';
  * disappears structurally rather than by another patch: two fires for the same checkpoint are the
  * same cell, not two racers for one score column.
  *
- * Scope note — this module has NO caller yet, by design. The voice path (`record_evidence` over
- * the WS proxy) and the text path (`grade_answer` → evidence, after #307) are wired later, and
- * the per-turn claim path in `interview.service.ts` keeps running untouched until the cutover at
- * #331 (§7 coexistence). Deleting it now would break the live text path and #305's score, which
- * still read from turns.
+ * Scope note — the TEXT path is wired as of #346 (`recordTurnEvidence` below, called from
+ * `interview.service.ts` once a grade is safely written). The voice path (`record_evidence` over
+ * the WS proxy) is still to come. What has NOT changed is the grain: the per-turn claim path keeps
+ * computing the score the student sees, and `finalizeConceptCoverage` still has no caller. #346 is
+ * purely ADDITIVE — evidence is recorded alongside, and the cutover is its own issue, because the
+ * result screen (#307) renders the 3-turn weighted average as prose and a coverage score is not
+ * that number.
  */
 
 /**
@@ -94,4 +98,112 @@ export async function upsertEvidence(
   });
 
   return { kind: 'written', status: decision.status };
+}
+
+/** Everything one turn's evidence did, so a run can be read off the log instead of guessed at. */
+export interface TurnEvidenceTally {
+  written: number;
+  /** `sanitizeEvidence` rejections (#326): enum leakage and INV-2 saves, kept apart. */
+  downgraded: number;
+  dropped: number;
+  /** Rejected before the guard ever saw them — see `UnmappedReason`. */
+  unmapped: Record<UnmappedReason, number>;
+  /**
+   * The row was writable but the write itself failed (the database, not the model). Counted
+   * separately because it is not a statement about the answer at all: lumping it in with the model
+   * failures above would make an outage look like a prompt problem.
+   */
+  writeFailed: number;
+}
+
+export interface RecordTurnEvidenceParams {
+  sessionId: string;
+  conceptId: string;
+  /** The turn this came from — `pending.id`, the same turn whose grade was just committed. */
+  turnRef: string;
+  /** The checkpoint array that was serialised into THIS request's prompt. Never a re-read. */
+  ruler: readonly EvidenceRuler[];
+  /** What the student actually typed, for the §④ grounding check. */
+  answerText: string;
+  /** `grade_answer`'s `evidence` field, exactly as it arrived. */
+  raw: unknown;
+}
+
+/**
+ * Records one turn's evidence: map indices onto the ruler, then push each surviving entry through
+ * the same guarded write every other path uses (#346).
+ *
+ * ⚠️ CALL ORDER IS THE POINT. This must run only AFTER the claim-bound verdict write reported
+ * `count > 0` in `interview.service.ts`. A request that LOSES its claim (Gemini outran
+ * `ANSWER_CLAIM_STALE_MS` and a newer request took the turn) is holding a perfectly valid grade
+ * whose score is thrown away — and because the evidence write is an upsert on
+ * `(sessionId, conceptId, checkpointId)`, running it there would let the LOSER overwrite the
+ * winner's evidence. That is bug #288 reappearing at a different table, so the order is not a
+ * preference.
+ *
+ * Returns rather than throws. Every await inside is guarded per item, so a failure costs one row,
+ * never the grade — evidence is additive and must not be able to fail an answer that was graded
+ * correctly. There is deliberately no blanket try/catch around the whole thing: with the individual
+ * awaits covered, anything still escaping is a genuine bug worth seeing rather than swallowing.
+ */
+export async function recordTurnEvidence(
+  params: RecordTurnEvidenceParams
+): Promise<TurnEvidenceTally> {
+  const { sessionId, conceptId, turnRef, ruler, answerText, raw } = params;
+
+  const mapping = mapGradeEvidence(raw, ruler, answerText);
+  const tally: TurnEvidenceTally = {
+    written: 0,
+    downgraded: 0,
+    dropped: 0,
+    unmapped: tallyUnmapped(mapping.unmapped),
+    writeFailed: 0,
+  };
+
+  // Counting is not enough: a backstop that has been muzzled looks exactly like a backstop with
+  // nothing to do. Each rejection is logged with its own reason, because the first live run is what
+  // tells us whether the model quotes verbatim or paraphrases — and only `quote_not_found` answers
+  // that question.
+  for (const rejected of mapping.unmapped) {
+    console.warn(`[evidence] turn ${turnRef}: ${rejected.reason} — ${rejected.detail}`);
+  }
+
+  for (const entry of mapping.mapped) {
+    try {
+      const outcome = await upsertEvidence(
+        sessionId,
+        conceptId,
+        entry.checkpointId,
+        entry.checkpointText,
+        { status: entry.status, quote: entry.quote },
+        turnRef
+      );
+      if (outcome.kind === 'written') {
+        tally.written += 1;
+      } else {
+        tally[outcome.reason] += 1;
+      }
+    } catch (error) {
+      tally.writeFailed += 1;
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      console.error(
+        `[evidence] turn ${turnRef}: write failed for checkpoint ${entry.checkpointId} — ${detail}`
+      );
+    }
+  }
+
+  // Emitted on every turn that carried an evidence field, all-zero counts included: "the backstop
+  // rejected nothing" and "the backstop never ran" have to be tellable apart, and only a line that
+  // is always printed does that. `warn` rather than `info` because the lint rule allows only
+  // `warn`/`error` — the level is the codebase's floor, not a claim that this is a problem.
+  if (!mapping.absent) {
+    const { bad_index, parse_failed, quote_not_found } = tally.unmapped;
+    console.warn(
+      `[evidence] turn ${turnRef}: written=${tally.written} downgraded=${tally.downgraded} ` +
+        `dropped=${tally.dropped} bad_index=${bad_index} parse_failed=${parse_failed} ` +
+        `quote_not_found=${quote_not_found} write_failed=${tally.writeFailed}`
+    );
+  }
+
+  return tally;
 }
