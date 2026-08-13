@@ -213,9 +213,17 @@ describe('PlanReviewQueuePage — empty-state disambiguation', () => {
     expect(screen.queryByText(/chưa có kết quả vấn đáp nào/)).not.toBeInTheDocument();
     // The lead-in is shared by both — it is the banner, not the diagnosis.
     expect(screen.getByText('Đây là gợi ý, chưa phải lịch ôn của bạn.')).toBeInTheDocument();
+    // …and the link back to review history, which `isFallbackSuggestion` alone used to hide here.
+    // This student HAS history — that is the definition of this case — so hiding it removed a
+    // route, silently, which is worse than the wrong sentence next to it.
+    expect(screen.getByRole('link', { name: 'Lịch sử ôn tập' })).toBeInTheDocument();
   });
 
   it('falls back to the client sentence when there is no note — the never-graded case', async () => {
+    // Byte-for-byte the previous fixture except `noScheduleNote`. That is the assertion, not a
+    // coincidence: the two cases must be told apart by exactly ONE discriminator. Answer the
+    // "has history?" question with a second flag and this pair stops flipping together — which
+    // is how the bug being fixed here got in.
     vi.mocked(reviewQueueApi.getReviewQueue).mockResolvedValueOnce(
       makeResponse({ items: [makeItem({ id: null })], noScheduleNote: null })
     );
@@ -228,6 +236,8 @@ describe('PlanReviewQueuePage — empty-state disambiguation', () => {
     // "kết quả", not "phiên": a session abandoned before its first answer leaves no queue row,
     // so the old wording called it "no session" while the student remembered sitting one.
     expect(screen.queryByText(/chưa có phiên vấn đáp nào/)).not.toBeInTheDocument();
+    // Genuinely no history here, so the link stays hidden — the flag's original job, unchanged.
+    expect(screen.queryByRole('link', { name: 'Lịch sử ôn tập' })).not.toBeInTheDocument();
   });
 
   it('reads the plan name off the queue items instead of refetching the whole graph', async () => {
