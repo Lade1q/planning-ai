@@ -505,6 +505,7 @@ var driftSecs     = 0;
 var driftCount    = 0;
 var clockHandle   = null;
 var notesOpen     = false;
+var savedWorkSecs = null;
 
 /* Concept data (demo) */
 var CONCEPT = {
@@ -800,7 +801,17 @@ function goState(s) {
   state = s;
 
   if (s === 'break') {
-    secsLeft = (pomo % CFG.cycles === 0 ? CFG.longBreak : CFG.shortBreak) * 60;
+    if (prev !== 'break') {
+      if (prev === 'running' || prev === 'paused') savedWorkSecs = secsLeft;
+      secsLeft = (pomo % CFG.cycles === 0 ? CFG.longBreak : CFG.shortBreak) * 60;
+    }
+  } else if (s === 'running' || s === 'paused') {
+    if (prev === 'break' && savedWorkSecs !== null && savedWorkSecs > 0) {
+      secsLeft = savedWorkSecs;
+      savedWorkSecs = null;
+    }
+  } else {
+    savedWorkSecs = null;
   }
 
   /* Proto bar */
