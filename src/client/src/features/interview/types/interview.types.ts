@@ -172,10 +172,18 @@ export interface SessionSummaryConceptResponse {
 }
 
 export interface SessionSummaryReviewItemResponse {
+  /** `ReviewQueueItem.id` — the `itemId` of `PATCH /review-queue/:itemId` (#310). */
+  id: string;
   conceptId: string;
   name: string;
   reason: 'traceback' | 'spaced_repetition' | 'deadline_priority' | 'manual';
   depth: number | null;
+  /**
+   * Group the Traceback block by this, not by `sourceConceptName` — the name collides when two
+   * concepts share it. `null` for `spaced_repetition`; non-null with a `null` name means the
+   * source concept was deleted since (soft reference, no FK).
+   */
+  sourceConceptId: string | null;
   sourceConceptName: string | null;
   status: 'pending' | 'skipped';
   scheduledFor: string | null;

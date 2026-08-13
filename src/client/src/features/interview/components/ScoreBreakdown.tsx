@@ -56,11 +56,12 @@ export function ScoreBreakdown({ concepts, turns, reviewSchedule }: ScoreBreakdo
       .filter((item) => item.reason === 'spaced_repetition')
       .map((item) => [item.conceptId, item])
   );
+  // Đếm theo `sourceConceptId` (#310), không theo tên — tên gãy khi hai khái niệm trùng nhau.
   const tracebackCountBySource = new Map<string, number>();
   for (const item of reviewSchedule) {
-    if (item.reason !== 'traceback' || !item.sourceConceptName) continue;
-    const current = tracebackCountBySource.get(item.sourceConceptName) ?? 0;
-    tracebackCountBySource.set(item.sourceConceptName, current + 1);
+    if (item.reason !== 'traceback' || !item.sourceConceptId) continue;
+    const current = tracebackCountBySource.get(item.sourceConceptId) ?? 0;
+    tracebackCountBySource.set(item.sourceConceptId, current + 1);
   }
 
   // Khái niệm yếu nhất mở sẵn: nếu sinh viên chỉ đọc một chỗ trên trang này thì đây là chỗ đó.
@@ -110,7 +111,7 @@ export function ScoreBreakdown({ concepts, turns, reviewSchedule }: ScoreBreakdo
                   <ConceptNote
                     band={masteryBand(concept.masteryScore)}
                     scheduledFor={spacedByConcept.get(concept.conceptId)?.scheduledFor ?? null}
-                    tracebackCount={tracebackCountBySource.get(concept.name) ?? 0}
+                    tracebackCount={tracebackCountBySource.get(concept.conceptId) ?? 0}
                   />
                 </div>
 
@@ -229,19 +230,6 @@ function WeightedFormula({
   const allScored = turns.every((turn) => turn.score !== null);
 
   if (!weights || !allScored || masteryScore === null) {
-    return <div className="text-muted-foreground text-xs">{turns.length} lượt</div>;
-  }
-
-  // Điểm hiển thị hiện đọc từ `Concept.masteryScore` chứ không suy từ lượt của chính phiên
-  // này (#244, đang mở), nên nó có thể LỆCH với tổng tính từ các lượt ở đây — ví dụ khái niệm
-  // đã được ôn lại ở phiên sau. Cộng không ra thì thà không hiện công thức: một phép tính sai
-  // trên màn làm người đọc mất tin vào mọi con số khác, tệ hơn hẳn việc thiếu một dòng phụ.
-  const computed = turns.reduce(
-    (sum, turn, idx) => sum + (turn.score ?? 0) * (weights[idx] ?? 0),
-    0
-  );
-  // TODO(@reviewer): Workaround để che đi bug #244 của BE (điểm trả về không khớp điểm cộng dồn). Tạm ẩn công thức nếu bị lệch. Chờ BE fix #244 xong thì xoá hộ đoạn check này.
-  if (Math.abs(computed - masteryScore) > 0.005) {
     return <div className="text-muted-foreground text-xs">{turns.length} lượt</div>;
   }
 

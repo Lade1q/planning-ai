@@ -41,19 +41,18 @@ export function TracebackPanel({
   pendingItemIds,
   onSkip,
 }: TracebackPanelProps) {
-  const scoreByConceptName = new Map(
-    concepts.map((concept) => [concept.name, concept.masteryScore])
+  const scoreByConceptId = new Map(
+    concepts.map((concept) => [concept.conceptId, concept.masteryScore])
   );
   const weakConceptCount = concepts.filter(
     (concept) => concept.masteryScore !== null && concept.masteryScore < TRACEBACK_THRESHOLD
   ).length;
 
-  // Gom theo khái niệm gốc, giữ nguyên thứ tự server đã sort (tầng 1 trước tầng 2).
+  // Gom theo `sourceConceptId` (#310), giữ nguyên thứ tự server đã sort (tầng 1 trước tầng 2).
+  // Đừng suy id từ tên: id non-null + tên null nghĩa là khái niệm gốc đã bị xoá khỏi kế hoạch.
   const groups = new Map<string, SessionSummaryReviewItemResponse[]>();
   for (const item of items) {
-    // TODO(@reviewer): Đang tạm gom nhóm bằng Tên gốc vì BE chưa trả ID gốc. Code này sẽ gom sai nếu 2 khái niệm trùng tên. Mọi người cân nhắc thêm `sourceConceptId` ở BE sớm giúp mình nhé.
-    // `sourceConceptName` chỉ `null` khi khái niệm gốc đã bị xoá khỏi kế hoạch từ sau phiên.
-    const key = item.sourceConceptName ?? '';
+    const key = item.sourceConceptId ?? '';
     const existing = groups.get(key);
     if (existing) {
       existing.push(item);
@@ -94,17 +93,24 @@ export function TracebackPanel({
         {groups.size === 0 ? (
           <EmptyTraceback weakConceptCount={weakConceptCount} />
         ) : (
-          [...groups].map(([sourceName, prereqs]) => (
-            <TracebackGroup
-              key={sourceName || '__unknown__'}
-              sourceName={sourceName}
-              sourceScore={sourceName ? (scoreByConceptName.get(sourceName) ?? null) : null}
-              prereqs={prereqs}
-              skippedItemIds={skippedItemIds}
-              pendingItemIds={pendingItemIds}
-              onSkip={onSkip}
-            />
-          ))
+          [...groups].map(([sourceConceptId, prereqs]) => {
+            // Tên hiển thị lấy từ chính hàng, không suy từ id — `null` nghĩa là khái niệm gốc
+            // đã bị xoá khỏi kế hoạch (id vẫn còn để nhóm, tên thì mất).
+            const sourceName = prereqs[0]?.sourceConceptName ?? '';
+            return (
+              <TracebackGroup
+                key={sourceConceptId || '__unknown__'}
+                sourceName={sourceName}
+                sourceScore={
+                  sourceConceptId ? (scoreByConceptId.get(sourceConceptId) ?? null) : null
+                }
+                prereqs={prereqs}
+                skippedItemIds={skippedItemIds}
+                pendingItemIds={pendingItemIds}
+                onSkip={onSkip}
+              />
+            );
+          })
         )}
 
         {/* "Sửa lại bất cứ lúc nào" phải trỏ tới một chỗ có thật, nếu không thì bỏ cổng xác nhận

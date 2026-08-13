@@ -14,7 +14,6 @@ import type {
   SessionSummaryConceptResponse,
 } from '../types/interview.types';
 import { TRACEBACK_THRESHOLD, BAND_COLOR_VAR } from '../utils/summary-display';
-import apiClient from '@/lib/apiClient';
 
 type Band = ReturnType<typeof masteryBand>;
 
@@ -69,20 +68,14 @@ export function SessionSummary({
       setPendingItemIds((prev) => new Set(prev).add(conceptId));
 
       try {
-        // TODO(@reviewer): Workaround FE: API /summary chưa trả về itemId, nên tạm thời phải fetch lại toàn bộ review queue để tìm ID. Khi BE cập nhật API, cần xoá request này đi.
-        // Workaround FE: Fetch review queue to find the actual itemId from conceptId
-        const res = await apiClient.get(`/api/v1/review-queue?planId=${planId}`);
-
-        const queueData = res.data;
-        const targetItem = queueData.data?.find(
-          (item: { conceptId: string; id: string }) => item.conceptId === conceptId
-        );
-
-        if (!targetItem) {
-          throw new Error('Concept not found in review queue');
+        // `id` giờ có sẵn thẳng trong `/summary` (#310/#312) — không cần fetch lại review queue
+        // rồi dò `conceptId` như trước nữa.
+        const item = summary.reviewSchedule.find((row) => row.conceptId === conceptId);
+        if (!item) {
+          throw new Error('Concept not found in review schedule');
         }
 
-        await interviewApi.skipReviewItem(targetItem.id);
+        await interviewApi.skipReviewItem(item.id);
       } catch {
         setSkippedItemIds((prev) => {
           const next = new Set(prev);
@@ -98,7 +91,7 @@ export function SessionSummary({
         });
       }
     },
-    [planId]
+    [summary.reviewSchedule]
   );
 
   const tracebackItems = summary.reviewSchedule.filter((item) => item.reason === 'traceback');
