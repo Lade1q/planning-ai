@@ -59,13 +59,22 @@ export const CONTENT_CHANGED_PLAN_NOTE =
   'trong nội dung hiện tại. Làm một phiên với nội dung mới để có lịch thật.';
 
 /**
- * #345, ca (c) trên `/today`. Câu **riêng** chứ không dùng lại `CONTENT_CHANGED_PLAN_NOTE`:
- * `/today` gộp mọi kế hoạch của user, nên "Kế hoạch này" ở đó là sai. Vế cuối khớp CTA `/plans`
- * mà nhánh cuối `TodayNudge` đã có sẵn.
+ * #345, nhánh `CHANGED` trên `/today`. Câu **riêng** chứ không dùng lại
+ * `CONTENT_CHANGED_PLAN_NOTE`: `/today` gộp mọi kế hoạch của user, nên "Kế hoạch này" ở đó là sai.
+ *
+ * ⚠️ **LUẬT CÂU CHỮ — vế cuối nêu VIỆC NGƯỜI DÙNG LÀM, không nêu NƠI NGƯỜI DÙNG TỚI.** Nút đã
+ * nói nơi rồi; để chữ lặp lại cái nút là mất một vế mà không mua được gì. Bản nháp của câu này
+ * từng kết bằng *"mở kế hoạch để xem đồ thị hiện tại"* và được biện minh bằng *"vế cuối khớp CTA
+ * `/plans`"* — chính lối thoát mà luật trên bác. Nếu định "khôi phục" nó vì thấy khớp nút, đọc
+ * lại dòng này trước; và đọc cả `NO_ACTIVE_CONCEPTS_TODAY_MESSAGE` ngay dưới, nơi cùng luật đó
+ * được viện để **không** nhắc "mở kế hoạch".
+ *
+ * Hệ quả kiểm được: sau khi theo luật, vế hành động của câu này **trùng nguyên văn** với vế cuối
+ * của `CONTENT_CHANGED_PLAN_NOTE`. Bốn câu, hai cặp, không cặp nào lệch chữ ở phần việc-phải-làm.
  */
 export const CONTENT_CHANGED_TODAY_MESSAGE =
   'Hôm nay không có gì đến hạn. Nội dung kế hoạch đã thay đổi nên lịch ôn cũ không còn hiệu ' +
-  'lực — mở kế hoạch để xem đồ thị hiện tại.';
+  'lực — làm một phiên với nội dung mới để có lịch thật.';
 
 /**
  * #345, ca (d) — kế hoạch `active` mà **không còn khái niệm `active` nào**.
@@ -613,9 +622,9 @@ async function toResponseItems(
  * questions is what produced the bug this issue exists to fix, so each of these answers exactly
  * one — and they are deliberately **not** derivable from each other:
  *
- * - `hasLiveQueue` — is there a row on the schedule pointing at a concept the plan still has?
+ * - `hasQueueOnActiveConcepts` — is there a row on the schedule pointing at a concept the plan still has?
  * - `hadGradedHistory` — was this plan ever graded at all? (unfiltered; a plan whose whole
- *   history points at tombstones has `hasLiveQueue: false` and `hadGradedHistory: true`)
+ *   history points at tombstones has `hasQueueOnActiveConcepts: false` and `hadGradedHistory: true`)
  * - `hasActiveConcepts` — is there anything in the graph to review?
  */
 interface PlanQueueResolution {
@@ -625,7 +634,7 @@ interface PlanQueueResolution {
    * includes a plan whose every queued concept was deprecated. Was called `hasHistory` until
    * #345; that name outlived its meaning the moment the count behind it started filtering.
    */
-  hasLiveQueue: boolean;
+  hasQueueOnActiveConcepts: boolean;
   /**
    * Ever graded, counting rows that point at tombstones. This is what separates "chưa vấn đáp
    * bao giờ" from "đã vấn đáp, nội dung đã đổi" — the two states #344 collapsed into one
@@ -670,8 +679,8 @@ interface PlanQueueResolution {
  * #343: `ACTIVE_CONCEPT_WHERE` sits on **both** reads, and the two are not the same decision.
  * On `findMany` it just keeps tombstones out of the list. On `count` it picks *which empty
  * state shows*: filtered, a plan whose whole queue history points at deprecated concepts reads
- * as `hasLiveQueue: false` and falls to the A3 suggestion list; unfiltered it would read as
- * `hasLiveQueue: true` and answer `COMPLETED_PLAN_MESSAGE` — congratulating the student for
+ * as `hasQueueOnActiveConcepts: false` and falls to the A3 suggestion list; unfiltered it would read as
+ * `hasQueueOnActiveConcepts: true` and answer `COMPLETED_PLAN_MESSAGE` — congratulating the student for
  * finishing a plan they never finished. The wording of neither sentence changes here, only
  * which branch is taken (#231/#232-phần-4 still owns the words).
  */
@@ -696,7 +705,7 @@ async function resolvePlanQueue(
 
     return {
       items: options.dueOnly ? [] : await buildFallbackItems(plan, now),
-      hasLiveQueue: false,
+      hasQueueOnActiveConcepts: false,
       hadGradedHistory: gradedEver > 0,
       hasActiveConcepts: activeConcepts > 0,
     };
@@ -720,7 +729,7 @@ async function resolvePlanQueue(
   // points at exists and is active (the relation is required).
   return {
     items: dedupeByConcept(items),
-    hasLiveQueue: true,
+    hasQueueOnActiveConcepts: true,
     hadGradedHistory: true,
     hasActiveConcepts: true,
   };
@@ -769,13 +778,13 @@ async function resolveSkippedItems(
  */
 function resolveEmptyMessage(
   items: readonly ReviewQueueItemResponse[],
-  hasLiveQueue: boolean,
+  hasQueueOnActiveConcepts: boolean,
   completedMessage: string
 ): string | null {
   if (items.length > 0) {
     return null;
   }
-  return hasLiveQueue ? completedMessage : null;
+  return hasQueueOnActiveConcepts ? completedMessage : null;
 }
 
 /**
@@ -815,11 +824,8 @@ export async function getReviewQueueForPlan(
   }
 
   const now = new Date();
-  const { items, hasLiveQueue, hadGradedHistory, hasActiveConcepts } = await resolvePlanQueue(
-    plan,
-    now,
-    { dueOnly: false }
-  );
+  const { items, hasQueueOnActiveConcepts, hadGradedHistory, hasActiveConcepts } =
+    await resolvePlanQueue(plan, now, { dueOnly: false });
   const sorted = sortReviewItems(items).slice(0, limit);
 
   // #345 ca (c): đã từng có kết quả chấm, không còn gì trên lịch mà plan vẫn giữ, nhưng đồ thị
@@ -827,7 +833,9 @@ export async function getReviewQueueForPlan(
   // `noScheduleNote`. Nhét vào `message` là không được: `message` theo định nghĩa là câu của
   // trạng thái rỗng, mà ở đây danh sách có nội dung.
   const noScheduleNote =
-    !hasLiveQueue && hadGradedHistory && hasActiveConcepts ? CONTENT_CHANGED_PLAN_NOTE : null;
+    !hasQueueOnActiveConcepts && hadGradedHistory && hasActiveConcepts
+      ? CONTENT_CHANGED_PLAN_NOTE
+      : null;
 
   return {
     items: sorted,
@@ -835,7 +843,7 @@ export async function getReviewQueueForPlan(
     // định một điều về **đồ thị**, mà trả lời câu hỏi về đồ thị bằng một dữ kiện về **lịch sử**
     // chính là nước đi "một cờ trả lời hai câu hỏi" đã đẻ ra chính issue này.
     message: hasActiveConcepts
-      ? resolveEmptyMessage(sorted, hasLiveQueue, COMPLETED_PLAN_MESSAGE)
+      ? resolveEmptyMessage(sorted, hasQueueOnActiveConcepts, COMPLETED_PLAN_MESSAGE)
       : NO_ACTIVE_CONCEPTS_PLAN_MESSAGE,
     noScheduleNote,
     hasActiveConcepts,
@@ -878,7 +886,7 @@ export async function getReviewQueueForPlan(
  * return and this function **must** grow a length guard.
  */
 function resolveTodayMessage(resolutions: readonly PlanQueueResolution[]): string | null {
-  if (resolutions.some((resolution) => resolution.hasLiveQueue)) {
+  if (resolutions.some((resolution) => resolution.hasQueueOnActiveConcepts)) {
     return COMPLETED_TODAY_MESSAGE;
   }
   if (resolutions.every((resolution) => !resolution.hasActiveConcepts)) {

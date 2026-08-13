@@ -368,7 +368,7 @@ nhánh. `L` = **có** plan còn dòng sống · `g` = plan từng được chấ
 | -------------- | ------------------------ | ---------------------------------------------------- |
 | `DUE-DONE`     | `some(L)`                | `"Bạn đã hoàn thành kế hoạch hôm nay 🎉"`            |
 | `EMPTY-GRAPH`  | `!L`, `every(!C)`        | `"Hôm nay không có gì đến hạn. Kế hoạch của bạn hiện không có khái niệm nào — thêm khái niệm vào đồ thị hoặc phân tích lại tài liệu để bắt đầu."` |
-| `CHANGED`      | `!L`, `every(g)`         | `"Hôm nay không có gì đến hạn. Nội dung kế hoạch đã thay đổi nên lịch ôn cũ không còn hiệu lực — mở kế hoạch để xem đồ thị hiện tại."` |
+| `CHANGED`      | `!L`, `every(g)`         | `"Hôm nay không có gì đến hạn. Nội dung kế hoạch đã thay đổi nên lịch ôn cũ không còn hiệu lực — làm một phiên với nội dung mới để có lịch thật."` |
 | `INVITE`       | `!L`, `every(!g)`        | `null` → FE giữ lời mời của riêng nó                 |
 | `INVITE-MIXED` | `!L`, `g` lẫn lộn        | `null` → **cùng lời mời, mượn CÓ CHỦ ĐÍCH**          |
 
@@ -384,6 +384,11 @@ một đồ thị rỗng.
 
 ⚠️ **Câu của `/today` KHÔNG dùng lại câu của mục 1** dù cùng ca: `/today` gộp nhiều kế hoạch nên
 không được nói "Kế hoạch **này**".
+
+⚠️ **Vế cuối nêu VIỆC NGƯỜI DÙNG LÀM, không nêu NƠI NGƯỜI DÙNG TỚI** — nút đã nói nơi rồi. Vì thế
+vế hành động của `CHANGED` **trùng nguyên văn** với câu `noScheduleNote` ở mục 1, và của
+`EMPTY-GRAPH` trùng nguyên văn với câu ca "đồ thị rỗng": bốn câu, hai cặp, không cặp nào lệch chữ
+ở phần việc-phải-làm. Nếu sửa một câu mà cặp của nó lệch theo thì một trong hai đang sai.
 
 - **Không có `includeSkipped` ở endpoint này:** nhóm "đã gỡ" là chuyện của một kế hoạch cụ thể
   (màn Kế hoạch ôn tập), không phải của danh sách gợi ý gộp nhiều plan.
