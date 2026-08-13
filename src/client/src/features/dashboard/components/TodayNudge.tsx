@@ -89,7 +89,7 @@ const DEFER_ACTIONS: Record<
 /** `.today__defer` của mockup: 13px, muted → foreground khi rê chuột, không phải nút. Nhẹ ký về
  *  thị giác là có chủ đích — đây là lối thoát, không được đứng ngang hàng hai nút hành động. */
 const DEFER_CLASS =
-  'text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-sm px-0.5 py-1.5 text-[13px] transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-50';
+  'text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-sm px-0.5 py-1.5 text-[13px] transition-colors [outline-style:none] focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-50';
 
 /**
  * Khối "Gợi ý hôm nay" (DB-04), điểm vào của vòng lặp học tập. Mục đứng đầu hàng đợi trở thành
