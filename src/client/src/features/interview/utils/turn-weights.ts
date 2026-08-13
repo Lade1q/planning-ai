@@ -12,8 +12,8 @@ export const TURN_WEIGHTS = [0.2, 0.3, 0.5] as const;
  * một lượt dùng `[1.0]`. Chia cho đủ `1.0` sẽ âm thầm phạt thêm người kết thúc sớm — đúng chỗ
  * bản dựng trước tính sai, nên nó phải hiện thành chữ trên màn kết quả.
  *
- * Trả về `null` khi số lượt vượt trần trọng số (phiên cấu hình `maxTurnsPerConcept` khác mặc
- * định): thà không hiện công thức còn hơn hiện một công thức sai.
+ * Trả về `null` phòng thủ khi số lượt vượt quá mảng trọng số (dữ liệu lượt dị dạng):
+ * thà không hiện công thức còn hơn hiện một công thức sai.
  */
 export function normalizedTurnWeights(turnCount: number): number[] | null {
   if (turnCount <= 0 || turnCount > TURN_WEIGHTS.length) return null;

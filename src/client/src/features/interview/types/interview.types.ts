@@ -166,7 +166,11 @@ export interface SessionSummaryTurnResponse {
 export interface SessionSummaryConceptResponse {
   conceptId: string;
   name: string;
-  /** `null` if the queue reached `completed` before this concept was ever asked. */
+  /**
+   * Điểm của riêng phiên này (không phải `Concept.masteryScore` live hôm nay vì các phiên sau có thể đã ghi đè).
+   * `null` khi hàng đợi đạt `completed` trước khi khái niệm được hỏi, hoặc mọi lượt hỏi về khái niệm đều chấm hỏng
+   * (khác `0` là đã chấm và trả lời sai hoàn toàn).
+   */
   masteryScore: number | null;
   turns: SessionSummaryTurnResponse[];
 }
