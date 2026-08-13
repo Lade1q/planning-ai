@@ -192,14 +192,24 @@ export async function recordTurnEvidence(
     }
   }
 
-  // Emitted on every turn that carried an evidence field, all-zero counts included: "the backstop
-  // rejected nothing" and "the backstop never ran" have to be tellable apart, and only a line that
-  // is always printed does that. `warn` rather than `info` because the lint rule allows only
-  // `warn`/`error` — the level is the codebase's floor, not a claim that this is a problem.
-  if (!mapping.absent) {
+  // Emitted on every turn we ASKED for evidence on — gated by the ruler, not by what came back.
+  //
+  // Gating on `!mapping.absent` was the bug: `evidence` is a REQUIRED field of the JSON schema, so
+  // a turn where the model stopped sending it is a real deviation — and it was the one deviation
+  // that printed NOTHING, making it indistinguishable from mock mode. That is backwards, because
+  // the whole point of #346 is that the first real run becomes a measurement. An empty ruler still
+  // stays quiet (mock mode, and a concept with `C = 0`): there was nothing to report on.
+  //
+  // `warn` rather than `info` because the lint rule allows only `warn`/`error` — the level is the
+  // codebase's floor, not a claim that this is a problem.
+  if (ruler.length > 0) {
     const { bad_index, parse_failed, quote_not_found } = tally.unmapped;
+    // `written` counts ENTRIES accepted, not rows created: two entries naming the same checkpoint
+    // are two writes to one cell, so `written=2` can mean one row. Worth spelling out while this
+    // line is the measurement.
     console.warn(
-      `[evidence] turn ${turnRef}: written=${tally.written} downgraded=${tally.downgraded} ` +
+      `[evidence] turn ${turnRef}: ${mapping.absent ? 'field=absent ' : ''}` +
+        `written=${tally.written} downgraded=${tally.downgraded} ` +
         `dropped=${tally.dropped} bad_index=${bad_index} parse_failed=${parse_failed} ` +
         `quote_not_found=${quote_not_found} write_failed=${tally.writeFailed}`
     );

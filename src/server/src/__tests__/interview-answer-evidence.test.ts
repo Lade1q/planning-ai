@@ -387,25 +387,37 @@ describe('submitAnswer — evidence never reaches the table unguarded', () => {
     expect(result.grading).toEqual(GRADE);
   });
 
+  // Both quotes below are verbatim in `hedged`, on purpose: only a GROUNDED entry ever reaches
+  // `sanitizeEvidence`, so that is the only way to measure the guards these cases are named for.
+  const HEDGED = 'Biến là một ô nhớ có tên, nhưng em không chắc về phần kiểu.';
+
   it.each([
-    ['a status outside the enum', 'dropped=1', 'Running'],
-    ['an uncertainty marker on a contradicted (INV-2)', 'downgraded=1', 'contradicted'],
-  ])('writes nothing for %s, and the per-turn line reports %s', async (_label, counter, status) => {
-    // The quote here IS verbatim in the answer, on purpose: only a GROUNDED entry ever reaches
-    // `sanitizeEvidence`, so this is the only way to measure the guard this case is named for.
-    const hedged = 'Biến là một ô nhớ có tên, nhưng em không chắc về phần kiểu.';
-    mockedGradeAnswer.mockResolvedValue({
-      ...GRADE,
-      evidence: [{ checkpoint: 1, status, quote: 'em không chắc về phần kiểu' }],
-    });
-    seedPendingTurn();
+    // The enum case uses a MARKER-FREE quote deliberately. With a hedged quote it would come out
+    // `dropped` only because the enum check happens to run before the marker check inside
+    // `sanitizeEvidence` — one reordering away from silently measuring the other guard.
+    ['a status outside the enum', 'dropped=1', 'Running', 'Biến là một ô nhớ có tên'],
+    [
+      'an uncertainty marker on a contradicted (INV-2)',
+      'downgraded=1',
+      'contradicted',
+      'em không chắc về phần kiểu',
+    ],
+  ])(
+    'writes nothing for %s, and the per-turn line reports %s',
+    async (_label, counter, status, quote) => {
+      mockedGradeAnswer.mockResolvedValue({
+        ...GRADE,
+        evidence: [{ checkpoint: 1, status, quote }],
+      });
+      seedPendingTurn();
 
-    const result = await submitAnswer(SESSION_ID, USER_ID, hedged);
+      const result = await submitAnswer(SESSION_ID, USER_ID, HEDGED);
 
-    expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(counter));
-    expect(result.grading).toEqual(GRADE);
-  });
+      expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(counter));
+      expect(result.grading).toEqual(GRADE);
+    }
+  );
 });
 
 describe('submitAnswer — a lost claim writes no evidence (#288 at a second table)', () => {
@@ -477,7 +489,7 @@ describe('submitAnswer — evidence is additive and can never cost the grade', (
     expect(result.grading).toEqual(GRADE);
   });
 
-  it('survives a failing evidence write without failing the answer', async () => {
+  it('survives a failing evidence write, and counts it apart from the model failures', async () => {
     mockedPrisma.interviewEvidence.upsert.mockRejectedValue(new Error('connection lost'));
     jest.spyOn(console, 'error').mockImplementation(() => {});
     seedPendingTurn();
@@ -486,12 +498,35 @@ describe('submitAnswer — evidence is additive and can never cost the grade', (
 
     expect(result.grading).toEqual(GRADE);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('write failed'));
+    // The counter has to stay OUT of the model's rejection reasons: a database outage folded into
+    // `dropped` or `parse_failed` sends whoever reads these numbers off to fix a prompt. That
+    // separation is the only reason `write_failed` exists, so it is asserted rather than assumed.
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'dropped=0 bad_index=0 parse_failed=0 quote_not_found=0 write_failed=1'
+      )
+    );
+  });
+
+  it('reports a missing evidence field on the per-turn line instead of staying silent', async () => {
+    // `evidence` is REQUIRED by the JSON schema, so its absence is a deviation — and it used to be
+    // the one deviation that printed nothing at all, indistinguishable from mock mode. #346 exists
+    // so the first real run is a measurement; a silent deviation defeats exactly that.
+    mockedGradeAnswer.mockResolvedValue({ ...GRADE });
+    seedPendingTurn();
+
+    await submitAnswer(SESSION_ID, USER_ID, ANSWER);
+
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('field=absent'));
   });
 });
 
 describe('submitAnswer — mock mode asks for no evidence at all', () => {
   it('reads no ruler and writes no evidence under USE_MOCK_AI', async () => {
     process.env.USE_MOCK_AI = 'true';
+    // Match what mock mode really produces: `mockGradeAnswer` has no `evidence` field at all. The
+    // shared fixture returns one, which no mock-mode request could.
+    mockedGradeAnswer.mockResolvedValue({ ...GRADE });
     seedPendingTurn();
 
     await submitAnswer(SESSION_ID, USER_ID, ANSWER);
@@ -499,5 +534,8 @@ describe('submitAnswer — mock mode asks for no evidence at all', () => {
     expect(mockedPrisma.conceptCheckpoint.findMany).not.toHaveBeenCalled();
     expect(mockedGradeAnswer.mock.calls[0]![0].checkpoints).toEqual([]);
     expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+    // And no per-turn line either: the log is gated on the RULER, so a turn that was never asked
+    // for evidence stays quiet. Same gate keeps a `C = 0` concept quiet.
+    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('[evidence]'));
   });
 });

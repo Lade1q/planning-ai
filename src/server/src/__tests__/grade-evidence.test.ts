@@ -85,6 +85,26 @@ describe('mapGradeEvidence — resolving the index against the serialised ruler'
 });
 
 describe('mapGradeEvidence — bad_index', () => {
+  /**
+   * `1.5`, `NaN` and `Infinity` belong HERE and not with the shape failures: the field arrived as
+   * the right type, so what went wrong is the counting. The two reasons exist to separate "the
+   * entry was malformed" from "the model pointed at a checkpoint that is not there", and only the
+   * second tells anyone what to do about it.
+   */
+  it.each([1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects the numeric-but-not-an-index %p as bad_index',
+    (checkpoint) => {
+      const result = mapGradeEvidence([item({ checkpoint })], RULER, ANSWER);
+
+      expect(result.mapped).toEqual([]);
+      expect(tallyUnmapped(result.unmapped)).toEqual({
+        bad_index: 1,
+        parse_failed: 0,
+        quote_not_found: 0,
+      });
+    }
+  );
+
   it.each([0, -1, 4, 99])('rejects index %p as bad_index and writes nothing', (checkpoint) => {
     const result = mapGradeEvidence([item({ checkpoint })], RULER, ANSWER);
 
@@ -133,8 +153,10 @@ describe('mapGradeEvidence — parse_failed', () => {
     ['a non-string status', { status: 7 }],
     ['a missing quote', { quote: undefined }],
     ['a non-string quote', { quote: 12 }],
-    ['a non-integer index', { checkpoint: 1.5 }],
+    // A STRING index is a shape failure — the field is the wrong type. A numeric-but-not-integer
+    // index is not; see the `bad_index` block above for where those land and why.
     ['a string index', { checkpoint: '1' }],
+    ['a null index', { checkpoint: null }],
   ])('rejects an entry with %s', (_label, overrides) => {
     const result = mapGradeEvidence([item(overrides)], RULER, ANSWER);
 

@@ -60,9 +60,11 @@ export interface GradeEvidenceMapping {
   mapped: MappedEvidence[];
   unmapped: UnmappedEvidence[];
   /**
-   * Whether the model returned no `evidence` field at all, as opposed to an empty list. Reported
-   * rather than counted as a failure: the two are different statements ("nothing to report" vs
-   * "the field went missing"), and only one of them is a deviation worth chasing.
+   * Whether the model returned no `evidence` field at all, as opposed to an empty list. Kept out
+   * of the rejection counters because the two are different statements — "nothing to report" vs
+   * "the field went missing" — but it IS a deviation: `evidence` is required by the JSON schema.
+   * So the caller reports it on the per-turn line rather than passing over it in silence; a
+   * deviation that prints nothing is the one you never find out about.
    */
   absent: boolean;
 }
@@ -124,6 +126,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * cell — `upsertEvidence`'s `(sessionId, conceptId, checkpointId)` key is what makes a re-emit
  * rewrite its own cell instead of appending a second opinion (#330), so the last one wins and the
  * result is the same row either way.
+ *
+ * ⚠️ That last-write-wins is right for a RE-EMIT and wrong for a SELF-CONTRADICTION, and the two
+ * currently share one path. Two entries naming the same checkpoint with OPPOSITE statuses would
+ * mean the model disagreed with itself inside one grading — a signal, not a repeat — and silently
+ * keeping whichever came last would throw it away. NOT OBSERVED: zero duplicate indices across the
+ * 8 live gradings measured at #346, so this is written down as unknown rather than handled. If it
+ * shows up, it earns its own counter; it should not be quietly absorbed here.
  */
 export function mapGradeEvidence(
   raw: unknown,
@@ -165,15 +174,22 @@ export function mapGradeEvidence(
       unmapped.push({ reason: 'parse_failed', detail: `${at}: missing quote` });
       return;
     }
-    if (typeof checkpoint !== 'number' || !Number.isInteger(checkpoint)) {
-      unmapped.push({ reason: 'parse_failed', detail: `${at}: checkpoint is not an integer` });
+    if (typeof checkpoint !== 'number') {
+      unmapped.push({
+        reason: 'parse_failed',
+        detail: `${at}: checkpoint is ${typeof checkpoint}`,
+      });
       return;
     }
 
-    if (checkpoint < 1 || checkpoint > ruler.length) {
+    // `1.5`, `NaN` and `Infinity` are `bad_index`, not `parse_failed`. The field arrived as the
+    // right TYPE — what is wrong is the counting, and that is the distinction the two reasons
+    // exist to draw: `parse_failed` reads as "the entry was the wrong shape", `bad_index` reads as
+    // "the model pointed at a checkpoint that is not there". Only the second is actionable.
+    if (!Number.isInteger(checkpoint) || checkpoint < 1 || checkpoint > ruler.length) {
       unmapped.push({
         reason: 'bad_index',
-        detail: `${at}: checkpoint ${checkpoint} outside 1..${ruler.length}`,
+        detail: `${at}: checkpoint ${checkpoint} is not an index in 1..${ruler.length}`,
       });
       return;
     }
