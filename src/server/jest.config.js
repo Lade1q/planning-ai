@@ -9,6 +9,7 @@ module.exports = {
     'src/utils/checkpoint.ts',
     'src/utils/dag.ts',
     'src/utils/evidence-guard.ts',
+    'src/utils/evidence-write.ts',
     'src/utils/mastery.ts',
     'src/utils/interview-state.ts',
     'src/utils/dashboard-stats.ts',
