@@ -46,13 +46,19 @@ export type EvidenceUpsertOutcome =
  * different moments.
  *
  * `checkpointText` is stored VERBATIM as the caller supplied it — read it from
- * `listConceptCheckpoints`, not from the model. It is not trimmed or truncated here on purpose:
- * the snapshot's value is that it stays byte-identical to `ConceptCheckpoint.text`, which is what
- * keeps the (unbuilt, deliberately open) re-anchor door usable — a checkpoint whose text returns
- * in a later extraction gets a NEW id, but `(conceptId, checkpointText)` is exactly
- * `ConceptCheckpoint`'s own `@@unique([conceptId, text])` merge key. Normalising the snapshot here
- * would quietly break that match, and the column is `VarChar(300)` like its source, so the only
- * way to overflow it is to pass text that did not come from a checkpoint.
+ * `listConceptCheckpoints`, not from the model. It is not trimmed or truncated here on purpose,
+ * and NOT because anything downstream compares it byte for byte: the row is a historical record
+ * of what the ruler said at the moment of measurement, and normalising here would stand up a
+ * SECOND normalisation pipeline that can drift away from `normalizeCheckpointText`. The source
+ * has already collapsed its whitespace before storage, so there is nothing left here to collapse,
+ * and the column is `VarChar(300)` like its source — the only way to overflow it is to pass text
+ * that never came from a checkpoint.
+ *
+ * A re-anchor built on this snapshot later (deliberately left open, NOT built here) must match on
+ * `checkpointKey(checkpointText)` — normalised and CASE-FOLDED — never on raw bytes: checkpoint
+ * identity is `checkpointKey`, and `planCheckpointMerge` writes fresh text under the existing id,
+ * so even a LIVE checkpoint changes bytes when the model re-cases it. Casing is the only drift
+ * vector, and it is exactly the one a byte comparison would miss.
  *
  * @param checkpointId the id of an EXISTING `ConceptCheckpoint` (INV-1 — the examiner measures
  *   against the committed ruler and may not invent a checkpoint mid-session). Not a foreign key:

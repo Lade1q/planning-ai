@@ -18,9 +18,6 @@ CREATE TABLE "interview_evidence" (
 );
 
 -- CreateIndex
-CREATE INDEX "interview_evidence_session_id_idx" ON "interview_evidence"("session_id");
-
--- CreateIndex
 CREATE INDEX "interview_evidence_concept_id_idx" ON "interview_evidence"("concept_id");
 
 -- CreateIndex
@@ -31,3 +28,4 @@ ALTER TABLE "interview_evidence" ADD CONSTRAINT "interview_evidence_session_id_f
 
 -- AddForeignKey
 ALTER TABLE "interview_evidence" ADD CONSTRAINT "interview_evidence_concept_id_fkey" FOREIGN KEY ("concept_id") REFERENCES "concepts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
