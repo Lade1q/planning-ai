@@ -545,11 +545,10 @@ function tick() {
     /* Segment finished */
     if (state === 'running') {
       /* work done -> go to break */
-      secsLeft = (pomo % CFG.cycles === 0 ? CFG.longBreak : CFG.shortBreak) * 60;
       goState('break');
     } else {
       /* break done -> next pomo */
-      pomo = Math.min(pomo + 1, CFG.cycles);
+      pomo = (pomo >= CFG.cycles) ? 1 : (pomo + 1);
       secsLeft = CFG.work * 60;
       goState('running');
     }
@@ -634,7 +633,7 @@ function renderTopRight() {
     return;
   }
   el.innerHTML =
-    '<div class="seg" role="group" aria-label="Hien thi tài liệu">'
+    '<div class="seg" role="group" aria-label="Hiển thị tài liệu">'
       + '<span>Tài liệu</span>'
       + '<button type="button" aria-pressed="true" onclick="docToggle(this)">Ẩn</button>'
       + '<button type="button" aria-pressed="false" onclick="docToggle(this)">Trích đoạn</button>'
@@ -709,7 +708,7 @@ function renderBody() {
     body.innerHTML =
       '<div class="stage">'
         + conceptHTML()
-        + '<section class="clock" aria-label="Đóng ho phiên học">'
+        + '<section class="clock" aria-label="Đồng hồ phiên học">'
           + ringHTML('Còn lại')
           + '<div class="meter">' + pomoBars() + '<span class="meter__text">Pomodoro ' + pomo + ' / ' + CFG.cycles + ' &middot; ' + breakLabel + '</span></div>'
         + '</section>'
@@ -734,7 +733,7 @@ function renderBody() {
     body.innerHTML =
       '<div class="paused-stage">'
         + '<span class="paused-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg> Đã tạm dừng</span>'
-        + '<section class="clock" aria-label="Đóng ho">'
+        + '<section class="clock" aria-label="Đồng hồ">'
           + ringHTML('Tạm dừng')
           + '<div class="meter">' + pomoBars() + '<span class="meter__text">Pomodoro ' + pomo + ' / ' + CFG.cycles + '</span></div>'
         + '</section>'
@@ -754,7 +753,7 @@ function renderBody() {
     body.innerHTML =
       '<div class="break-stage">'
         + '<span class="break-badge">' + (isLong ? 'Nghỉ dài' : 'Nghỉ ngắn') + ' &middot; Pomodoro ' + pomo + ' / ' + CFG.cycles + '</span>'
-        + '<section class="clock" aria-label="Đóng ho nghỉ giai lao">'
+        + '<section class="clock" aria-label="Đồng hồ nghỉ giải lao">'
           + ringHTML('Nghỉ')
         + '</section>'
         + '<p style="font-size:13px;color:var(--muted-foreground);text-align:center;max-width:40ch;">'
@@ -764,7 +763,7 @@ function renderBody() {
         + '<div class="controls">'
           + '<button class="btn btn-resume" type="button" onclick="skipBreak()">'
             + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg>'
-            + ' Bỏ qua nghi giải lao'
+            + ' Bỏ qua nghỉ giải lao'
           + '</button>'
           + '<button class="btn btn-secondary" type="button" onclick="endSession()">Kết thúc phiên học</button>'
         + '</div>'
@@ -799,6 +798,10 @@ function renderBody() {
 function goState(s) {
   var prev = state;
   state = s;
+
+  if (s === 'break') {
+    secsLeft = (pomo % CFG.cycles === 0 ? CFG.longBreak : CFG.shortBreak) * 60;
+  }
 
   /* Proto bar */
   document.querySelectorAll('.pb-btn').forEach(function(b) { b.classList.remove('is-active'); });
@@ -849,7 +852,7 @@ function endSession() {
 }
 
 function skipBreak() {
-  pomo = Math.min(pomo + 1, CFG.cycles);
+  pomo = (pomo >= CFG.cycles) ? 1 : (pomo + 1);
   secsLeft = CFG.work * 60;
   goState('running');
 }
