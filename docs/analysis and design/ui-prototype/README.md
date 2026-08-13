@@ -1,20 +1,14 @@
-﻿# UI Prototype — RecallAI (PA4 · mục b)
+# UI Prototype — RecallAI (PA4 · mục b)
 
 > **Hạn nộp:** 14/08/2026 · **Issue:** #253 · **Rubric:** _"Revise UI prototype — submit the final UI design chosen for the system."_
 
-Thư mục này chứa bản **thiết kế UI cuối cùng** của hệ thống RecallAI, gồm hai phần:
+Thư mục này chứa bản **thiết kế UI cuối cùng** của hệ thống RecallAI, bao gồm toàn bộ 13 màn hình tương tác.
 
 ---
 
-## 1. Interactive Prototype (Sprint 4 — 3 màn trọng điểm)
+## 1. Interactive Prototype
 
-Ba màn mới của Sprint 4, được build thành **prototype có thể click qua được**. Mở trực tiếp bằng trình duyệt (cần server cục bộ hoặc Live Server extension):
-
-| File | Màn hình | Use Case |
-|---|---|---|
-| `screen-interview.html` | Kiểm tra vấn đáp | UC-04 AI Examiner (AE-01 → AE-05) |
-| `screen-focus-session.html` | Phiên học tập trung | UC-03 Focus Session (FS-01) |
-| `screen-session-result.html` | Kết quả cuối phiên | UC-04 AI Examiner (AE-08, AE-09) |
+Tất cả các màn hình được build thành **prototype có thể click qua được**. Mở trực tiếp bằng trình duyệt (cần server cục bộ hoặc Live Server extension):
 
 ### Cách chạy
 
@@ -26,7 +20,7 @@ Hoặc dùng VS Code → **Live Server** (chuột phải file → Open with Live
 
 URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/screen-interview.html`
 
-### Tính năng của từng prototype
+### Tính năng của các prototype trọng điểm (Sprint 4)
 
 **screen-interview.html — AI Examiner**
 - State machine 6 trạng thái: asking → loading → graded → paused → fallback → done
@@ -53,51 +47,18 @@ URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/scre
 
 ---
 
-## 2. Design Spec Sheets (Toàn bộ hệ thống)
-
-Thiết kế đầy đủ của **tất cả màn hình** nằm trong thư mục song song:
-
-    docs/analysis and design/claude-design/
-
-Các file spec sheet hiển thị toàn bộ states theo chiều dọc kèm design rationale, accessibility notes, và tham chiếu UC. Dùng để xem đầy đủ hệ thống.
-
-### Điều hướng trong claude-design
-
-Mỗi file spec sheet có nút **"Màn hình"** ở góc dưới-trái (do `_nav.js` inject tự động). Bấm vào để chuyển sang màn bất kỳ. Các màn có prototype sẽ có thêm nút **"Prototype ↗"** để mở thẳng vào ui-prototype.
-
-### Danh sách màn hình đầy đủ
-
-| Màn hình | File spec | Interactive prototype |
-|---|---|---|
-| Đăng nhập / Đăng ký | screen-auth.html | — |
-| Dashboard | screen-dashboard.html | — |
-| Đồ thị khái niệm | screen-concept-graph.html | — |
-| Tạo kế hoạch | screen-create-plan.html | — |
-| Danh sách kế hoạch | screen-plans.html | — |
-| Hàng đợi ôn tập | screen-plan-review-queue.html | — |
-| **Phiên học tập trung** | screen-focus-session.html | ✅ ui-prototype/ |
-| Lịch sử phiên | screen-history.html | — |
-| **Kiểm tra vấn đáp** | screen-interview.html | ✅ ui-prototype/ |
-| **Kết quả cuối phiên** | screen-session-result.html | ✅ ui-prototype/ |
-| Hồ sơ người dùng | screen-profile.html | — |
-| Component Library | components.html | — |
-
----
-
 ## Cấu trúc thư mục
 
     ui-prototype/
     ├── README.md                    ← file này
     ├── tokens.css                   ← design tokens (màu, font, spacing…)
-    ├── screen-interview.html        ← prototype: AI Examiner
-    ├── screen-focus-session.html    ← prototype: Focus Session
-    └── screen-session-result.html   ← kết quả phiên (copy từ claude-design)
+    ├── screen-*.html                ← 12 màn hình chính của hệ thống
+    └── components.html              ← thư viện component
 
 ---
 
 ## Ghi chú kỹ thuật
 
-- **CSS tokens:** cả 3 prototype đều link tới `tokens.css` cùng thư mục — không có inline style ad-hoc
+- **CSS tokens:** tất cả các prototype đều link tới `tokens.css` cùng thư mục — không có inline style ad-hoc
 - **No framework:** thuần HTML + Vanilla JS + CSS — không cần build step, không cần npm
 - **Print-safe:** thanh State (proto-bar) ẩn khi in qua @media print
-- **Không sửa** `claude-design/*.html` — prototype trong `ui-prototype/` là file viết lại từ đầu, chỉ tái sử dụng CSS class names từ spec sheet để dễ so sánh
