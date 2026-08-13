@@ -70,6 +70,12 @@ function row(overrides: Partial<FakeQueueRow> & { id: string; conceptId: string 
   };
 }
 
+interface FakeConceptWhere {
+  planId?: string;
+  status?: ConceptStatus;
+  id?: { in: string[] };
+}
+
 /** The subset of Prisma's `where` grammar these reads actually use. */
 interface FakeQueueWhere {
   planId?: string | { in: string[] };
@@ -107,7 +113,7 @@ jest.mock('../config/prisma', () => ({
   __esModule: true,
   default: {
     reviewQueueItem: { count: jest.fn(), findMany: jest.fn(), groupBy: jest.fn() },
-    concept: { findMany: jest.fn() },
+    concept: { findMany: jest.fn(), count: jest.fn() },
     interviewSession: { findMany: jest.fn() },
     studyPlan: { findUnique: jest.fn(), findMany: jest.fn() },
     analysisJob: { findMany: jest.fn() },
@@ -116,7 +122,7 @@ jest.mock('../config/prisma', () => ({
 
 const mockedPrisma = prisma as unknown as {
   reviewQueueItem: { count: jest.Mock; findMany: jest.Mock; groupBy: jest.Mock };
-  concept: { findMany: jest.Mock };
+  concept: { findMany: jest.Mock; count: jest.Mock };
   interviewSession: { findMany: jest.Mock };
   studyPlan: { findUnique: jest.Mock; findMany: jest.Mock };
   analysisJob: { findMany: jest.Mock };
@@ -202,16 +208,20 @@ beforeEach(() => {
     }
   );
 
-  mockedPrisma.concept.findMany.mockImplementation(
-    ({ where }: { where: { planId?: string; status?: ConceptStatus; id?: { in: string[] } } }) =>
-      Promise.resolve(
-        concepts.filter(
-          (concept) =>
-            (where.planId === undefined || concept.planId === where.planId) &&
-            (where.status === undefined || concept.status === where.status) &&
-            (where.id === undefined || where.id.in.includes(concept.id))
-        )
-      )
+  // `findMany` và `count` (#345) chia CHUNG một vị từ, đúng như production: cả hai đều hỏi
+  // `{ planId, status: 'active' }`. Tách ra hai bộ lọc chép tay là mở đường cho fake trả lời
+  // hai kiểu cho cùng một câu hỏi — thứ khiến mutant chết vì lý do sai.
+  const matchesConcept = (concept: FakeConcept, where: FakeConceptWhere): boolean =>
+    (where.planId === undefined || concept.planId === where.planId) &&
+    (where.status === undefined || concept.status === where.status) &&
+    (where.id === undefined || where.id.in.includes(concept.id));
+
+  mockedPrisma.concept.findMany.mockImplementation(({ where }: { where: FakeConceptWhere }) =>
+    Promise.resolve(concepts.filter((concept) => matchesConcept(concept, where)))
+  );
+
+  mockedPrisma.concept.count.mockImplementation(({ where }: { where: FakeConceptWhere }) =>
+    Promise.resolve(concepts.filter((concept) => matchesConcept(concept, where)).length)
   );
 
   mockedPrisma.interviewSession.findMany.mockResolvedValue([]);
