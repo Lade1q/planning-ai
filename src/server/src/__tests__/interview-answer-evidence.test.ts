@@ -352,32 +352,58 @@ describe('submitAnswer — recording evidence for the graded turn', () => {
 });
 
 describe('submitAnswer — evidence never reaches the table unguarded', () => {
+  /**
+   * Each case names the guard it expects to fire and asserts THAT guard, not just "nothing was
+   * written". Two things forced this, both found by measurement rather than by reading:
+   *   - two guards can reject the same entry, and the first live run showed a quote carrying a
+   *     hedge the student never typed is rejected as UNGROUNDED — it never reaches the marker
+   *     guard. Labelling that case "INV-2 downgrade" would have been measuring something else.
+   *   - `stringContaining(reason)` on its own asserts NOTHING: the per-turn summary line names all
+   *     three reasons (`quote_not_found=0` …), so it matches on every run. Mislabelling the reason
+   *     in the source left that version green. The em dash is what pins the per-item line.
+   */
   it.each([
     [
       'an index outside the ruler',
+      'bad_index',
       { checkpoint: 9, status: 'covered', quote: 'Biến là một ô nhớ có tên' },
     ],
     [
       'a quote the student never said',
+      'quote_not_found',
       { checkpoint: 1, status: 'covered', quote: 'biến được cấp phát động' },
     ],
-    [
-      'a status outside the enum',
-      { checkpoint: 1, status: 'Running', quote: 'Biến là một ô nhớ có tên' },
-    ],
-    [
-      'an uncertainty marker on a contradicted',
-      { checkpoint: 1, status: 'contradicted', quote: 'Biến là một ô nhớ có tên, chắc là vậy' },
-    ],
-  ])('writes nothing for %s', async (_label, entry) => {
+    ['an entry with no quote at all', 'parse_failed', { checkpoint: 1, status: 'covered' }],
+  ])('writes nothing for %s, and counts it as %s', async (_label, reason, entry) => {
     mockedGradeAnswer.mockResolvedValue({ ...GRADE, evidence: [entry] });
     seedPendingTurn();
 
     const result = await submitAnswer(SESSION_ID, USER_ID, ANSWER);
 
     expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(`${reason} —`));
     // Positive control on the same request: the grade still landed, so "no write" is the guard
     // firing and not the request having failed somewhere earlier.
+    expect(result.grading).toEqual(GRADE);
+  });
+
+  it.each([
+    ['a status outside the enum', 'dropped=1', 'Running'],
+    ['an uncertainty marker on a contradicted (INV-2)', 'downgraded=1', 'contradicted'],
+  ])('writes nothing for %s, and the per-turn line reports %s', async (_label, counter, status) => {
+    // The quote here IS verbatim in the answer, on purpose: only a GROUNDED entry ever reaches
+    // `sanitizeEvidence`, so this is the only way to measure the guard this case is named for.
+    const hedged = 'Biến là một ô nhớ có tên, nhưng em không chắc về phần kiểu.';
+    mockedGradeAnswer.mockResolvedValue({
+      ...GRADE,
+      evidence: [{ checkpoint: 1, status, quote: 'em không chắc về phần kiểu' }],
+    });
+    seedPendingTurn();
+
+    const result = await submitAnswer(SESSION_ID, USER_ID, hedged);
+
+    expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(counter));
     expect(result.grading).toEqual(GRADE);
   });
 });
