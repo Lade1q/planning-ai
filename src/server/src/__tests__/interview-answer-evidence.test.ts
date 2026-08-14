@@ -623,9 +623,24 @@ describe('submitAnswer — mock mode asks for no evidence at all', () => {
     // different module from the one being mocked, so nothing intercepts it. It is synchronous, so
     // there is no promise here for `not.toHaveProperty` to pass vacuously against.
     //
+    // Asserted as an EXACT shape rather than "does not have `evidence`", because the negative form
+    // was only strong while the function stayed synchronous — and nothing guards that. Make
+    // `mockGradeAnswer` async to match the real `gradeAnswer` signature (an easy, plausible edit)
+    // and `not.toHaveProperty` passes on the Promise, silently asserting nothing. An exact shape
+    // states the proposition we actually mean — *the mock IS a `GradeAnswerResponse`* — and fails on
+    // both the extra field and the wrong kind of object.
+    //
+    // (`evidence: undefined` would still pass, since `toEqual` ignores undefined properties. That
+    // is correct rather than a gap: an undefined field reads as `absent` downstream, which is the
+    // silence this test is about.)
+    //
     // All three verdict branches, because a future edit could add the field to only one of them.
     for (const answer of ['ngắn', 'một câu trả lời vừa đủ dài để thành shallow', 'x'.repeat(200)]) {
-      expect(mockGradeAnswer(answer)).not.toHaveProperty('evidence');
+      expect(mockGradeAnswer(answer)).toEqual({
+        score: expect.any(Number),
+        feedback: expect.any(String),
+        verdict: expect.any(String),
+      });
     }
   });
 });
