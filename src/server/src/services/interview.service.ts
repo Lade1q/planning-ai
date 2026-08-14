@@ -13,6 +13,8 @@ import {
 } from './gemini.service';
 import { finalizeConceptResult, type FinalizeConceptResultOutput } from './concept-result.service';
 import { getReviewQueueForPlan } from './scheduling.service';
+import { listConceptCheckpoints } from './checkpoint.service';
+import { recordTurnEvidence } from './interview-evidence.service';
 import type { QuestionMode, QuestionType } from '../schemas/ai-interview.schema';
 import type { CreateInterviewInput } from '../schemas/interview.schema';
 import {
@@ -293,6 +295,19 @@ function noMaterialError(): AppError {
  * of the test suite rely on. The pre-check has to mirror that exactly or it breaks them.
  */
 function materialIsRequired(): boolean {
+  return process.env.USE_MOCK_AI !== 'true';
+}
+
+/**
+ * Whether this turn should ask the model for per-checkpoint evidence (#346).
+ *
+ * Mock mode answers "no", for the same reason `materialIsRequired` does: `mockGradeAnswer` returns
+ * no `evidence` field, so reading the concept's ruler would be a database round-trip whose result
+ * nothing can use — and mock mode is precisely the mode that runs without those tables (the dev
+ * seed and much of the suite rely on it). Evidence is additive, so switching it off here costs a
+ * mock session nothing: the score, the state machine and the summary are unchanged.
+ */
+function evidenceIsRequested(): boolean {
   return process.env.USE_MOCK_AI !== 'true';
 }
 
@@ -1102,6 +1117,11 @@ export async function submitAnswer(
     return replayAnswer(sessionId, userId, pending.id);
   }
 
+  // Read the ruler ONCE, here, and keep the array: it is serialised into the prompt below and is
+  // the only thing `evidence[].checkpoint` indices are meaningful against (#346). A second read
+  // could come back in a different order and map every row to the wrong checkpoint — silently.
+  const checkpoints = evidenceIsRequested() ? await listConceptCheckpoints(concept.id) : [];
+
   let graded;
   try {
     graded = await gradeAnswer({
@@ -1110,6 +1130,7 @@ export async function submitAnswer(
       questionText: pending.questionText,
       answerText,
       language: session.plan.languageDetected ?? undefined,
+      checkpoints,
     });
   } catch (error) {
     if (!isAiFailure(error)) throw error;
@@ -1132,6 +1153,20 @@ export async function submitAnswer(
     // winning request recorded so this one still resolves coherently instead of double-stepping.
     return replayAnswer(sessionId, userId, pending.id);
   }
+
+  // ⚠️ BELOW the guard, never above it (#346, and #288 is why). A request that lost its claim holds
+  // a valid grade whose score was just discarded — and since evidence upserts on
+  // (session, concept, checkpoint), writing it up there would let the loser overwrite the winner's
+  // evidence for the same cell. Additive and non-fatal: it records what the answer showed, and a
+  // failure inside costs at most a row, never this response.
+  await recordTurnEvidence({
+    sessionId,
+    conceptId: concept.id,
+    turnRef: pending.id,
+    ruler: checkpoints,
+    answerText,
+    raw: graded.evidence,
+  });
 
   // The decision itself is re-derived from the turn just stored, so this request and a later
   // GET can never disagree about what comes next.
