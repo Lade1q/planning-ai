@@ -56,3 +56,4 @@
 ## Fallback Plans
 1. **Weak network in the demo room:**
    - Use the `docker compose up` or `npm run dev` command to run the entire application locally (a `.env.example` file is available). Play the pre-recorded video for narration instead of clicking directly.
+   - **Demo Video Link:** [Google Drive](https://drive.google.com/file/d/1J3RqYfyeqjjzvoTVxGUnjqQIm3XdGcxq/view?usp=sharing)
