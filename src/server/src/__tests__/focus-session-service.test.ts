@@ -57,8 +57,30 @@ describe('createFocusSession', () => {
     expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
   });
 
+  it('throws 409 PLAN_NOT_ACTIVE when the plan has been archived', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'archived',
+    });
+
+    const error = await createFocusSession(USER_ID, {
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 409, code: 'PLAN_NOT_ACTIVE' });
+    expect(mockedPrisma.concept.count).not.toHaveBeenCalled();
+    expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
+  });
+
   it('throws 400 INVALID_CONCEPT_IDS when a concept does not belong to the plan', async () => {
-    mockedPrisma.studyPlan.findUnique.mockResolvedValue({ id: PLAN_ID, userId: USER_ID });
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'active',
+    });
     mockedPrisma.concept.count.mockResolvedValue(0);
 
     const error = await createFocusSession(USER_ID, {
@@ -74,7 +96,11 @@ describe('createFocusSession', () => {
   // conceptIds trùng lặp trong body không được tạo ra thêm hàng nào trong DB — count không
   // bao giờ khớp input.length nếu không dedupe trước khi đối chiếu (xem comment trong service).
   it('dedupes conceptIds before comparing against the matched count', async () => {
-    mockedPrisma.studyPlan.findUnique.mockResolvedValue({ id: PLAN_ID, userId: USER_ID });
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'active',
+    });
     mockedPrisma.concept.count.mockResolvedValue(1);
     mockedPrisma.focusSession.create.mockResolvedValue({
       id: SESSION_ID,
