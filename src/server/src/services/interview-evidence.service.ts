@@ -192,8 +192,22 @@ export async function recordTurnEvidence(
     }
   }
 
-  // Emitted on every turn we ASKED for evidence on — gated by the RULER, not by what came back.
-  // An empty ruler stays quiet (mock mode, and a concept with `C = 0`): nothing was asked for.
+  // The SUMMARY line. Per-entry rejections above are logged individually and unconditionally, so
+  // nothing here decides whether a deviation is visible — that is already settled. What this line
+  // adds is the one thing per-entry logs cannot express: the difference between "the backstop had
+  // nothing to reject" and "the backstop never ran". A count of zero is only meaningful if it is
+  // printed.
+  //
+  // So it prints whenever there was something to measure, which is either half of:
+  //   - a ruler existed, so evidence WAS asked for — the ordinary case; or
+  //   - the model sent entries anyway. A concept with no checkpoints is a legal committed state
+  //     (#333) and the prompt asks for an empty list in that case; a model that answers regardless
+  //     puts every entry in `bad_index`, and that turn deserves its total.
+  //
+  // Gating on `!mapping.absent` for the second half was measured and rejected: it also fires on a
+  // `C = 0` concept whose model COMPLIED, so every turn of every checkpoint-less concept would emit
+  // an all-zero line. That is new noise on the ordinary path bought for a measurement in a rare
+  // one. "Entries to count" buys the same case without it.
   //
   // ⚠️ `field=absent` LOOKS LIKE DEAD CODE. It is not, and the reason it currently cannot fire is
   // itself load-bearing, so read all three of these before deleting it:
@@ -208,15 +222,14 @@ export async function recordTurnEvidence(
   //      `record_evidence` over the WS proxy (lane D2), which reuses this function. This gate
   //      exists for that day, and it is the reason a missing field will be visible then instead of
   //      silent.
-  // Gating on `!mapping.absent` instead was the bug it replaced: it made the single deviation
-  // "the model stopped sending a required field" the ONE thing that printed nothing at all —
-  // indistinguishable from mock mode, in a feature whose whole point is that the first real run
-  // becomes a measurement. Nothing tests that this branch continues to EXIST; only this comment
-  // does.
+  // Nothing tests that this branch continues to EXIST; only this comment does.
   //
   // `warn` rather than `info` because the lint rule allows only `warn`/`error` — the level is the
   // codebase's floor, not a claim that this is a problem.
-  if (ruler.length > 0) {
+  const askedForEvidence = ruler.length > 0;
+  const modelSentEntries = mapping.mapped.length + mapping.unmapped.length > 0;
+
+  if (askedForEvidence || modelSentEntries) {
     const { bad_index, parse_failed, quote_not_found, self_contradicted, over_limit } =
       tally.unmapped;
     // `written` counts ENTRIES accepted, not rows created: two entries naming the same checkpoint

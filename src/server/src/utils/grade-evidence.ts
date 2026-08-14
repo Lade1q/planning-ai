@@ -256,10 +256,16 @@ export function mapGradeEvidence(
  * pulls the checkpoint out of numerator and denominator alike, so the concept drifts toward "not
  * assessed yet" and back into the queue, which is the direction every other guard here falls.
  *
- * Only entries whose statuses are BOTH inside the enum count as a contradiction. A `covered`
- * alongside a `"Running"` is not the model disagreeing with itself, it is one good entry and one
- * piece of garbage — and garbage is `sanitizeEvidence`'s to drop, so its `dropped` counter goes on
- * measuring schema leakage instead of being quietly absorbed here.
+ * Only entries whose statuses are BOTH inside the enum count as a contradiction, and only those
+ * entries are removed. A `covered` alongside a `"Running"` is not the model disagreeing with
+ * itself, it is one good entry and one piece of garbage — and garbage is `sanitizeEvidence`'s to
+ * drop, so its `dropped` counter goes on measuring schema leakage instead of being quietly
+ * absorbed here.
+ *
+ * That holds for the three-entry case too, which is where the first version of this got it wrong:
+ * `covered` + `contradicted` + `"Running"` on ONE checkpoint is a contradiction AND a leak, and
+ * removing the whole checkpoint took the leak with it — reporting `self_contradicted=1 dropped=0`
+ * for the response where the model failed in two ways at once.
  *
  * A repeat with the SAME verdict stays untouched: that is a re-emit, and the unique key already
  * makes it one cell (#330).
@@ -293,5 +299,14 @@ function dropSelfContradictions(
     });
   }
 
-  return mapped.filter((entry) => !contradicted.has(entry.checkpointId));
+  // Drop only the entries that ARE the contradiction. Filtering the whole checkpoint would sweep
+  // an out-of-enum entry for that same checkpoint out with them, and that entry is not part of the
+  // disagreement — it is schema leakage, which `sanitizeEvidence` must still see so its `dropped`
+  // counter keeps measuring leakage. Losing that is worst exactly when it matters most: a response
+  // that both contradicts itself AND leaves the enum is the one where the model is failing hardest,
+  // and it would be the one where `dropped` reads zero.
+  return mapped.filter(
+    (entry) =>
+      !contradicted.has(entry.checkpointId) || !isEvidenceStatus(normalizeStatus(entry.status))
+  );
 }

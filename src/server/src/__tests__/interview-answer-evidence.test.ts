@@ -501,10 +501,37 @@ describe('submitAnswer — evidence is additive and can never cost the grade', (
     // The counter has to stay OUT of the model's rejection reasons: a database outage folded into
     // `dropped` or `parse_failed` sends whoever reads these numbers off to fix a prompt. That
     // separation is the only reason `write_failed` exists, so it is asserted rather than assumed.
+    // ⚠️ Anchoring on the WHOLE cluster is deliberate: it fails if a count lands on a neighbouring
+    // counter, which a single `write_failed=1` would not. It is also brittle by design — adding a
+    // reason breaks it. When that happens, EXTEND the cluster; do not relax it into a
+    // `stringContaining` of one fragment, which is how this assertion stops asserting anything.
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining(
         'dropped=0 bad_index=0 parse_failed=0 quote_not_found=0 self_contradicted=0 ' +
           'over_limit=0 write_failed=1'
+      )
+    );
+  });
+
+  it('still counts enum leakage on a checkpoint that also contradicted itself', async () => {
+    // The correlation is the point: a response that both disagrees with itself AND leaves the enum
+    // is the model failing hardest, and it was the one case where `dropped` read 0.
+    mockedGradeAnswer.mockResolvedValue({
+      ...GRADE,
+      evidence: [
+        { checkpoint: 1, status: 'covered', quote: 'Biến là một ô nhớ có tên' },
+        { checkpoint: 1, status: 'contradicted', quote: 'ô nhớ có tên' },
+        { checkpoint: 1, status: 'Running', quote: 'một ô nhớ' },
+      ],
+    });
+    seedPendingTurn();
+
+    await submitAnswer(SESSION_ID, USER_ID, ANSWER);
+
+    expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'dropped=1 bad_index=0 parse_failed=0 quote_not_found=0 ' + 'self_contradicted=1'
       )
     );
   });
@@ -522,6 +549,50 @@ describe('submitAnswer — evidence is additive and can never cost the grade', (
   });
 });
 
+/**
+ * What the SUMMARY line is for, and therefore when it appears.
+ *
+ * Per-entry rejections are logged unconditionally elsewhere, so no deviation depends on this line
+ * to be visible. What it adds is the one thing a per-entry log cannot say: whether a count of zero
+ * means "nothing to reject" or "never ran". A zero is only a measurement if it is printed.
+ *
+ * It therefore prints when there was something to measure — a ruler existed, or the model sent
+ * entries anyway — and stays quiet otherwise. The rejected alternative is pinned below: firing on
+ * "the field was present" would emit an all-zero line on every turn of every checkpoint-less
+ * concept, which is noise on the ordinary path bought for a rare case.
+ */
+describe('submitAnswer — when the summary line appears', () => {
+  it('prints for a C = 0 concept whose model answered anyway', async () => {
+    // An empty checkpoint list is a legal committed state (#333) and the prompt asks for an empty
+    // `evidence` list in that case. A model that ignores it puts every entry in `bad_index`, and
+    // that turn is worth a total.
+    mockedPrisma.conceptCheckpoint.findMany.mockResolvedValue([]);
+    mockedGradeAnswer.mockResolvedValue({
+      ...GRADE,
+      evidence: [{ checkpoint: 1, status: 'covered', quote: 'Biến là một ô nhớ có tên' }],
+    });
+    seedPendingTurn();
+
+    await submitAnswer(SESSION_ID, USER_ID, ANSWER);
+
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('bad_index=1'));
+    expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet for a C = 0 concept whose model complied with the empty list', async () => {
+    // Nothing was asked for and nothing came back, so there is no total worth printing. This is the
+    // case that rules out gating on "the field was present": that version fires here, on every turn
+    // of every concept without checkpoints.
+    mockedPrisma.conceptCheckpoint.findMany.mockResolvedValue([]);
+    mockedGradeAnswer.mockResolvedValue({ ...GRADE, evidence: [] });
+    seedPendingTurn();
+
+    await submitAnswer(SESSION_ID, USER_ID, ANSWER);
+
+    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('[evidence]'));
+  });
+});
+
 describe('submitAnswer — mock mode asks for no evidence at all', () => {
   it('reads no ruler and writes no evidence under USE_MOCK_AI', async () => {
     process.env.USE_MOCK_AI = 'true';
@@ -535,8 +606,11 @@ describe('submitAnswer — mock mode asks for no evidence at all', () => {
     expect(mockedPrisma.conceptCheckpoint.findMany).not.toHaveBeenCalled();
     expect(mockedGradeAnswer.mock.calls[0]![0].checkpoints).toEqual([]);
     expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
-    // And no per-turn line either: the log is gated on the RULER, so a turn that was never asked
-    // for evidence stays quiet. Same gate keeps a `C = 0` concept quiet.
+    // And no summary line either: nothing was asked for and nothing came back.
+    //
+    // ⚠️ This silence rests on `mockGradeAnswer` having NO `evidence` field. That is a real
+    // dependency on another module's shape, and this assertion is what nets it: add `evidence: []`
+    // to the mock and this test goes red rather than the silence quietly becoming a lie.
     expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('[evidence]'));
   });
 });

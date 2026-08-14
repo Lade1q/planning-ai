@@ -329,6 +329,28 @@ describe('mapGradeEvidence — self_contradicted', () => {
     expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(0);
   });
 
+  it('leaves the garbage entry of a contradicted checkpoint for the guard to drop', () => {
+    // Three entries on ONE checkpoint: a contradiction AND a leak. Filtering by checkpoint id took
+    // the leak away with the contradiction, so `dropped` read 0 for the response where the model
+    // failed in two ways at once — the counter losing sensitivity exactly when it matters most.
+    const result = mapGradeEvidence(
+      [
+        item(),
+        item({ status: 'contradicted', quote: 'ô nhớ có tên' }),
+        item({ status: 'Running', quote: 'một ô nhớ' }),
+      ],
+      RULER,
+      ANSWER
+    );
+
+    expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(1);
+    // The two real verdicts are gone; the out-of-enum one survives mapping so `sanitizeEvidence`
+    // still sees it and still counts it as leakage.
+    expect(result.mapped).toEqual([
+      expect.objectContaining({ checkpointId: 'cp-1', status: 'Running' }),
+    ]);
+  });
+
   it('compares statuses case-folded, the same way the guard does', () => {
     const result = mapGradeEvidence(
       [item({ status: 'COVERED' }), item({ status: ' contradicted ', quote: 'ô nhớ có tên' })],
