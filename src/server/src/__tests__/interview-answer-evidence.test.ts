@@ -1,6 +1,7 @@
 import { submitAnswer } from '../services/interview.service';
 import prisma from '../config/prisma';
 import { generateQuestion, gradeAnswer, getPlanMaterial } from '../services/gemini.service';
+import { mockGradeAnswer } from '../utils/mock-ai';
 
 /**
  * #346 — `grade_answer` → evidence on the TEXT path, wired end to end through `submitAnswer`.
@@ -607,10 +608,24 @@ describe('submitAnswer — mock mode asks for no evidence at all', () => {
     expect(mockedGradeAnswer.mock.calls[0]![0].checkpoints).toEqual([]);
     expect(mockedPrisma.interviewEvidence.upsert).not.toHaveBeenCalled();
     // And no summary line either: nothing was asked for and nothing came back.
-    //
-    // ⚠️ This silence rests on `mockGradeAnswer` having NO `evidence` field. That is a real
-    // dependency on another module's shape, and this assertion is what nets it: add `evidence: []`
-    // to the mock and this test goes red rather than the silence quietly becoming a lie.
     expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('[evidence]'));
+  });
+
+  it('rests on a real property of mockGradeAnswer, and checks it rather than assuming it', () => {
+    // ⚠️ The silence above depends on `mockGradeAnswer` producing NO `evidence` field. The test
+    // above cannot see that dependency: this suite `jest.mock`s `gemini.service`, so it MIRRORS the
+    // mock's shape by hand instead of being bound to it. A mirror that drifts goes green — measured:
+    // adding `evidence: []` to `mockGradeAnswer` left all 800 tests passing, and adding real entries
+    // did too, while actually BREAKING mock-mode silence (an empty ruler turns every entry into
+    // `bad_index`, so both the per-item and summary lines fire).
+    //
+    // So the dependency is asserted against the real function, imported directly — `mock-ai` is a
+    // different module from the one being mocked, so nothing intercepts it. It is synchronous, so
+    // there is no promise here for `not.toHaveProperty` to pass vacuously against.
+    //
+    // All three verdict branches, because a future edit could add the field to only one of them.
+    for (const answer of ['ngắn', 'một câu trả lời vừa đủ dài để thành shallow', 'x'.repeat(200)]) {
+      expect(mockGradeAnswer(answer)).not.toHaveProperty('evidence');
+    }
   });
 });
