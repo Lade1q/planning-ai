@@ -50,9 +50,20 @@ export type EvidenceStatus = 'covered' | 'contradicted';
 
 const IN_ENUM: ReadonlySet<string> = new Set<EvidenceStatus>(['covered', 'contradicted']);
 
-/** Narrows a raw status string to the enum without a cast at the call site. */
-function isEvidenceStatus(status: string): status is EvidenceStatus {
+/**
+ * Narrows a raw status string to the enum without a cast at the call site.
+ *
+ * Exported for `grade-evidence.ts`, which needs to tell "the model gave two OPPOSITE verdicts for
+ * one checkpoint" from "one of the two was garbage". It only classifies there — the decision about
+ * what an out-of-enum status costs stays here, so the `dropped` counter keeps measuring it.
+ */
+export function isEvidenceStatus(status: string): status is EvidenceStatus {
   return IN_ENUM.has(status);
+}
+
+/** The spelling statuses are compared under: the same trim + case-fold `sanitizeEvidence` applies. */
+export function normalizeStatus(status: string): string {
+  return status.trim().toLowerCase();
 }
 
 /**
@@ -236,7 +247,7 @@ export type SanitizedEvidence =
  * untouched, and a later real `covered` still lands on the right cell.
  */
 export function sanitizeEvidence(fire: RawEvidence): SanitizedEvidence {
-  const status = fire.status.trim().toLowerCase();
+  const status = normalizeStatus(fire.status);
   if (!isEvidenceStatus(status)) {
     return { kind: 'dropped' };
   }

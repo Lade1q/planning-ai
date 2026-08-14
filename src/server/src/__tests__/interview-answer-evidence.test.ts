@@ -503,7 +503,8 @@ describe('submitAnswer — evidence is additive and can never cost the grade', (
     // separation is the only reason `write_failed` exists, so it is asserted rather than assumed.
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        'dropped=0 bad_index=0 parse_failed=0 quote_not_found=0 write_failed=1'
+        'dropped=0 bad_index=0 parse_failed=0 quote_not_found=0 self_contradicted=0 ' +
+          'over_limit=0 write_failed=1'
       )
     );
   });

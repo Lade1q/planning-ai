@@ -1,4 +1,5 @@
-import { isQuoteGrounded } from './evidence-guard';
+import { isEvidenceStatus, isQuoteGrounded, normalizeStatus } from './evidence-guard';
+import { MAX_CHECKPOINTS_PER_CONCEPT } from './checkpoint';
 
 /**
  * Turning what `grade_answer` said about the checkpoints into rows we are allowed to write
@@ -40,7 +41,20 @@ export interface EvidenceRuler {
  * at — whether the model paraphrases instead of quoting. A single `unmapped` total could not tell
  * "the model is trimming quotes" from "the model is miscounting", and those need opposite fixes.
  */
-export type UnmappedReason = 'bad_index' | 'parse_failed' | 'quote_not_found';
+export type UnmappedReason =
+  'bad_index' | 'parse_failed' | 'quote_not_found' | 'self_contradicted' | 'over_limit';
+
+/**
+ * Most entries one grading may be examined for.
+ *
+ * The ask schema already declares `maxItems: MAX_CHECKPOINTS_PER_CONCEPT`, but nothing enforced it
+ * on the way back in, and the response schema deliberately accepts the field unvalidated. The
+ * number of ROWS was never at risk — the unique key collapses repeats into one cell per
+ * checkpoint — but the number of database round-trips was: N entries meant N sequential upserts.
+ * Clamped at the same bound the model was asked for, so accepting leniently does not also mean
+ * accepting unboundedly.
+ */
+export const MAX_EVIDENCE_ENTRIES = MAX_CHECKPOINTS_PER_CONCEPT;
 
 /** One entry that survived mapping. `status` is still RAW — see `mapGradeEvidence`. */
 export interface MappedEvidence {
@@ -77,6 +91,8 @@ export function tallyUnmapped(
     bad_index: 0,
     parse_failed: 0,
     quote_not_found: 0,
+    self_contradicted: 0,
+    over_limit: 0,
   };
   for (const entry of unmapped) {
     tally[entry.reason] += 1;
@@ -122,17 +138,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * enum stays `sanitizeEvidence`'s job (#326), so its `dropped` counter goes on measuring schema
  * leakage from the model; adjudicating it here would quietly empty that measurement into this one.
  *
- * Duplicate indices are NOT de-duplicated. Two entries for one checkpoint are two writes to ONE
- * cell — `upsertEvidence`'s `(sessionId, conceptId, checkpointId)` key is what makes a re-emit
- * rewrite its own cell instead of appending a second opinion (#330), so the last one wins and the
- * result is the same row either way.
+ * Duplicate indices with the SAME status are not de-duplicated. Two such entries are two writes to
+ * ONE cell — `upsertEvidence`'s `(sessionId, conceptId, checkpointId)` key is what makes a re-emit
+ * rewrite its own cell instead of appending a second opinion (#330) — so the result is the same row
+ * either way. Note that `written` therefore counts ENTRIES ACCEPTED, not rows created.
  *
- * ⚠️ That last-write-wins is right for a RE-EMIT and wrong for a SELF-CONTRADICTION, and the two
- * currently share one path. Two entries naming the same checkpoint with OPPOSITE statuses would
- * mean the model disagreed with itself inside one grading — a signal, not a repeat — and silently
- * keeping whichever came last would throw it away. NOT OBSERVED: zero duplicate indices across the
- * 8 live gradings measured at #346, so this is written down as unknown rather than handled. If it
- * shows up, it earns its own counter; it should not be quietly absorbed here.
+ * Duplicate indices with OPPOSITE statuses are a different thing entirely and are dropped: see
+ * `dropSelfContradictions`. That case was observed live, which is why it is handled here rather
+ * than left to array order.
  */
 export function mapGradeEvidence(
   raw: unknown,
@@ -156,7 +169,18 @@ export function mapGradeEvidence(
     return { mapped, unmapped, absent: false };
   }
 
-  raw.forEach((entry, position) => {
+  if (raw.length > MAX_EVIDENCE_ENTRIES) {
+    // Counted, not silently sliced. A cut that leaves no trace is the same failure as a backstop
+    // with no counter: nobody can tell "the model stayed inside the bound" from "we stopped
+    // looking". Its own reason, because the surplus entries were never examined — calling them
+    // `parse_failed` would claim we found something wrong with them.
+    unmapped.push({
+      reason: 'over_limit',
+      detail: `${raw.length} entries, examined the first ${MAX_EVIDENCE_ENTRIES}`,
+    });
+  }
+
+  raw.slice(0, MAX_EVIDENCE_ENTRIES).forEach((entry, position) => {
     const at = `entry #${position + 1}`;
 
     if (!isRecord(entry)) {
@@ -213,5 +237,61 @@ export function mapGradeEvidence(
     });
   });
 
-  return { mapped, unmapped, absent: false };
+  return { mapped: dropSelfContradictions(mapped, unmapped), unmapped, absent: false };
+}
+
+/**
+ * Removes every entry for a checkpoint the model gave two OPPOSITE verdicts for in one response,
+ * and counts it.
+ *
+ * OBSERVED, not hypothetical: a live grading emitted `covered` and then `contradicted` for the same
+ * checkpoint inside a single response — the model contradicting itself about one sentence, not
+ * re-emitting the same conclusion.
+ *
+ * Letting last-write-wins settle it was the previous behaviour and it is wrong here, for a reason
+ * that has nothing to do with tidiness: the surviving verdict would be decided by ARRAY ORDER. In
+ * the observed case that order happened to charge the student a misconception on a checkpoint the
+ * same response also called covered. INV-2 forbids exactly that — punishing on evidence that is not
+ * confirmed — and self-contradiction is the clearest possible case of unconfirmed. Dropping both
+ * pulls the checkpoint out of numerator and denominator alike, so the concept drifts toward "not
+ * assessed yet" and back into the queue, which is the direction every other guard here falls.
+ *
+ * Only entries whose statuses are BOTH inside the enum count as a contradiction. A `covered`
+ * alongside a `"Running"` is not the model disagreeing with itself, it is one good entry and one
+ * piece of garbage — and garbage is `sanitizeEvidence`'s to drop, so its `dropped` counter goes on
+ * measuring schema leakage instead of being quietly absorbed here.
+ *
+ * A repeat with the SAME verdict stays untouched: that is a re-emit, and the unique key already
+ * makes it one cell (#330).
+ */
+function dropSelfContradictions(
+  mapped: readonly MappedEvidence[],
+  unmapped: UnmappedEvidence[]
+): MappedEvidence[] {
+  const statusesByCheckpoint = new Map<string, Set<string>>();
+
+  for (const entry of mapped) {
+    const status = normalizeStatus(entry.status);
+    if (!isEvidenceStatus(status)) continue;
+    const seen = statusesByCheckpoint.get(entry.checkpointId) ?? new Set<string>();
+    seen.add(status);
+    statusesByCheckpoint.set(entry.checkpointId, seen);
+  }
+
+  const contradicted = new Set(
+    [...statusesByCheckpoint.entries()]
+      .filter(([, statuses]) => statuses.size > 1)
+      .map(([checkpointId]) => checkpointId)
+  );
+
+  if (contradicted.size === 0) return [...mapped];
+
+  for (const checkpointId of contradicted) {
+    unmapped.push({
+      reason: 'self_contradicted',
+      detail: `checkpoint ${checkpointId} got both covered and contradicted in one response`,
+    });
+  }
+
+  return mapped.filter((entry) => !contradicted.has(entry.checkpointId));
 }

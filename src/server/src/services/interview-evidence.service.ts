@@ -192,18 +192,33 @@ export async function recordTurnEvidence(
     }
   }
 
-  // Emitted on every turn we ASKED for evidence on — gated by the ruler, not by what came back.
+  // Emitted on every turn we ASKED for evidence on — gated by the RULER, not by what came back.
+  // An empty ruler stays quiet (mock mode, and a concept with `C = 0`): nothing was asked for.
   //
-  // Gating on `!mapping.absent` was the bug: `evidence` is a REQUIRED field of the JSON schema, so
-  // a turn where the model stopped sending it is a real deviation — and it was the one deviation
-  // that printed NOTHING, making it indistinguishable from mock mode. That is backwards, because
-  // the whole point of #346 is that the first real run becomes a measurement. An empty ruler still
-  // stays quiet (mock mode, and a concept with `C = 0`): there was nothing to report on.
+  // ⚠️ `field=absent` LOOKS LIKE DEAD CODE. It is not, and the reason it currently cannot fire is
+  // itself load-bearing, so read all three of these before deleting it:
+  //   1. Today `absent` is unreachable on this path because `evidence` is a REQUIRED property of
+  //      the JSON Schema derived from `gradeAnswerAskSchema` — structured output is why every live
+  //      grading measured at #346 carried the field. It is not luck and not the prompt.
+  //   2. That requirement is itself netted: `ai-interview.schema.test.ts`'s "asks for evidence on
+  //      every grade rather than leaving the field optional" fails the moment someone marks it
+  //      `.optional()`. So the guarantee cannot evaporate quietly — it can only be removed on
+  //      purpose, with a red test.
+  //   3. The path that DOES reach it is a caller with no structured output: the voice side's
+  //      `record_evidence` over the WS proxy (lane D2), which reuses this function. This gate
+  //      exists for that day, and it is the reason a missing field will be visible then instead of
+  //      silent.
+  // Gating on `!mapping.absent` instead was the bug it replaced: it made the single deviation
+  // "the model stopped sending a required field" the ONE thing that printed nothing at all —
+  // indistinguishable from mock mode, in a feature whose whole point is that the first real run
+  // becomes a measurement. Nothing tests that this branch continues to EXIST; only this comment
+  // does.
   //
   // `warn` rather than `info` because the lint rule allows only `warn`/`error` — the level is the
   // codebase's floor, not a claim that this is a problem.
   if (ruler.length > 0) {
-    const { bad_index, parse_failed, quote_not_found } = tally.unmapped;
+    const { bad_index, parse_failed, quote_not_found, self_contradicted, over_limit } =
+      tally.unmapped;
     // `written` counts ENTRIES accepted, not rows created: two entries naming the same checkpoint
     // are two writes to one cell, so `written=2` can mean one row. Worth spelling out while this
     // line is the measurement.
@@ -211,7 +226,8 @@ export async function recordTurnEvidence(
       `[evidence] turn ${turnRef}: ${mapping.absent ? 'field=absent ' : ''}` +
         `written=${tally.written} downgraded=${tally.downgraded} ` +
         `dropped=${tally.dropped} bad_index=${bad_index} parse_failed=${parse_failed} ` +
-        `quote_not_found=${quote_not_found} write_failed=${tally.writeFailed}`
+        `quote_not_found=${quote_not_found} self_contradicted=${self_contradicted} ` +
+        `over_limit=${over_limit} write_failed=${tally.writeFailed}`
     );
   }
 

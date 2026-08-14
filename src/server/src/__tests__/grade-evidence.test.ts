@@ -1,4 +1,4 @@
-import { mapGradeEvidence, tallyUnmapped } from '../utils/grade-evidence';
+import { mapGradeEvidence, tallyUnmapped, MAX_EVIDENCE_ENTRIES } from '../utils/grade-evidence';
 import type { EvidenceRuler } from '../utils/grade-evidence';
 
 /**
@@ -101,6 +101,8 @@ describe('mapGradeEvidence — bad_index', () => {
         bad_index: 1,
         parse_failed: 0,
         quote_not_found: 0,
+        self_contradicted: 0,
+        over_limit: 0,
       });
     }
   );
@@ -113,6 +115,8 @@ describe('mapGradeEvidence — bad_index', () => {
       bad_index: 1,
       parse_failed: 0,
       quote_not_found: 0,
+      self_contradicted: 0,
+      over_limit: 0,
     });
   });
 
@@ -176,6 +180,8 @@ describe('mapGradeEvidence — parse_failed', () => {
         bad_index: 0,
         parse_failed: 1,
         quote_not_found: 0,
+        self_contradicted: 0,
+        over_limit: 0,
       });
     }
   );
@@ -225,6 +231,8 @@ describe('mapGradeEvidence — quote_not_found (§④)', () => {
       bad_index: 1,
       parse_failed: 0,
       quote_not_found: 0,
+      self_contradicted: 0,
+      over_limit: 0,
     });
   });
 });
@@ -262,17 +270,111 @@ describe('mapGradeEvidence — the batch is never rejected as a whole', () => {
     expect(result.unmapped).toHaveLength(5);
   });
 
-  it('keeps both entries when the model reports one checkpoint twice', () => {
-    // Not de-duplicated on purpose: the unique key makes them two writes to one cell (#330), so
-    // the row is the same either way and there is no ambiguity to resolve here.
-    const result = mapGradeEvidence([item(), item({ status: 'contradicted' })], RULER, ANSWER);
+  it('keeps both entries when the model repeats one checkpoint with the SAME verdict', () => {
+    // A re-emit. The unique key makes them two writes to one cell (#330), so the row is the same
+    // either way and there is nothing to resolve here.
+    const result = mapGradeEvidence([item(), item({ quote: 'ô nhớ có tên' })], RULER, ANSWER);
 
     expect(result.mapped.map((entry) => entry.checkpointId)).toEqual(['cp-1', 'cp-1']);
+    expect(result.unmapped).toEqual([]);
+  });
+});
+
+/**
+ * OBSERVED live at #346: one response emitted `covered` and then `contradicted` for the SAME
+ * checkpoint. Previously last-write-wins settled it, which meant ARRAY ORDER decided whether the
+ * student was charged a misconception on a checkpoint the same response also called covered.
+ */
+describe('mapGradeEvidence — self_contradicted', () => {
+  it('drops BOTH entries when one checkpoint gets two opposite verdicts in one response', () => {
+    const result = mapGradeEvidence(
+      [item(), item({ status: 'contradicted', quote: 'ô nhớ có tên' })],
+      RULER,
+      ANSWER
+    );
+
+    // Not "the last one wins" and not "the first one wins" — neither is confirmed evidence, and
+    // INV-2 forbids punishing on unconfirmed evidence. Dropping both pulls the checkpoint out of
+    // numerator and denominator, so the concept drifts back towards "not assessed yet".
+    expect(result.mapped).toEqual([]);
+    expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(1);
+  });
+
+  it('leaves the OTHER checkpoints of the same response alone', () => {
+    const result = mapGradeEvidence(
+      [
+        item(),
+        item({ status: 'contradicted', quote: 'ô nhớ có tên' }),
+        item({ checkpoint: 3, quote: 'địa chỉ mạng và địa chỉ broadcast' }),
+      ],
+      RULER,
+      ANSWER
+    );
+
+    expect(result.mapped.map((entry) => entry.checkpointId)).toEqual(['cp-3']);
+    expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(1);
+  });
+
+  it('does NOT treat a good entry beside a garbage status as a contradiction', () => {
+    // `covered` + `"Running"` is one real verdict and one piece of schema leakage, not the model
+    // disagreeing with itself. Counting it here would take the entry away from `sanitizeEvidence`
+    // and quietly drain the `dropped` counter that measures leakage (#326).
+    const result = mapGradeEvidence(
+      [item(), item({ status: 'Running', quote: 'ô nhớ có tên' })],
+      RULER,
+      ANSWER
+    );
+
+    expect(result.mapped).toHaveLength(2);
+    expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(0);
+  });
+
+  it('compares statuses case-folded, the same way the guard does', () => {
+    const result = mapGradeEvidence(
+      [item({ status: 'COVERED' }), item({ status: ' contradicted ', quote: 'ô nhớ có tên' })],
+      RULER,
+      ANSWER
+    );
+
+    expect(result.mapped).toEqual([]);
+    expect(tallyUnmapped(result.unmapped).self_contradicted).toBe(1);
+  });
+});
+
+describe('mapGradeEvidence — over_limit', () => {
+  it('examines at most MAX_EVIDENCE_ENTRIES and says so instead of slicing silently', () => {
+    const flood = Array.from({ length: MAX_EVIDENCE_ENTRIES + 5 }, () => item());
+
+    const result = mapGradeEvidence(flood, RULER, ANSWER);
+
+    // The row count was never at risk — the unique key collapses these into one cell — but the
+    // round-trip count was, and a cut nobody can see is indistinguishable from a bound the model
+    // respected on its own.
+    expect(result.mapped).toHaveLength(MAX_EVIDENCE_ENTRIES);
+    expect(tallyUnmapped(result.unmapped).over_limit).toBe(1);
+  });
+
+  it('leaves a batch exactly at the bound untouched', () => {
+    const exact = Array.from({ length: MAX_EVIDENCE_ENTRIES }, () => item());
+
+    const result = mapGradeEvidence(exact, RULER, ANSWER);
+
+    expect(result.mapped).toHaveLength(MAX_EVIDENCE_ENTRIES);
+    expect(tallyUnmapped(result.unmapped).over_limit).toBe(0);
   });
 });
 
 describe('tallyUnmapped', () => {
   it('reports every reason including the zeroes, so a quiet backstop is still visible', () => {
-    expect(tallyUnmapped([])).toEqual({ bad_index: 0, parse_failed: 0, quote_not_found: 0 });
+    // Full equality, not a subset: a reason added to `UnmappedReason` without a zero here would
+    // mean the per-turn line silently stops naming it, and a counter nobody prints is a counter
+    // nobody has.
+    expect(tallyUnmapped([])).toEqual({
+      bad_index: 0,
+      parse_failed: 0,
+      quote_not_found: 0,
+      self_contradicted: 0,
+      over_limit: 0,
+    });
   });
 });
