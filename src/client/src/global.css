@@ -281,13 +281,36 @@
   }
 
   /* Editorial serif for hero/major headings only — tight tracking,
-     tight leading, per the minimalist-editorial protocol. Apply via
-     `font-heading` utility, not globally on h1-h6, since dense UI
-     labels (nav, buttons, table headers) stay sans. */
+     per the minimalist-editorial protocol. Apply via `font-heading`
+     utility, not globally on h1-h6, since dense UI labels (nav,
+     buttons, table headers) stay sans.
+
+     `font-weight` belongs HERE, not at each call site. Tailwind's
+     Preflight resets h1-h6 to `font-weight: inherit`, so a heading
+     that only carries `.font-heading` inherits 400 from body. Measured
+     in the running app before this rule existed: the h1 rendered at
+     400 on nine of eleven screens while the labels around it rendered
+     at 500-700 (65 `font-medium` + 56 `font-semibold` call sites), so
+     the loudest text on a screen was routinely a status chip or a
+     stat. On /focus the h1 was 26px/400 directly under a 44px/600
+     clock painted in `--muted-foreground` — the de-emphasis colour.
+     The emphasis axis ran backwards; this is the line that turns it
+     around. It sits in `@layer base`, so a screen that deliberately
+     wants a different weight still wins with a utility class.
+
+     Leading is 1.25 rather than the 1.1 this rule shipped with. Not
+     because 1.1 clipped anything — that was checked against the real
+     font in a browser and it does not clip, it only overflows its own
+     box by 4px with nothing set to hide the overflow. The reason is
+     that 600-weight serif at 1.1 reads measurably denser than the 400
+     it replaced, so the weight above would have bought emphasis at the
+     cost of legibility. 1.25 also gives Vietnamese stacked diacritics
+     (Ẫ, Ế, Ộ) room between wrapped lines: box overflow drops 4px to 2px. */
   .font-heading {
     font-family: var(--font-heading);
+    font-weight: 600;
     letter-spacing: -0.02em;
-    line-height: 1.1;
+    line-height: 1.25;
   }
 }
 
