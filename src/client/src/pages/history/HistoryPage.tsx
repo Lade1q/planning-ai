@@ -2,7 +2,7 @@
 export default function HistoryPage() {
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <h1 className="mb-2 text-2xl font-bold">Lịch sử &amp; Tiến độ</h1>
+      <h1 className="font-heading mb-2 text-[30px] tracking-[-0.02em]">Lịch sử &amp; Tiến độ</h1>
       <p className="text-muted-foreground text-sm">Sắp ra mắt.</p>
     </div>
   );
