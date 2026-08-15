@@ -84,6 +84,41 @@ export function calculateMasteryScore(turnScores: number[]): number | null {
 export const MIN_COVERAGE = 0.7;
 
 /**
+ * The smallest checkpoint count where a concept can stall mid-way and still be judged on what it
+ * resolved, rather than the coverage floor silently demanding every checkpoint be settled.
+ *
+ * Derived from `MIN_COVERAGE`, not chosen: at `C = 3` or below, `ceil(MIN_COVERAGE * C) === C`, so
+ * clearing the floor requires resolving *all* of them — one unresolved checkpoint sends the whole
+ * concept to `null`, which is the failure mode `MIN_COVERAGE`'s own INV-2 reasoning exists to
+ * avoid. `C = 4` is the first count where `ceil(0.7 * 4) = 3 < 4`, so a concept resolved 3-of-4 and
+ * stalled on the last one still scores instead of going unassessable. Kept as a relationship rather
+ * than a literal `4` so it re-derives automatically if `MIN_COVERAGE` ever changes.
+ */
+function minCheckpointsForCoverage(minCoverage: number): number {
+  let checkpointCount = 1;
+  while (Math.ceil(minCoverage * checkpointCount) >= checkpointCount) {
+    checkpointCount++;
+  }
+  return checkpointCount;
+}
+
+export const MIN_CHECKPOINTS_FOR_COVERAGE = minCheckpointsForCoverage(MIN_COVERAGE);
+
+/**
+ * Whether a concept should close on the checkpoint-coverage grain rather than the turn grain.
+ *
+ * Both conditions are required, not just `checkpointCount >= MIN_CHECKPOINTS_FOR_COVERAGE`: mock
+ * mode (`evidenceEnabled = false`) never writes evidence rows (#346), so a mock concept with a
+ * large checkpoint set would clear the count and still land on `resolved = 0` — coverage `null`
+ * for every concept, silently, with no evidence anything changed. Routing on the count alone would
+ * nullify mock-mode scoring; routing on evidence too keeps the mock's turn-grain behaviour intact
+ * on purpose, not by accident.
+ */
+export function shouldUseCoverageGrain(checkpointCount: number, evidenceEnabled: boolean): boolean {
+  return evidenceEnabled && checkpointCount >= MIN_CHECKPOINTS_FOR_COVERAGE;
+}
+
+/**
  * The mastery score for ONE concept under the checkpoint-coverage grain, or `null` when too few
  * checkpoints were resolved to judge it.
  *

@@ -123,15 +123,23 @@ export interface FinalizeConceptCoverageInput {
 }
 
 /**
- * The result of closing a concept on the coverage grain.
+ * The result of closing a concept, on whichever grain `concept-close.service.ts` routed it to.
  *
  * A union rather than a row of nullable fields, so `skipped` cannot be mistaken for
  * `masteryScore: null`. They mean opposite things: `null` is a concept that WAS measured and came
  * out unassessable, and belongs back in the queue; `skipped` is a concept that was never measured
  * because it is no longer part of the plan.
+ *
+ * `tally` widens to `null` here (unlike `ConceptCoverageResult` itself, always populated when
+ * `scoreConceptFromEvidence` runs): the turn grain has no checkpoint tally to report, and
+ * `concept-close.service.ts` wraps its `finalizeConceptResult` output into this same shape with
+ * `tally: null` so both close sites handle one type regardless of which grain actually ran.
  */
 export type ConceptCloseResult =
-  | ({ outcome: 'closed'; schedule: ConceptReviewSchedule } & ConceptCoverageResult)
+  | ({ outcome: 'closed'; schedule: ConceptReviewSchedule } & Omit<
+      ConceptCoverageResult,
+      'tally'
+    > & { tally: CoverageTally | null })
   | { outcome: 'skipped'; conceptId: string; reason: 'deprecated' };
 
 /**

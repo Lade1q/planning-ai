@@ -1,6 +1,8 @@
 import {
   MASTERY_STRONG_THRESHOLD,
   MAX_REVIEW_INTERVAL_DAYS,
+  MIN_CHECKPOINTS_FOR_COVERAGE,
+  MIN_COVERAGE,
   MIN_REVIEW_INTERVAL_DAYS,
   TURN_WEIGHTS,
   addDays,
@@ -11,6 +13,7 @@ import {
   reviewIntervalDays,
   reviewPriority,
   sessionMasteryScore,
+  shouldUseCoverageGrain,
   summariseMasteryDistribution,
 } from '../utils/mastery';
 import { MASTERY_THRESHOLD } from '../services/traceback.service';
@@ -316,6 +319,41 @@ describe('summariseMasteryDistribution', () => {
       weak: 0,
       untested: 0,
     });
+  });
+});
+
+describe('MIN_CHECKPOINTS_FOR_COVERAGE', () => {
+  it('is the smallest checkpoint count where the coverage floor stops requiring every checkpoint resolved', () => {
+    // Below N, clearing MIN_COVERAGE demands resolving *all* checkpoints — one unresolved
+    // checkpoint sends the whole concept to null. At N, resolving one fewer than C still clears
+    // the floor, which is the case the coverage grain exists to score honestly (a stall mid-way).
+    expect(Math.ceil(MIN_COVERAGE * (MIN_CHECKPOINTS_FOR_COVERAGE - 1))).toBe(
+      MIN_CHECKPOINTS_FOR_COVERAGE - 1
+    );
+    expect(Math.ceil(MIN_COVERAGE * MIN_CHECKPOINTS_FOR_COVERAGE)).toBeLessThan(
+      MIN_CHECKPOINTS_FOR_COVERAGE
+    );
+  });
+
+  it('is 4 for the current MIN_COVERAGE of 0.7', () => {
+    expect(MIN_COVERAGE).toBe(0.7);
+    expect(MIN_CHECKPOINTS_FOR_COVERAGE).toBe(4);
+  });
+});
+
+describe('shouldUseCoverageGrain', () => {
+  it('requires both the checkpoint count and evidence to be enabled', () => {
+    expect(shouldUseCoverageGrain(MIN_CHECKPOINTS_FOR_COVERAGE, true)).toBe(true);
+    expect(shouldUseCoverageGrain(MIN_CHECKPOINTS_FOR_COVERAGE, false)).toBe(false);
+    expect(shouldUseCoverageGrain(MIN_CHECKPOINTS_FOR_COVERAGE - 1, true)).toBe(false);
+    expect(shouldUseCoverageGrain(0, true)).toBe(false);
+  });
+
+  it('does not nullify mock mode: a large checkpoint count alone is not enough', () => {
+    // #346: mock mode never writes evidence rows, so routing on the count alone would send
+    // every mock concept to coverage and read resolved = 0 for all of them — silent, total loss
+    // of mock-mode scoring. evidenceEnabled = false must always keep the turn grain.
+    expect(shouldUseCoverageGrain(100, false)).toBe(false);
   });
 });
 

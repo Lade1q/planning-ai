@@ -11,9 +11,10 @@ import {
   type AiMaterial,
   type PreviousTurn,
 } from './gemini.service';
-import { finalizeConceptResult, type FinalizeConceptResultOutput } from './concept-result.service';
+import { type FinalizeConceptResultOutput } from './concept-result.service';
+import { closeConcept } from './concept-close.service';
 import { getReviewQueueForPlan } from './scheduling.service';
-import { listConceptCheckpoints } from './checkpoint.service';
+import { listConceptCheckpoints, countConceptCheckpoints } from './checkpoint.service';
 import { recordTurnEvidence } from './interview-evidence.service';
 import type { QuestionMode, QuestionType } from '../schemas/ai-interview.schema';
 import type { CreateInterviewInput } from '../schemas/interview.schema';
@@ -35,7 +36,7 @@ import {
   buildTurnCitation,
   type CitedDocumentRow,
 } from '../utils/question-citation';
-import { gradedTurnScores } from '../utils/mastery';
+import { gradedTurnScores, shouldUseCoverageGrain } from '../utils/mastery';
 import type {
   AbandonInterviewResponse,
   ConceptCompletedResponse,
@@ -593,18 +594,22 @@ async function completeSession(session: SessionRow): Promise<SessionRow> {
 }
 
 /**
- * Ends the current concept: hands its turn scores to `finalizeConceptResult()` (I7.2) and moves
- * the queue on.
+ * Ends the current concept: hands its turn scores to `closeConcept()` (I7.2 / #340 routing) and
+ * moves the queue on.
  *
  * Every finished concept goes through here, whatever it scored (audit A4) — that is what keeps
  * a well-answered concept on the spaced-repetition calendar instead of dropping out of the
  * plan. The mastery formula and the traceback decision both belong to I7.2 and are deliberately
  * not reimplemented here.
+ *
+ * Returns `null` for `outcome: 'skipped'` (the concept was deprecated mid-session): there is
+ * nothing to report, but the queue still advances below exactly as it does for a scored concept —
+ * a deprecated concept must not stall the session.
  */
 async function finishConcept(
   view: SessionView,
   concept: { id: string; name: string }
-): Promise<ConceptCompletedResponse> {
+): Promise<ConceptCompletedResponse | null> {
   // Read the scores back from the database rather than from the view: the turn that triggered
   // this was graded after the view was built.
   const turns = await prisma.interviewTurn.findMany({
@@ -614,10 +619,11 @@ async function finishConcept(
   });
   const turnScores = gradedTurnScores(turns);
 
-  const result = await finalizeConceptResult({
+  const result = await closeConcept({
     sessionId: view.session.id,
     conceptId: concept.id,
     turnScores,
+    evidenceEnabled: evidenceIsRequested(),
   });
 
   const nextIndex = view.conceptIndex + 1;
@@ -632,7 +638,18 @@ async function finishConcept(
     },
   });
 
-  return toConceptCompleted(result, concept.name);
+  if (result.outcome === 'skipped') {
+    return null;
+  }
+
+  return toConceptCompleted(
+    {
+      conceptId: result.conceptId,
+      masteryScore: result.masteryScore,
+      ...result.schedule,
+    },
+    concept.name
+  );
 }
 
 // --- The state machine, executed -------------------------------------------------------
@@ -697,7 +714,10 @@ async function advanceToNextQuestion(
       // the recursion then either opens the next concept or ends the session.
       const conceptCompleted = await finishConcept(view, concept);
       const fresh = await reloadView(view.session.id, view.session.userId);
-      return advanceToNextQuestion(fresh, [...completed, conceptCompleted]);
+      return advanceToNextQuestion(
+        fresh,
+        conceptCompleted ? [...completed, conceptCompleted] : completed
+      );
     }
     mode = nextMode;
   }
@@ -764,10 +784,11 @@ async function advanceFallback(
   if (step.type === 'finish_concept') {
     const conceptCompleted = await finishConcept(view, concept);
     const fresh = await reloadView(view.session.id, view.session.userId);
+    const withCompleted = conceptCompleted ? [...completed, conceptCompleted] : completed;
     // Not advanceFallback: fallbackMode is still true on the reloaded session, so the next
     // concept re-enters advanceToNextQuestion's fallback branch and gets its own cache check
     // instead of inheriting this concept's exhausted cache.
-    return advanceToNextQuestion(fresh, [...completed, conceptCompleted]);
+    return advanceToNextQuestion(fresh, withCompleted);
   }
 
   const cacheRow = step.type === 'ask_cached' ? cached[step.cacheIndex] : undefined;
@@ -1449,17 +1470,19 @@ export async function abandonInterview(
   }
 
   const view = await buildView(session);
-  const conceptCompleted = view.concept ? await scoreConceptSoFar(view, view.concept) : null;
+  const { completed: conceptCompleted, progressed } = view.concept
+    ? await scoreConceptSoFar(view, view.concept)
+    : { completed: null, progressed: false };
 
   const abandoned = await prisma.interviewSession.update({
     where: { id: session.id },
     data: {
       status: 'abandoned',
       endedAt: new Date(),
-      // Only when something was actually scored: the queue has genuinely moved past that
-      // concept, and leaving the index behind would report `completedConcepts` one short of
-      // what was written to the graph.
-      ...(conceptCompleted ? { currentConceptIdx: view.conceptIndex + 1 } : {}),
+      // Only when the concept was actually closed (scored, on either grain, or skipped as
+      // deprecated): the queue has genuinely moved past that concept, and leaving the index
+      // behind would report `completedConcepts` one short of what was written to the graph.
+      ...(progressed ? { currentConceptIdx: view.conceptIndex + 1 } : {}),
     },
     select: sessionSelect,
   });
@@ -1467,39 +1490,80 @@ export async function abandonInterview(
   return { session: toSessionState(await buildView(abandoned)), conceptCompleted };
 }
 
+/** What stopping mid-concept produced: a payload to show, and whether the queue should move on. */
+interface ConceptSoFarResult {
+  completed: ConceptCompletedResponse | null;
+  /**
+   * Whether the concept was actually closed — scored on the turn grain, scored on the coverage
+   * grain, or `skipped` as deprecated. `false` only when there was nothing to close at all
+   * (no turn, no evidence): the caller must not advance `currentConceptIdx` past a concept the
+   * student never touched.
+   */
+  progressed: boolean;
+}
+
 /**
  * Finalises the concept a session is stopping in the middle of, through the same I7.2 seam a
  * concept that ran to the end goes through — mastery score, review schedule, traceback.
  *
- * `null` when no turn of the concept could be graded: there is nothing for the weighted average
- * to average, and a spaced-repetition row for a concept the student never answered would claim
- * an assessment that never happened. `finalizeConceptResult` already leaves the stored score
- * alone in that case; not calling it at all keeps the review queue clean as well.
+ * `progressed: false` when the concept has nothing to close: no graded turn on the turn grain, or
+ * no recorded evidence on the coverage grain (#340's routing means these are different queries —
+ * `turnScores.length === 0` only covers the turn grain). There is nothing for either grain to
+ * measure, and a spaced-repetition row for a concept the student never touched would claim an
+ * assessment that never happened; `closeConcept` is not even called in that case, keeping the
+ * review queue clean the same way `finalizeConceptResult` always did for the turn grain.
  *
- * Traceback (AE-07) still runs for a concept that *was* graded. The turns the student answered
- * are real evidence, and a weak foundation found through them is worth queueing whether or not
- * the session ran to the end — a deliberate decision, not a side effect of reusing I7.2.
+ * Traceback (AE-07) still runs for a concept that *was* graded. The turns or evidence the student
+ * produced are real, and a weak foundation found through them is worth queueing whether or not the
+ * session ran to the end — a deliberate decision, not a side effect of reusing I7.2.
  */
 async function scoreConceptSoFar(
   view: SessionView,
   concept: { id: string; name: string }
-): Promise<ConceptCompletedResponse | null> {
+): Promise<ConceptSoFarResult> {
   const turns = await prisma.interviewTurn.findMany({
     where: { sessionId: view.session.id, conceptId: concept.id },
     orderBy: { turnIndex: 'asc' },
     select: { score: true },
   });
-
   const turnScores = gradedTurnScores(turns);
-  if (turnScores.length === 0) {
-    return null;
+
+  const evidenceEnabled = evidenceIsRequested();
+  const checkpointCount = await countConceptCheckpoints(concept.id);
+  const useCoverage = shouldUseCoverageGrain(checkpointCount, evidenceEnabled);
+
+  const hasProgress = useCoverage
+    ? (await prisma.interviewEvidence.count({
+        where: { sessionId: view.session.id, conceptId: concept.id },
+      })) > 0
+    : turnScores.length > 0;
+
+  if (!hasProgress) {
+    return { completed: null, progressed: false };
   }
 
-  const result = await finalizeConceptResult({
+  const result = await closeConcept({
     sessionId: view.session.id,
     conceptId: concept.id,
     turnScores,
+    evidenceEnabled,
   });
 
-  return toConceptCompleted(result, concept.name);
+  if (result.outcome === 'skipped') {
+    // Deprecated mid-session: nothing to show, but the concept was handled — the queue still
+    // moves past it (see `abandonInterview`'s use of `progressed`).
+    return { completed: null, progressed: true };
+  }
+
+  return {
+    completed: toConceptCompleted(
+      {
+        conceptId: result.conceptId,
+        masteryScore: result.masteryScore,
+        ...result.schedule,
+      },
+      concept.name
+    ),
+    progressed: true,
+  };
 }

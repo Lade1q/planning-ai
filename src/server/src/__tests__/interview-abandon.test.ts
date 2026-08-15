@@ -6,14 +6,19 @@ import { AppError } from '../middleware/errorHandler';
  * `POST /interviews/:id/abandon` (#243) — SPEC_DB-03 AF2, "Kết thúc và chấm phần đã làm".
  *
  * The point of the endpoint is that ending early *scores* the half-finished concept instead of
- * discarding it, so these tests deliberately run the **real** `finalizeConceptResult` (I7.2) and
- * the real `calculateMasteryScore` over a stateful in-memory fake of the tables they touch. A
- * mocked-out I7.2 would let a version that writes nothing at all pass every assertion here.
+ * discarding it, so these tests deliberately run the **real** `finalizeConceptResult` /
+ * `finalizeConceptCoverage` (I7.2, #340) and the real `calculateMasteryScore` /
+ * `coverageMasteryScore` over a stateful in-memory fake of the tables they touch. A mocked-out
+ * I7.2 would let a version that writes nothing at all pass every assertion here.
  *
  * Same shape as `interview-service.test.ts`: tiny mutable fakes rather than
  * `mockResolvedValueOnce` chains, because the service reloads its own view between writes and
  * that reload has to see what the write just did, the way Postgres would. No DATABASE_URL and
  * no GEMINI_API_KEY are needed — abandoning never asks the AI anything (C4 / risk R05).
+ *
+ * `conceptCheckpoint.count` defaults to 0 (`checkpoints = []` below), which routes every concept
+ * below to the turn grain — the pre-#340 behaviour these tests originally pinned. The "coverage
+ * grain" describe block further down overrides it per-test to exercise the C >= N routing.
  */
 jest.mock('../config/prisma', () => ({
   __esModule: true,
@@ -22,6 +27,8 @@ jest.mock('../config/prisma', () => ({
     interviewTurn: { findMany: jest.fn() },
     concept: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     conceptEdge: { findMany: jest.fn() },
+    conceptCheckpoint: { count: jest.fn(), findMany: jest.fn() },
+    interviewEvidence: { count: jest.fn(), findMany: jest.fn() },
     reviewQueueItem: { upsert: jest.fn() },
     document: { findMany: jest.fn() },
     $transaction: jest.fn(),
@@ -33,6 +40,8 @@ const mockedPrisma = prisma as unknown as {
   interviewTurn: { findMany: jest.Mock };
   concept: { findFirst: jest.Mock; findMany: jest.Mock; update: jest.Mock };
   conceptEdge: { findMany: jest.Mock };
+  conceptCheckpoint: { count: jest.Mock; findMany: jest.Mock };
+  interviewEvidence: { count: jest.Mock; findMany: jest.Mock };
   reviewQueueItem: { upsert: jest.Mock };
   document: { findMany: jest.Mock };
   $transaction: jest.Mock;
@@ -83,6 +92,10 @@ let sessionRow: {
 let concepts: FakeConcept[];
 let edges: Array<{ fromConceptId: string; toConceptId: string }>;
 let turns: FakeTurn[];
+/** The checkpoint ruler, empty by default — `C = 0` routes every concept to the turn grain. */
+let checkpoints: Array<{ id: string; conceptId: string; text: string; orderIndex: number }>;
+/** Evidence recorded against the ruler above, for the coverage-grain cases. */
+let evidence: Array<{ sessionId: string; conceptId: string; checkpointId: string; status: string }>;
 
 function seedTurn(overrides: Partial<FakeTurn> = {}): void {
   turns.push({
@@ -106,6 +119,8 @@ beforeEach(() => {
 
   turns = [];
   edges = [];
+  checkpoints = [];
+  evidence = [];
   concepts = [
     {
       id: CONCEPT_ID,
@@ -176,6 +191,34 @@ beforeEach(() => {
     }
   );
   mockedPrisma.conceptEdge.findMany.mockImplementation(() => Promise.resolve([...edges]));
+  mockedPrisma.conceptCheckpoint.count.mockImplementation(
+    ({ where }: { where: { conceptId: string } }) =>
+      Promise.resolve(checkpoints.filter((cp) => cp.conceptId === where.conceptId).length)
+  );
+  mockedPrisma.conceptCheckpoint.findMany.mockImplementation(
+    ({ where }: { where: { conceptId: string } }) =>
+      Promise.resolve(
+        checkpoints
+          .filter((cp) => cp.conceptId === where.conceptId)
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map(({ id, text, orderIndex }) => ({ id, text, orderIndex }))
+      )
+  );
+  mockedPrisma.interviewEvidence.count.mockImplementation(
+    ({ where }: { where: { sessionId: string; conceptId: string } }) =>
+      Promise.resolve(
+        evidence.filter((e) => e.sessionId === where.sessionId && e.conceptId === where.conceptId)
+          .length
+      )
+  );
+  mockedPrisma.interviewEvidence.findMany.mockImplementation(
+    ({ where }: { where: { sessionId: string; conceptId: string } }) =>
+      Promise.resolve(
+        evidence
+          .filter((e) => e.sessionId === where.sessionId && e.conceptId === where.conceptId)
+          .map(({ checkpointId, status }) => ({ checkpointId, status }))
+      )
+  );
   mockedPrisma.reviewQueueItem.upsert.mockResolvedValue({});
   mockedPrisma.document.findMany.mockResolvedValue([]);
   mockedPrisma.interviewTurn.findMany.mockImplementation(
@@ -283,6 +326,84 @@ describe('abandonInterview — a concept with nothing to score', () => {
 
     await abandonInterview(SESSION_ID, USER_ID);
 
+    expect(mockedPrisma.reviewQueueItem.upsert).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The routing to the coverage grain (#340's gap this issue closes): once a concept has
+ * `C >= MIN_CHECKPOINTS_FOR_COVERAGE` checkpoints, abandoning mid-concept scores it from its
+ * recorded evidence instead of its turn scores. `seedTurn` still runs alongside — the interview
+ * still writes turns — but the score below comes from `evidence`, not `turns`, proving the router
+ * actually switched grains rather than merely ignoring turnScores.
+ */
+describe('abandonInterview — coverage grain (C >= N)', () => {
+  function seedRuler(count = 4): void {
+    checkpoints = Array.from({ length: count }, (_, index) => ({
+      id: `cp-${index + 1}`,
+      conceptId: CONCEPT_ID,
+      text: `Điểm kiểm ${index + 1}`,
+      orderIndex: index,
+    }));
+  }
+
+  it('main acceptance case: half-answered then stalled scores null (not 0), still returns to the queue, and does not trigger traceback', async () => {
+    seedRuler(4);
+    // 2 of 4 checkpoints resolved = 0.5 coverage, under the 0.7 floor — the "answered half the
+    // concept then stalled" case the coverage grain exists to handle honestly.
+    evidence = [
+      { sessionId: SESSION_ID, conceptId: CONCEPT_ID, checkpointId: 'cp-1', status: 'covered' },
+      { sessionId: SESSION_ID, conceptId: CONCEPT_ID, checkpointId: 'cp-2', status: 'covered' },
+    ];
+    edges.push({ fromConceptId: PREREQ_CONCEPT_ID, toConceptId: CONCEPT_ID });
+    seedTurn({ score: 0.5, verdict: 'shallow' });
+
+    const result = await abandonInterview(SESSION_ID, USER_ID);
+
+    // null, not 0: "too little resolved to judge" is not "assessed and wrong".
+    expect(result.conceptCompleted?.masteryScore).toBeNull();
+    expect(mockedPrisma.concept.update).not.toHaveBeenCalled();
+    // Still returns to the queue, on its PREVIOUS score (0.42), not dropped from the plan.
+    expect(conceptById(CONCEPT_ID)?.masteryScore).toBe(0.42);
+    expect(result.session.progress.completedConcepts).toBe(1);
+    expect(sessionRow.currentConceptIdx).toBe(1);
+    // No evidence of a weak foundation to act on — traceback does not run.
+    expect(result.conceptCompleted?.tracebackSkipReason).toBe('not_graded');
+    expect(result.conceptCompleted?.prerequisites).toEqual([]);
+  });
+
+  it('scores from evidence, not from turnScores, once routed to the coverage grain', async () => {
+    seedRuler(4);
+    // 3 of 4 resolved = 0.75, over the floor; 2 of the 3 correct → 0.67.
+    evidence = [
+      { sessionId: SESSION_ID, conceptId: CONCEPT_ID, checkpointId: 'cp-1', status: 'covered' },
+      { sessionId: SESSION_ID, conceptId: CONCEPT_ID, checkpointId: 'cp-2', status: 'covered' },
+      {
+        sessionId: SESSION_ID,
+        conceptId: CONCEPT_ID,
+        checkpointId: 'cp-3',
+        status: 'contradicted',
+      },
+    ];
+    // The turn scores alone would average to 1 (renormalised [1.0]) — a different number, which
+    // is exactly what tells us the coverage grain, not the turn grain, produced the result.
+    seedTurn({ score: 1, verdict: 'deep' });
+
+    const result = await abandonInterview(SESSION_ID, USER_ID);
+
+    expect(result.conceptCompleted?.masteryScore).toBe(0.67);
+  });
+
+  it('does not advance the queue for a concept with checkpoints but no recorded evidence yet', async () => {
+    seedRuler(4);
+    // The student was shown the concept but the claim never landed (or was still pending) — no
+    // evidence rows at all. The coverage-grain equivalent of "no turn was graded".
+    evidence = [];
+
+    const result = await abandonInterview(SESSION_ID, USER_ID);
+
+    expect(result.conceptCompleted).toBeNull();
+    expect(sessionRow.currentConceptIdx).toBe(0);
     expect(mockedPrisma.reviewQueueItem.upsert).not.toHaveBeenCalled();
   });
 });
