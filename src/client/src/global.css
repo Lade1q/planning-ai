@@ -124,8 +124,19 @@
   --accent: oklch(0.95 0.006 262);
   --accent-foreground: oklch(0.24 0.008 262);
   --destructive: oklch(0.5 0.15 25);
-  --border: oklch(0.9 0.005 262);
-  --input: oklch(0.9 0.005 262);
+  /* The 1px rule is the only thing separating a card from the page:
+     --card and --background are 1.03:1 apart, and --shadow-soft is 4%
+     alpha. Measured in the browser, this border used to sit at 1.29:1
+     against the background and 1.33:1 against a card, so the boundary
+     it was supposed to draw was invisible and cards dissolved into the
+     canvas. L 0.9 -> 0.76 puts it at roughly 2.06:1 / 2.12:1 - visible,
+     but deliberately short of the 3:1 that WCAG 1.4.11 asks of a real
+     UI boundary, because pushing a quiet canvas to 3:1 on 149 border
+     sites turns it into a wireframe. Only lightness moved; hue and
+     chroma are untouched. --input keeps the same value it always had
+     relative to --border. */
+  --border: oklch(0.76 0.005 262);
+  --input: oklch(0.76 0.005 262);
   --ring: oklch(0.5 0.16 262);
   --chart-1: oklch(0.5 0.09 235);
   --chart-2: oklch(0.5 0.08 155);
@@ -220,8 +231,13 @@
   --accent: oklch(0.27 0.008 262);
   --accent-foreground: oklch(0.93 0.005 262);
   --destructive: oklch(0.68 0.16 25);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
+  /* Same problem, same fix, measured on the dark canvas: composited
+     over --background this border was 1.2:1, and cards are only 1.08:1
+     from the page here, so dark mode had even less to see. 8% -> 24%
+     reaches about 2.11:1. --input keeps its 4pp lead over --border so a
+     form field still reads as more interactive than a card edge. */
+  --border: oklch(1 0 0 / 24%);
+  --input: oklch(1 0 0 / 28%);
   --ring: oklch(0.62 0.17 262);
   --chart-1: oklch(0.72 0.1 235);
   --chart-2: oklch(0.72 0.09 155);
