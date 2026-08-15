@@ -120,7 +120,21 @@
   --secondary: oklch(0.95 0.006 262);
   --secondary-foreground: oklch(0.24 0.008 262);
   --muted: oklch(0.955 0.006 262);
-  --muted-foreground: oklch(0.55 0.012 262);
+  /* This is the app's majority text colour - 299 call sites against 117
+     for --foreground - and roughly two thirds of them render at 13.5px
+     or below, so the large-text exemption never applies. At L 0.55 it
+     passed on the plain page (4.62:1 on --background, 4.76:1 on --card)
+     and failed everywhere it is actually layered: 4.24:1 on --muted,
+     4.19:1 on --secondary and --accent, 4.43:1 on --sidebar. All
+     measured in the browser against the rendered tokens.
+
+     0.55 -> 0.53 is the smallest step that clears 4.5:1 on every
+     surface it lands on (worst case 4.57:1 on --secondary). It stops
+     there on purpose: this is the DE-EMPHASIS tier, and darkening it
+     compresses the gap to --foreground, which works against the
+     hierarchy the heading weight above just restored. Fixing the
+     contrast failure is worth one step; it is not worth three. */
+  --muted-foreground: oklch(0.53 0.012 262);
   --accent: oklch(0.95 0.006 262);
   --accent-foreground: oklch(0.24 0.008 262);
   --destructive: oklch(0.5 0.15 25);
