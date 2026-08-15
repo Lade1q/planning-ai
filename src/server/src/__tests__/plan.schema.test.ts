@@ -66,6 +66,35 @@ describe('createPlanSchema deadline', () => {
   });
 });
 
+// UC-02 A3 "Dán text" — `content` là field mới, thay thế cho `file` khi tạo plan bằng cách
+// dán text thuần thay vì upload tài liệu.
+describe('createPlanSchema content (dán text)', () => {
+  const base = { name: 'Test plan', deadline: '2099-12-31' };
+
+  it('chấp nhận khi không có content (luồng upload file cũ)', () => {
+    expect(() => createPlanSchema.parse(base)).not.toThrow();
+  });
+
+  it('chấp nhận content hợp lệ và trim khoảng trắng thừa', () => {
+    const result = createPlanSchema.parse({ ...base, content: '  Nội dung bài học  ' });
+    expect(result.content).toBe('Nội dung bài học');
+  });
+
+  it('từ chối content rỗng (toàn khoảng trắng)', () => {
+    expect(() => createPlanSchema.parse({ ...base, content: '   ' })).toThrow(/empty/);
+  });
+
+  it('từ chối content vượt quá 10,000 ký tự', () => {
+    const tooLong = 'a'.repeat(10_001);
+    expect(() => createPlanSchema.parse({ ...base, content: tooLong })).toThrow(/too long/);
+  });
+
+  it('chấp nhận content đúng giới hạn 10,000 ký tự', () => {
+    const maxLength = 'a'.repeat(10_000);
+    expect(() => createPlanSchema.parse({ ...base, content: maxLength })).not.toThrow();
+  });
+});
+
 // Regression coverage for PR #160: id là @db.Uuid trong Prisma — một id không phải UUID
 // ném PrismaClientKnownRequestError P2023 chưa được errorHandler map, rớt xuống 500
 // INTERNAL_ERROR nếu không bị chặn ở đây trước khi chạm service/Prisma.

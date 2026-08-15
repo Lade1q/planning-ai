@@ -11,6 +11,10 @@ function toVnDateKey(date: Date): string {
   return new Date(date.getTime() + VN_UTC_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+// UC-02 A3 "Dán text": alternative to `file` on the same multipart body — the controller
+// enforces exactly one of the two is present (Zod alone can't see `req.file`).
+const MAX_PASTED_CONTENT_LENGTH = 10_000;
+
 export const createPlanSchema = z.object({
   name: z.string().min(1, 'Plan name is required').max(255, 'Plan name is too long'),
   deadline: z
@@ -20,6 +24,12 @@ export const createPlanSchema = z.object({
       const date = new Date(val);
       return !isNaN(date.getTime()) && toVnDateKey(date) >= toVnDateKey(new Date());
     }, 'Deadline must be today or a future date'),
+  content: z
+    .string()
+    .trim()
+    .min(1, 'Pasted content cannot be empty')
+    .max(MAX_PASTED_CONTENT_LENGTH, 'Pasted content is too long')
+    .optional(),
 });
 
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
