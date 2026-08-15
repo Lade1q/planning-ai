@@ -116,7 +116,10 @@
   --popover: oklch(0.995 0.002 262);
   --popover-foreground: oklch(0.24 0.008 262);
   --primary: oklch(0.5 0.16 262);
-  --primary-foreground: oklch(0.985 0.012 262);
+  /* Chroma 0.012 -> 0.006: at L 0.985 the blue channel reached 1.0140 in
+     linear sRGB, so this value was clamped and never rendered as declared.
+     Lightness untouched, so contrast is unchanged. */
+  --primary-foreground: oklch(0.985 0.006 262);
   --secondary: oklch(0.95 0.006 262);
   --secondary-foreground: oklch(0.24 0.008 262);
   --muted: oklch(0.955 0.006 262);
@@ -161,7 +164,7 @@
   --sidebar: oklch(0.97 0.005 262);
   --sidebar-foreground: oklch(0.24 0.008 262);
   --sidebar-primary: oklch(0.5 0.16 262);
-  --sidebar-primary-foreground: oklch(0.985 0.012 262);
+  --sidebar-primary-foreground: oklch(0.985 0.006 262);
   --sidebar-accent: oklch(0.95 0.006 262);
   --sidebar-accent-foreground: oklch(0.24 0.008 262);
   --sidebar-border: oklch(0.9 0.005 262);
@@ -236,8 +239,25 @@
   --card-foreground: oklch(0.93 0.005 262);
   --popover: oklch(0.21 0.007 262);
   --popover-foreground: oklch(0.93 0.005 262);
-  --primary: oklch(0.62 0.17 262);
-  --primary-foreground: oklch(0.98 0.012 262);
+  /* Dark is the mode this file names as the primary target, and this
+     pair paints two things that are on screen for an entire session:
+     every default button, and the active sidebar row. Measured, it gave
+     3.52:1 for 13-14px button text - below AA, on the loudest colour in
+     the app.
+
+     L 0.62 -> 0.56 reaches 4.53:1, the smallest step that clears it.
+     Only lightness moved; hue 262 and chroma 0.17 are untouched, so the
+     brand read is intact. --ring keeps 0.62 on purpose: a focus ring is
+     a different affordance and wants to stay bright.
+
+     Chroma 0.012 -> 0.006 on the foreground is a separate fix in the
+     same pair. At L 0.98 chroma 0.012 puts the blue channel at 1.0073
+     in linear sRGB - outside the gamut, so the browser silently clamped
+     it and the value declared here was never the value that rendered.
+     0.006 lands at 0.9906. Lightness is untouched, so contrast is
+     unaffected; this only makes the declaration honest. */
+  --primary: oklch(0.56 0.17 262);
+  --primary-foreground: oklch(0.98 0.006 262);
   --secondary: oklch(0.27 0.008 262);
   --secondary-foreground: oklch(0.93 0.005 262);
   --muted: oklch(0.25 0.008 262);
@@ -260,8 +280,11 @@
   --chart-5: oklch(0.68 0.012 262);
   --sidebar: oklch(0.19 0.007 262);
   --sidebar-foreground: oklch(0.93 0.005 262);
-  --sidebar-primary: oklch(0.62 0.17 262);
-  --sidebar-primary-foreground: oklch(0.98 0.012 262);
+  /* Same pair, same reasons - this one paints the always-visible active
+     nav row, so it is the single most persistent instance of the 3.52:1
+     failure above. */
+  --sidebar-primary: oklch(0.56 0.17 262);
+  --sidebar-primary-foreground: oklch(0.98 0.006 262);
   --sidebar-accent: oklch(0.27 0.008 262);
   --sidebar-accent-foreground: oklch(0.93 0.005 262);
   --sidebar-border: oklch(1 0 0 / 8%);
