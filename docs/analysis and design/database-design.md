@@ -27,8 +27,11 @@ ORM**. The physical model below is generated 1:1 from the Prisma schema.
 
 > **Scope cut-off.** This model reflects the **#111 (PA4)** deliverable scope — the 13 tables
 > listed below. It does **not** include tables added for Sprint 5 / Interview v2, which was still
-> in development at the time of this revision: `concept_checkpoints` (#329) and the upcoming
-> `InterviewEvidence` (#330 / PR #338). Those land in a later SAD revision, not this one.
+> in development at the time of this revision: `concept_checkpoints` (#329) and
+> `InterviewEvidence` (#330). Cả hai **đã merge** (PR #338, 13/08) và nay nằm trong
+> `schema.prisma` — DB thật có **15 model**, bản này cố ý mô tả 13. Interview v2 đã bị **bỏ khỏi
+> phạm vi bài nộp ngày 16/08**, nên không còn "bản SAD sau" nào để trỏ tới: hai bảng đó tồn tại
+> trong DB nhưng ngoài phạm vi PA4, và đó là trạng thái cuối cùng.
 
 | Convention            | Rule                                                                                                                         |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
