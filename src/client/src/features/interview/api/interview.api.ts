@@ -51,6 +51,11 @@ export function getInterviewErrorMessage(error: unknown): string {
       return 'Không có khái niệm nào để kiểm tra. Hãy chọn khái niệm khác.';
     case 'NO_MATERIAL':
       return 'Kế hoạch này chưa có tài liệu để tạo câu hỏi. Hãy tải tài liệu lên trước khi bắt đầu kiểm tra.';
+    // Ngoại lệ của quy ước "không render thẳng error.message": PLAN_NOT_ACTIVE gộp hai trạng thái
+    // (`archived`/`draft`) với hai câu hành động khác nhau — một hằng số phía client không phủ
+    // được cả hai, nên dùng nguyên văn câu server đã dựng bằng buildInactivePlanMessage().
+    case 'PLAN_NOT_ACTIVE':
+      return error.response.data?.error?.message ?? 'Đã xảy ra lỗi, vui lòng thử lại.';
     case 'VALIDATION_ERROR':
       return 'Thông tin gửi lên chưa hợp lệ.';
     default:

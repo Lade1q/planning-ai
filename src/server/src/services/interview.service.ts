@@ -12,7 +12,7 @@ import {
   type PreviousTurn,
 } from './gemini.service';
 import { finalizeConceptResult, type FinalizeConceptResultOutput } from './concept-result.service';
-import { getReviewQueueForPlan } from './scheduling.service';
+import { buildInactivePlanMessage, getReviewQueueForPlan } from './scheduling.service';
 import { listConceptCheckpoints } from './checkpoint.service';
 import { recordTurnEvidence } from './interview-evidence.service';
 import type { QuestionMode, QuestionType } from '../schemas/ai-interview.schema';
@@ -865,10 +865,13 @@ export async function startInterview(
 ): Promise<StartInterviewResponse> {
   const plan = await prisma.studyPlan.findUnique({
     where: { id: input.planId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
   if (!plan || plan.userId !== userId) {
     throw new AppError('Study plan not found', 404, 'NOT_FOUND');
+  }
+  if (plan.status !== 'active') {
+    throw new AppError(buildInactivePlanMessage(plan.status), 409, 'PLAN_NOT_ACTIVE');
   }
 
   // #272, and it has to come before the resume branch below, not just before the `create`.
