@@ -92,4 +92,13 @@ export const pomodoroConfigApi = {
     );
     return response.data.data;
   },
+
+  /** PATCH /users/me/pomodoro-config — cập nhật cài đặt Pomodoro mặc định. */
+  update: async (config: Partial<PomodoroConfig>): Promise<PomodoroConfig> => {
+    const response = await apiClient.patch<ApiEnvelope<PomodoroConfig>>(
+      ENDPOINTS.USERS.POMODORO_CONFIG,
+      config
+    );
+    return response.data.data;
+  },
 };

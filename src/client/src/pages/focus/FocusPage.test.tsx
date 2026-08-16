@@ -34,7 +34,9 @@ vi.mock('@/features/study-planner/api/plan.api', () => ({
   planApi: { getPlan: vi.fn() },
 }));
 
-const LOGGED_IN = { authUser: { id: 'user-1', email: 'a@b.c', name: null } } as const;
+const LOGGED_IN = {
+  authUser: { id: 'user-1', email: 'a@b.c', name: null, createdAt: '2026-01-01T00:00:00Z' },
+} as const;
 
 /**
  * A stand-in for navigator.locks that models the two properties #311 leans on:
