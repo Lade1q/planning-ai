@@ -580,7 +580,7 @@ function NotStartedPanel({
       <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">
         {item.reasonText}
       </p>
-      <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+      <div className="font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
         {formatClock(config.work * 60000)}
       </div>
       <p className="text-muted-foreground max-w-[46ch] text-pretty text-[13px] leading-[1.7]">

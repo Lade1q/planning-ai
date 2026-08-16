@@ -311,7 +311,7 @@ export default function InterviewSessionPage() {
               <ArrowLeft />
               Về Dashboard
             </Button>
-            <h1 className="truncate text-sm font-semibold">Kết quả kiểm tra</h1>
+            <h1 className="font-heading truncate text-base tracking-tight">Kết quả kiểm tra</h1>
           </div>
 
           {/* `.ex-top__mid` của mockup ở trạng thái cuối: mét tiến độ giữ nguyên chỗ cũ nhưng
@@ -397,7 +397,7 @@ export default function InterviewSessionPage() {
               Về Dashboard
             </Button>
           )}
-          <h1 className="truncate text-sm font-semibold">Kiểm tra vấn đáp</h1>
+          <h1 className="font-heading truncate text-base tracking-tight">Kiểm tra vấn đáp</h1>
         </div>
 
         <ConceptMeter progress={progress} className="hidden md:flex" />
