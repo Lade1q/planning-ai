@@ -55,6 +55,21 @@ Tất cả các API dưới đây yêu cầu xác thực người dùng qua Head
   }
   ```
 
+- **Lỗi plan không ở trạng thái `active` (HTTP 409 Conflict):** áp dụng cho cả `archived` lẫn
+  `draft` (ví dụ vừa `reanalyzePlan`, đang chờ xác nhận đồ thị) — hai trạng thái nhận hai câu
+  `message` khác nhau, xem `buildInactivePlanMessage()` (`scheduling.service.ts`), cùng câu
+  `GET /review-queue?planId=` trả về cho plan không active.
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "PLAN_NOT_ACTIVE",
+      "message": "Kế hoạch này đã được lưu trữ. Bỏ lưu trữ để ôn tiếp."
+    }
+  }
+  ```
+
 ---
 
 ### 2. Kết thúc / hủy phiên (FS-01 Alt flow 1/3/4)

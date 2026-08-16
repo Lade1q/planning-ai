@@ -382,7 +382,7 @@ export function RunningSession({
                 <div className="font-mono text-[34px] font-semibold tabular-nums tracking-[-0.03em]">
                   {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
                 </div>
-                <div className="text-muted-foreground mt-1.5 text-[10px] uppercase tracking-[0.08em]">
+                <div className="text-muted-foreground mt-1.5 text-[11px] uppercase tracking-[0.08em]">
                   Còn lại · Pomodoro {(timer.pomodorosCompleted % timer.config.cycles) + 1}/
                   {timer.config.cycles}
                 </div>

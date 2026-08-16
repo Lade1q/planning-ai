@@ -6,10 +6,9 @@ Header `Authorization: Bearer <TOKEN>`.
 > **Vòng đời một phiên (I6.3 / AE-01…AE-09):** `POST /` mở phiên → `GET /:id` dựng lại màn →
 > `POST /:id/answers` nộp trả lời & lấy bước kế → `pause` / `resume` → `GET /:id/summary` kết
 > quả cuối; `POST /:id/abandon` kết thúc sớm mà vẫn chấm phần đã làm. Trường **`sourceCitation`**
-> (C5) đi kèm mọi câu hỏi — đặc tả ở mục 7.
+> (C5) đi kèm mọi câu hỏi — đặc tả ở mục 8.
 >
-> **Mục lục:** 1. Bắt đầu phiên · 2. Lấy trạng thái + transcript · 3. Nộp trả lời ⭐ ·
-> 4. Tạm dừng · 5. Tiếp tục · 6. Kết quả tổng hợp · 7. `sourceCitation` · 8. Kết thúc sớm.
+> **Mục lục:** 1. Bắt đầu phiên · 2. Lấy trạng thái + transcript · 3. Nộp trả lời ⭐ · 4. Tạm dừng · 5. Tiếp tục · 6. Danh sách phiên (lịch sử) · 7. Kết quả tổng hợp · 8. `sourceCitation` · 9. Kết thúc sớm.
 
 ---
 
@@ -21,16 +20,16 @@ Header `Authorization: Bearer <TOKEN>`.
 
   ```jsonc
   {
-    "planId": "3fa85f64-...-uuid",       // UUID, BẮT BUỘC
+    "planId": "3fa85f64-...-uuid", // UUID, BẮT BUỘC
     "conceptIds": ["b2d3e4f5-...-uuid"], // UUID[], 1–5 phần tử; BỎ TRỐNG = "chọn hộ tôi"
-    "maxTurnsPerConcept": 3              // int 1–3, tùy chọn (mặc định C6 = 3)
+    "maxTurnsPerConcept": 3, // int 1–3, tùy chọn (mặc định C6 = 3)
   }
   ```
 
   - `conceptIds` vắng ⇒ service tự lấy top-K khái niệm từ đầu hàng đợi ôn (I7.3) của plan.
   - Ràng buộc Zod: `planId` UUID; `conceptIds` mỗi phần tử UUID, `min(1)`, `max(5)`; `maxTurnsPerConcept` số nguyên `1..3`.
 
-- **Dùng để:** mở một phiên vấn đáp cho plan (AE-01). Nếu plan đã có phiên `active`/`paused` dở, endpoint **trả lại chính phiên đó** (`created = false`) thay vì tạo trùng — FE hiện dialog AE-03 để người dùng chọn *"tiếp tục"* hay *"kết thúc & chấm phần đã làm"*.
+- **Dùng để:** mở một phiên vấn đáp cho plan (AE-01). Nếu plan đã có phiên `active`/`paused` dở, endpoint **trả lại chính phiên đó** (`created = false`) thay vì tạo trùng — FE hiện dialog AE-03 để người dùng chọn _"tiếp tục"_ hay _"kết thúc & chấm phần đã làm"_.
 
 - **Ràng buộc quan trọng:**
   - **Một plan chỉ một phiên chưa kết thúc.** Đã có phiên dở ⇒ `created = false` + trả session và câu hỏi đang chờ; muốn phiên mới thì FE gọi `POST /:id/abandon` rồi gọi lại endpoint này.
@@ -54,9 +53,12 @@ Header `Authorization: Bearer <TOKEN>`.
         "endedAt": null,
         "currentConcept": { "id": "b2d3e4f5-...-uuid", "name": "Đạo hàm riêng" },
         "progress": {
-          "conceptIndex": 0, "conceptTotal": 3, "completedConcepts": 0,
-          "turnIndex": 1, "maxTurnsPerConcept": 3
-        }
+          "conceptIndex": 0,
+          "conceptTotal": 3,
+          "completedConcepts": 0,
+          "turnIndex": 1,
+          "maxTurnsPerConcept": 3,
+        },
       },
       "question": {
         "turnId": "5f1c2d3e-...-uuid",
@@ -66,18 +68,24 @@ Header `Authorization: Bearer <TOKEN>`.
         "questionText": "Đạo hàm riêng của f theo x nghĩa là gì?",
         "questionType": "recall",
         "source": "ai",
-        "sourceCitation": { "documentId": "...", "filename": "giai-tich.pdf", "kind": "pdf", "pageFrom": 7, "pageTo": 7 }
+        "sourceCitation": {
+          "documentId": "...",
+          "filename": "giai-tich.pdf",
+          "kind": "pdf",
+          "pageFrom": 7,
+          "pageTo": 7,
+        },
       },
       "message": null,
-      "fallback": null
-    }
+      "fallback": null,
+    },
   }
   ```
 
-  - `created = false`: `message` mang gợi ý *"Đang tiếp tục phiên chưa kết thúc…"*; `question` là câu đang chờ của phiên cũ.
+  - `created = false`: `message` mang gợi ý _"Đang tiếp tục phiên chưa kết thúc…"_; `question` là câu đang chờ của phiên cũ.
   - `fallback ≠ null` (vd `reason: "question_unavailable"`): AI lỗi lúc sinh câu đầu — phiên vẫn `active`, `session.fallbackMode` có thể đã bật, FE vào luồng flashcard.
 
-- **Response lỗi:** `400 VALIDATION_ERROR` (body sai schema) · `404 NOT_FOUND` (plan không tồn tại/không thuộc user) · `NO_MATERIAL` (plan chưa có tài liệu — #272).
+- **Response lỗi:** `400 VALIDATION_ERROR` (body sai schema) · `404 NOT_FOUND` (plan không tồn tại/không thuộc user) · `409 PLAN_NOT_ACTIVE` (plan `archived` hoặc `draft` — kể cả khi vừa bị `reanalyzePlan` hạ về `draft` trong lúc còn phiên dở; `message` khác nhau theo trạng thái, xem `buildInactivePlanMessage()`, cùng câu `GET /review-queue?planId=` dùng) · `409 NO_MATERIAL` (plan chưa có tài liệu — #272).
 
 - **Liên quan:** [`interview.service.ts`](../../src/server/src/services/interview.service.ts) `startInterview()`; [`scheduling.service.ts`](../../src/server/src/services/scheduling.service.ts) (chọn hộ khái niệm khi `conceptIds` vắng).
 
@@ -100,21 +108,33 @@ Header `Authorization: Bearer <TOKEN>`.
   {
     "success": true,
     "data": {
-      "session": { /* InterviewSessionState — xem mục 1 */ },
-      "currentQuestion": { /* InterviewQuestionResponse hoặc null — xem mục 1 */ },
+      "session": {/* InterviewSessionState — xem mục 1 */},
+      "currentQuestion": {/* InterviewQuestionResponse hoặc null — xem mục 1 */},
       "turns": [
         {
-          "id": "...", "conceptId": "...", "conceptName": "Đạo hàm riêng", "turnIndex": 1,
-          "questionText": "...", "questionType": "recall",
+          "id": "...",
+          "conceptId": "...",
+          "conceptName": "Đạo hàm riêng",
+          "turnIndex": 1,
+          "questionText": "...",
+          "questionType": "recall",
           "answerText": "Là tốc độ thay đổi của f theo x khi giữ biến khác cố định",
-          "score": 0.7, "feedback": "Đúng ý chính, thiếu điều kiện giữ biến khác cố định.",
+          "score": 0.7,
+          "feedback": "Đúng ý chính, thiếu điều kiện giữ biến khác cố định.",
           "verdict": "shallow",
-          "askedAt": "...", "answeredAt": "...",
-          "sourceCitation": { "documentId": "...", "filename": "giai-tich.pdf", "kind": "pdf", "pageFrom": 7, "pageTo": 7 }
-        }
+          "askedAt": "...",
+          "answeredAt": "...",
+          "sourceCitation": {
+            "documentId": "...",
+            "filename": "giai-tich.pdf",
+            "kind": "pdf",
+            "pageFrom": 7,
+            "pageTo": 7,
+          },
+        },
       ],
-      "fallback": null
-    }
+      "fallback": null,
+    },
   }
   ```
 
@@ -145,17 +165,17 @@ Header `Authorization: Bearer <TOKEN>`.
   - Chế độ (A) gọi AI `grade_answer` — **độ trễ 10–20s**, FE đặt timeout ≥ 30s. AI lỗi ⇒ **không** fail: trả `grading = null`, `fallback = { reason: "grading_unavailable" }`, phiên bật `fallbackMode`.
   - Chế độ (B) `selfGrade` dùng khi phiên **đã** ở fallback: không gọi AI, `grading.feedback = null` (không có nhận xét AI).
   - **C6:** tối đa 3 lượt/khái niệm. `decideNextStep` (AI) / `resolveFallbackStep` (flashcard) quyết định lượt kế / kết thúc khái niệm.
-  - **`replayed = true`:** gọi lại trên câu đã chấm (double-click/retry) — trả lại kết quả đã lưu, **không tạo lượt 2**. Coi `nextQuestion` ở đây là *gợi ý* và lấy `GET /interviews/:id` làm chuẩn.
+  - **`replayed = true`:** gọi lại trên câu đã chấm (double-click/retry) — trả lại kết quả đã lưu, **không tạo lượt 2**. Coi `nextQuestion` ở đây là _gợi ý_ và lấy `GET /interviews/:id` làm chuẩn.
   - Kết thúc khái niệm ⇒ `conceptCompleted ≠ null` (đi qua `finalizeConceptResult` I7.2: ghi `mastery_score`, xếp lịch ôn, chạy truy ngược AE-07).
 
 - **BỐN loại response — phân biệt bằng tổ hợp field (FE nhìn field, không đoán):**
 
-  | Trạng thái | `grading` | `conceptCompleted` | `nextQuestion` | `sessionCompleted` |
-  |---|---|---|---|---|
-  | **Còn lượt tiếp** (cùng khái niệm) | ≠ null | `null` | ≠ null (turnIndex+1) | `false` |
-  | **Hết khái niệm** (sang khái niệm kế) | ≠ null | ≠ null | ≠ null (câu ĐẦU khái niệm kế) | `false` |
-  | **Hết phiên** | ≠ null | ≠ null (khái niệm cuối) | `null` | `true` |
-  | **Fallback** (AI lỗi) | `null` | (tùy) | (tùy) | (tùy) + `fallback ≠ null` |
+  | Trạng thái                            | `grading` | `conceptCompleted`      | `nextQuestion`                | `sessionCompleted`        |
+  | ------------------------------------- | --------- | ----------------------- | ----------------------------- | ------------------------- |
+  | **Còn lượt tiếp** (cùng khái niệm)    | ≠ null    | `null`                  | ≠ null (turnIndex+1)          | `false`                   |
+  | **Hết khái niệm** (sang khái niệm kế) | ≠ null    | ≠ null                  | ≠ null (câu ĐẦU khái niệm kế) | `false`                   |
+  | **Hết phiên**                         | ≠ null    | ≠ null (khái niệm cuối) | `null`                        | `true`                    |
+  | **Fallback** (AI lỗi)                 | `null`    | (tùy)                   | (tùy)                         | (tùy) + `fallback ≠ null` |
 
   ```jsonc
   // (1) CÒN LƯỢT TIẾP
@@ -261,10 +281,10 @@ Header `Authorization: Bearer <TOKEN>`.
   {
     "success": true,
     "data": {
-      "session": { /* status: "active" */ },
-      "currentQuestion": { /* InterviewQuestionResponse hoặc null */ },
-      "fallback": null
-    }
+      "session": {/* status: "active" */},
+      "currentQuestion": {/* InterviewQuestionResponse hoặc null */},
+      "fallback": null,
+    },
   }
   ```
 
@@ -273,7 +293,91 @@ Header `Authorization: Bearer <TOKEN>`.
 
 ---
 
-### 6. Lấy Kết quả Tổng hợp của một Phiên (Get Session Summary)
+### 6. Lấy Danh sách Phiên (Session History — SPEC_DB-03)
+
+- **Endpoint:** `GET /api/v1/interviews`
+- **Xác thực:** ✅ Yêu cầu Bearer Token
+- **Query params:**
+  - `limit` (int, tuỳ chọn, 1–50, mặc định 20).
+  - `offset` (int, tuỳ chọn, ≥ 0, mặc định 0).
+  - `planId` (UUID, tuỳ chọn) — chỉ trả phiên của plan đó; `planId` không tồn tại hoặc không
+    thuộc user hiện tại → `404 NOT_FOUND` (không phân biệt 2 trường hợp, cùng quy tắc #115).
+
+- **Dùng để:** màn "Lịch sử & Tiến độ" tab Phiên kiểm tra (DB-03) — danh sách phiên, mới nhất
+  trước. Read-only tuyệt đối: không gọi AI, không ghi `mastery_score`, không sinh nhận xét.
+
+- **Response thành công (HTTP 200 OK):**
+
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "7c9e6679-...-uuid",
+        "startedAt": "2026-07-26T21:40:00.000Z",
+        "endedAt": "2026-07-26T22:06:00.000Z",
+        "status": "completed",
+        "fallbackMode": false,
+        "plan": { "id": "3fa85f64-...-uuid", "name": "Cấu trúc dữ liệu & Giải thuật" },
+        "conceptTotal": 3,
+        "averageMasteryScore": 0.61,
+        "concepts": [
+          {
+            "conceptId": "b2d3e4f5-...-uuid",
+            "name": "Cây nhị phân",
+            "masteryBefore": 0.58,
+            "masteryAfter": 0.72,
+            "isFirstAssessment": false
+          },
+          {
+            "conceptId": "c4e5f6a7-...-uuid",
+            "name": "BFS",
+            "masteryBefore": null,
+            "masteryAfter": 0.68,
+            "isFirstAssessment": true
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+  - `data` là mảng trần (không bọc `items`/`nextCursor`) — danh sách rỗng hợp lệ là `[]` (AF1),
+    không phải lỗi. Client tự biết còn trang tiếp theo hay không bằng cách so
+    `data.length < limit`.
+  - `concepts[].masteryBefore`/`masteryAfter` suy từ `interview_turns` (`sessionMasteryScore()`
+    ở `utils/mastery.ts`), **không phải** `Concept.masteryScore` sống — điểm đó có thể đã bị một
+    phiên sau đè lên. `masteryBefore` tính trên **toàn bộ lịch sử** của user cho khái niệm đó,
+    không chỉ trong trang hiện tại.
+  - `isFirstAssessment: true` khi đây là lần đầu tiên khái niệm có điểm thật — lúc đó
+    `masteryBefore` luôn là `null` (chưa đo, không phải `0.0` đã đo và sai hoàn toàn — UC-Overview
+    §5.3). FE hiển thị nhãn "lần đầu" thay vì mức tăng/giảm cho case này.
+  - Khái niệm đã bị xoá (re-analysis, SP-05) giữa hai phiên bị bỏ qua khỏi `concepts`, không có
+    placeholder.
+  - `conceptTotal` là số khái niệm trong hàng đợi của phiên (không phải tiến độ "X/Y") — muốn
+    tiến độ chi tiết của một phiên cụ thể thì gọi `GET /interviews/:id`.
+  - `averageMasteryScore` chỉ là tín hiệu phụ (theo SPEC_DB-03): trộn khái niệm mới học lần đầu
+    với khái niệm đã ôn nhiều lần nên ít phản ánh giá trị thật của phiên — tín hiệu chính là
+    `concepts[].masteryBefore/masteryAfter` từng khái niệm.
+  - Nhóm theo mốc thời gian (hôm nay/tuần này/tuần trước…) là việc của FE trên chính mảng phẳng
+    này — endpoint chỉ trả `startedAt`, không tự dựng nhãn tiếng Việt.
+  - Biểu đồ tiến độ theo thời gian (SPEC_DB-03 bước #8) render/nội suy phía FE trên chính các cặp
+    before/after đã trả qua nhiều lần gọi — không có data contract riêng.
+
+- **Response lỗi:**
+
+  ```jsonc
+  // 404 — planId không tồn tại hoặc không thuộc user hiện tại
+  { "success": false, "error": { "code": "NOT_FOUND", "message": "Study plan not found" } }
+  ```
+
+- **Liên quan:**
+  - [`src/server/src/services/interview-history.service.ts`](../../src/server/src/services/interview-history.service.ts) — logic đầy đủ (`listInterviews`).
+  - [`src/server/src/utils/mastery.ts`](../../src/server/src/utils/mastery.ts) — `conceptMasteryForSession()`, thuật toán before/after.
+
+---
+
+### 7. Lấy Kết quả Tổng hợp của một Phiên (Get Session Summary)
 
 - **Endpoint:** `GET /api/v1/interviews/:id/summary`
 - **Xác thực:** ✅ Yêu cầu Bearer Token
@@ -285,14 +389,20 @@ Header `Authorization: Bearer <TOKEN>`.
   Traceback (AE-08 / I7.2) đã đề xuất ôn lại cho phiên tiếp theo.
 
 - **Ràng buộc quan trọng:**
-  - Chỉ gọi được khi phiên đã `status = 'completed'` — gọi khi phiên còn dở trả về `409`.
+  - Gọi được khi phiên đã `status = 'completed'` **hoặc** `'abandoned'` (SPEC_DB-03) — gọi khi
+    phiên còn `active`/`paused` trả về `409`.
+  - Phiên `abandoned` (SPEC_DB-03 AF3): `summarize_session` **cố tình không được gọi** — hàng đợi
+    chưa chạy hết nên không có gì để tổng hợp. Trả `200` với bảng điểm structured đầy đủ,
+    `summary.generatedByAi = false`, `summary.text = null`, **`summary.message = null`** (đây
+    không phải lỗi AI — khác với case AI lỗi ở dưới, message không được đặt).
   - `summarize_session` (lời gọi AI thứ 4 và cuối cùng — UC-Overview §5.1) chỉ nhận điểm số và
     verdict **đã tính xong**, không gửi lại tài liệu gốc, và không được phép tự sinh/sửa
     `mastery_score` (C4).
   - Nhận xét AI được sinh **một lần duy nhất** và cache lại — gọi endpoint này lần thứ 2 trở đi
     **không** tốn thêm lượt gọi Gemini nào (risk R01).
-  - AI lỗi không làm request thất bại: vẫn trả `200` kèm bảng điểm structured đầy đủ,
-    `summary.generatedByAi = false`, `summary.text = null`.
+  - AI lỗi (chỉ áp dụng cho phiên `completed`) không làm request thất bại: vẫn trả `200` kèm
+    bảng điểm structured đầy đủ, `summary.generatedByAi = false`, `summary.text = null`,
+    `summary.message` chứa lý do.
 
 - **Response thành công (HTTP 200 OK):**
 
@@ -391,7 +501,7 @@ Header `Authorization: Bearer <TOKEN>`.
   // 404 — phiên không tồn tại hoặc không thuộc user hiện tại (không phân biệt 2 trường hợp)
   { "success": false, "error": { "code": "NOT_FOUND", "message": "Interview session not found" } }
 
-  // 409 — phiên chưa kết thúc
+  // 409 — phiên còn active/paused (chưa completed, chưa abandoned)
   {
     "success": false,
     "error": {
@@ -408,7 +518,7 @@ Header `Authorization: Bearer <TOKEN>`.
 
 ---
 
-### 7. Neo nguồn trích dẫn của câu hỏi (`sourceCitation` — C5)
+### 8. Neo nguồn trích dẫn của câu hỏi (`sourceCitation` — C5)
 
 > Mô tả **một trường dùng chung**, không phải một endpoint. Ba endpoint mang nó — `POST /`
 > (`question`), `GET /:id` (`currentQuestion` và từng phần tử của `turns`), `POST /:id/answers`
@@ -483,7 +593,7 @@ Header `Authorization: Bearer <TOKEN>`.
 
 ---
 
-### 8. Kết thúc phiên sớm và chấm phần đã làm (Abandon Session)
+### 9. Kết thúc phiên sớm và chấm phần đã làm (Abandon Session)
 
 - **Endpoint:** `POST /api/v1/interviews/:id/abandon`
 - **Xác thực:** ✅ Yêu cầu Bearer Token

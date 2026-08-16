@@ -143,6 +143,23 @@ model User {
   passwordHash   String   @map("password_hash") @db.VarChar(255)
   name           String?  @db.VarChar(100)
   pomodoroConfig Json     @default("{\"work\":25,\"short_break\":5,\"long_break\":15,\"cycles\":4,\"sound\":true}") @map("pomodoro_config")
+  /// Bumped on every password change so tokens minted before it stop working.
+  /// Access tokens carry this as a claim; the refresh path compares the claim
+  /// against this column and refuses to mint a new access token when they differ.
+  ///
+  /// The check deliberately does NOT live in `authMiddleware`. That middleware
+  /// reads no database at all today, so putting it there would add the first-ever
+  /// query to every authenticated request across 32 endpoints and make
+  /// authentication itself depend on the database being up. The refresh path
+  /// already loads this row, so the check is free there. The cost of that choice
+  /// is latency, not correctness: a revoked session keeps working until its
+  /// access token expires, which is at most `JWT_EXPIRES_IN` (15 minutes).
+  ///
+  /// `@default(0)` is what makes the migration invisible. Tokens already in
+  /// circulation carry no claim at all, so the comparison coalesces them to 0 and
+  /// they match the backfilled 0. Compare with `!==` against a missing claim
+  /// instead and every logged-in user is signed out the moment this deploys.
+  tokenVersion   Int      @default(0) @map("token_version")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

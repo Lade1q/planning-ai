@@ -169,6 +169,32 @@ describe('FocusPage — entry branches', () => {
     await screen.findByText('Binary Tree');
     expect(screen.getByText('Bạn chọn khái niệm này trên đồ thị để học.')).toBeInTheDocument();
   });
+
+  it('deep-link to an archived plan falls back to the ordinary queue instead of offering "Bắt đầu"', async () => {
+    window.history.pushState({}, '', '/focus?planId=P1&conceptId=C2');
+
+    vi.mocked(planApi.getPlan).mockResolvedValue({
+      id: 'P1',
+      name: 'DSA',
+      status: 'archived',
+      graph: {
+        concepts: [{ id: 'C2', name: 'Binary Tree', mastery_score: 0.6 }],
+        edges: [],
+      },
+    } as never);
+    vi.mocked(reviewQueueApi.getToday).mockResolvedValue({
+      items: [],
+      message: null,
+      noScheduleNote: null,
+      totalEstimatedMinutes: 0,
+    });
+
+    render(<FocusPage />, { ...LOGGED_IN });
+
+    // Falls through to the no-history empty state — never renders the archived plan's concept.
+    await screen.findByText(/chưa có lịch ôn tập/i);
+    expect(screen.queryByText('Binary Tree')).not.toBeInTheDocument();
+  });
 });
 
 describe('FocusPage — interrupted-session resume (owner guard)', () => {

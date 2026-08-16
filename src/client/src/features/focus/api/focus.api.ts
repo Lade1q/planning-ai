@@ -38,6 +38,11 @@ export function getFocusSessionErrorMessage(
       return 'Thời gian tập trung ghi nhận không hợp lệ. Vui lòng tải lại trang.';
     case 'INVALID_CONCEPT_IDS':
       return 'Khái niệm không thuộc kế hoạch đã chọn.';
+    // Ngoại lệ của quy ước "không render thẳng error.message": PLAN_NOT_ACTIVE gộp hai trạng thái
+    // (`archived`/`draft`) với hai câu hành động khác nhau — một hằng số phía client không phủ
+    // được cả hai, nên dùng nguyên văn câu server đã dựng bằng buildInactivePlanMessage().
+    case 'PLAN_NOT_ACTIVE':
+      return error.response.data?.error?.message ?? 'Đã xảy ra lỗi, vui lòng thử lại.';
     case 'VALIDATION_ERROR':
       return 'Thông tin gửi lên chưa hợp lệ.';
     default:

@@ -65,6 +65,46 @@ describe('getFocusSessionErrorMessage', () => {
     );
   });
 
+  // PLAN_NOT_ACTIVE is the one code whose message is rendered straight from the server: it
+  // covers two different plan states (archived / draft) with two different action sentences,
+  // so a single client-side constant can't stand in for both (review #350).
+  it('maps PLAN_NOT_ACTIVE to the server-provided message verbatim, archived variant', () => {
+    const err = {
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          error: {
+            code: 'PLAN_NOT_ACTIVE',
+            message: 'Kế hoạch này đã được lưu trữ. Bỏ lưu trữ để ôn tiếp.',
+          },
+        },
+      },
+    };
+    expect(getFocusSessionErrorMessage(err)).toBe(
+      'Kế hoạch này đã được lưu trữ. Bỏ lưu trữ để ôn tiếp.'
+    );
+  });
+
+  it('maps PLAN_NOT_ACTIVE to the server-provided message verbatim, draft variant', () => {
+    const err = {
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          error: {
+            code: 'PLAN_NOT_ACTIVE',
+            message:
+              'Kế hoạch này đang chờ bạn xác nhận đồ thị khái niệm. Kiểm chứng xong, hàng đợi ôn sẽ bắt đầu chạy.',
+          },
+        },
+      },
+    };
+    expect(getFocusSessionErrorMessage(err)).toBe(
+      'Kế hoạch này đang chờ bạn xác nhận đồ thị khái niệm. Kiểm chứng xong, hàng đợi ôn sẽ bắt đầu chạy.'
+    );
+  });
+
   it('returns non-empty, distinct Vietnamese strings for each mapped code', () => {
     const messages = [
       getFocusSessionErrorMessage(axiosErr(409, 'ALREADY_ENDED')),

@@ -258,7 +258,7 @@ export function TodayNudge({
 export function TodayNudgeSkeleton() {
   return (
     <section className={`${CARD_CLASS} p-6 sm:p-7`} aria-hidden="true">
-      <div className="text-muted-foreground mb-3.5 font-mono text-[10.5px]">
+      <div className="text-muted-foreground mb-3.5 font-mono text-[11px]">
         Đang tải · Gợi ý hôm nay
       </div>
       <div className="bg-border h-[18px] w-[70px] animate-pulse rounded" />
