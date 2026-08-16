@@ -101,6 +101,29 @@ describe('createPlanSchema content (dán text)', () => {
     const maxLength = 'a'.repeat(10_000);
     expect(() => createPlanSchema.parse({ ...base, content: maxLength })).not.toThrow();
   });
+
+  // Comment bổ sung trên #363: multipart/form-data chuẩn hoá mỗi `\n` thành `\r\n` khi
+  // truyền tải — nếu đếm giới hạn trên chuỗi thô, mỗi dòng xuống hàng bị tính thành 2 ký
+  // tự, khiến một đoạn 9,957 ký tự đã gõ (91 dòng) bị từ chối vì "too long" ở 10,048 ký
+  // tự thô. Chuẩn hoá `\r\n` → `\n` trước khi đếm để cap phản ánh đúng số ký tự đã gõ.
+  it('không tính CRLF (xuống dòng qua multipart) gấp đôi khi kiểm tra giới hạn', () => {
+    // Xuống dòng nằm giữa nội dung (không ở đầu/cuối) để .trim() không vô tình nuốt mất
+    // — mô phỏng một đoạn nhiều dòng thật, không phải chuỗi toàn '\n'.
+    const lines = Array.from({ length: 100 }, (_, i) => `dòng ${i}: ` + 'a'.repeat(90));
+    const typed = lines.join('\n'); // đúng những gì sinh viên gõ, dùng '\n'
+    const wireValue = typed.replace(/\n/g, '\r\n'); // dạng đã "nở" mà multipart gửi lên
+    expect(wireValue.length).toBeGreaterThan(typed.length); // xác nhận có "nở" thật, không phải no-op
+
+    const result = createPlanSchema.parse({ ...base, content: wireValue });
+    expect(result.content).toBe(typed); // sau chuẩn hoá, khớp đúng bản gốc đã gõ, không còn CRLF
+  });
+
+  it('thông báo lỗi vượt giới hạn có kèm số ký tự thực tế đã gõ', () => {
+    const tooLong = 'a'.repeat(10_001);
+    expect(() => createPlanSchema.parse({ ...base, content: tooLong })).toThrow(
+      /max 10000 characters, got 10001/
+    );
+  });
 });
 
 // Regression coverage for PR #160: id là @db.Uuid trong Prisma — một id không phải UUID

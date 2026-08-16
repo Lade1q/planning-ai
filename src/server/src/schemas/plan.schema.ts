@@ -15,6 +15,15 @@ function toVnDateKey(date: Date): string {
 // enforces exactly one of the two is present (Zod alone can't see `req.file`).
 const MAX_PASTED_CONTENT_LENGTH = 10_000;
 
+// multipart/form-data normalizes `\n` to `\r\n` in transit (the same mechanism that turns
+// a 902-byte paste into 908 bytes on disk), so `.max()` counting the raw field would charge
+// pasted content 1 extra character per line it never had — a 91-line, 9,957-character paste
+// was rejected as "too long" at 10,048 raw characters (Review #363). Undo it before counting
+// or storing, so the cap reflects what the student actually typed.
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, '\n');
+}
+
 export const createPlanSchema = z.object({
   name: z.string().min(1, 'Plan name is required').max(255, 'Plan name is too long'),
   deadline: z
@@ -31,9 +40,12 @@ export const createPlanSchema = z.object({
     (val) => (val === '' ? undefined : val),
     z
       .string()
-      .trim()
-      .min(1, 'Pasted content cannot be empty')
-      .max(MAX_PASTED_CONTENT_LENGTH, 'Pasted content is too long')
+      .transform((val) => normalizeLineEndings(val).trim())
+      .refine((val) => val.length > 0, 'Pasted content cannot be empty')
+      .refine((val) => val.length <= MAX_PASTED_CONTENT_LENGTH, {
+        error: (issue) =>
+          `Pasted content is too long (max ${MAX_PASTED_CONTENT_LENGTH} characters, got ${(issue.input as string).length})`,
+      })
       .optional()
   ),
 });
