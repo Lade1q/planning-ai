@@ -2,7 +2,7 @@
 
 > **Hạn nộp:** 14/08/2026 · **Issue:** #253 · **Rubric:** _"Revise UI prototype — submit the final UI design chosen for the system."_
 
-Thư mục này chứa bản **thiết kế UI cuối cùng** của hệ thống RecallAI, bao gồm toàn bộ 13 màn hình tương tác.
+Thư mục này chứa bản **thiết kế UI cuối cùng** của hệ thống RecallAI, bao gồm toàn bộ 11 màn hình tương tác.
 
 ---
 
@@ -23,6 +23,7 @@ URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/scre
 ### Tính năng của các prototype trọng điểm (Sprint 4)
 
 **screen-interview.html — AI Examiner**
+
 - State machine 6 trạng thái: asking → loading → graded → paused → fallback → done
 - Đồng hồ đếm thời gian phiên (real-time)
 - Rail trái: hàng đợi khái niệm + turn tracker với trọng số
@@ -32,6 +33,7 @@ URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/scre
 - Thanh **State** ở góc dưới-phải để nhảy thẳng vào trạng thái bất kỳ khi demo
 
 **screen-focus-session.html — Focus Session**
+
 - State machine 6 trạng thái: config → running → paused → break → done → cancel
 - Form cấu hình Pomodoro (work / short break / long break / cycles) trước khi bắt đầu
 - Countdown timer thật với vòng SVG tiến độ và Pomodoro pip meter
@@ -41,6 +43,7 @@ URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/scre
 - Kết thúc → link sang screen-interview.html
 
 **screen-session-result.html — Session Result**
+
 - Hiển thị kết quả phiên: traceback khái niệm (AE-08) + nhận xét tổng hợp AI (AE-09)
 - Biến thể A/B: có/không có traceback (toggle ở góc)
 - **Không** phải screen-history.html (lịch sử DB-03) — đây là màn kết quả ngay sau phiên
@@ -52,7 +55,7 @@ URL mẫu: `http://localhost:8080/docs/analysis%20and%20design/ui-prototype/scre
     ui-prototype/
     ├── README.md                    ← file này
     ├── tokens.css                   ← design tokens (màu, font, spacing…)
-    ├── screen-*.html                ← 12 màn hình chính của hệ thống
+    ├── screen-*.html                ← 11 màn hình chính của hệ thống
     └── components.html              ← thư viện component
 
 ---
