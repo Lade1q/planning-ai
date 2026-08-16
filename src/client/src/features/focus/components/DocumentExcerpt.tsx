@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { FileText } from 'lucide-react';
 import type { ConceptSourceExcerpt } from '@/features/study-planner/types/concept';
-import { formatPageAnchor } from '../utils/format';
+import { formatPageAnchor, isTruncatedQuote } from '../utils/format';
 
 /** Thanh tiêu đề của một tệp nguồn: tên tệp bên trái, neo vị trí bên phải (mockup `.docbar`). */
 export function DocumentBar({ filename, children }: { filename: string; children?: ReactNode }) {
@@ -18,6 +18,11 @@ export function DocumentBar({ filename, children }: { filename: string; children
 
 /**
  * Mức "Trích đoạn" — đọc thẳng cột `concept_sources.excerpt`, không tải tệp về, không gọi AI (C4).
+ *
+ * Câu trích được bọc trong ngoặc kép và `…` (khi cụt) **đặt NGOÀI `<mark>`**, không phải bên trong:
+ * chúng là dấu hiệu của *chúng ta*, không phải chữ có trong tệp. Nhét vào trong vùng tô sáng là
+ * lặng lẽ khẳng định tài liệu có mấy ký tự đó. `aria-hidden` để trình đọc màn hình không đọc ra
+ * "dấu ngoặc kép" giữa câu — thông tin đó là thị giác, và nội dung trích vẫn nguyên vẹn.
  *
  * Tô SÁNG CẢ ĐOẠN chứ không tô từng tên khái niệm bên trong, và đây là điểm khác `HighlightedExcerpt`
  * của Concept Graph một cách có chủ ý: `ConceptSourceRef` không lưu offset `[from, to]` nào, chỉ lưu
@@ -48,9 +53,12 @@ export function DocumentExcerpt({ sources }: { sources: ConceptSourceExcerpt[] }
             <div className="text-muted-foreground max-w-[62ch] text-[13px] leading-[1.85]">
               {source.excerpt ? (
                 <p className="m-0">
+                  <span aria-hidden="true">“</span>
                   <mark className="bg-focus-session/16 text-foreground box-decoration-clone px-0 py-px">
                     {source.excerpt}
                   </mark>
+                  {isTruncatedQuote(source.excerpt) && <span aria-hidden="true">…</span>}
+                  <span aria-hidden="true">”</span>
                 </p>
               ) : (
                 // Có neo trang nhưng không có câu trích: hàng vẫn thật, chỉ thiếu chữ. Nói đúng

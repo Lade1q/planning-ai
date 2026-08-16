@@ -117,4 +117,31 @@ describe('conceptExtractSchema — checkpoints', () => {
       })
     );
   });
+
+  /**
+   * #373 — the wire schema must keep offering `null` for `source_excerpt`.
+   *
+   * The honest empty state ("Đoạn này chỉ có neo vị trí, không có câu trích dẫn.") has existed in
+   * `DocumentExcerpt` since #227 but was unreachable: 0/87 stored rows had a null excerpt, because
+   * the system instruction accepted a quote "where this concept is defined **or introduced**" and
+   * a bare mention satisfies "introduced". #373 removed that clause and told the model to answer
+   * null when the material never says what the concept is.
+   *
+   * Measured A/B on live Gemini, one variable changed, 2 runs per arm: for a prerequisite the
+   * material only names, the old instruction quoted the prerequisite LIST LINE for two different
+   * concepts (byte-identical), the new one returned null in both runs.
+   *
+   * That fix only works while the wire schema still permits null. Tighten this to a bare string
+   * and the model can no longer express "the material does not define this" — it would go back to
+   * quoting a mention, which is the defect, not the fallback.
+   */
+  it('lets the model say the material never defines a concept', () => {
+    const item = (aiExtractJsonSchema as unknown as JsonSchemaShape).properties.concepts.items;
+
+    const { anyOf } = item.properties.source_excerpt as { anyOf: Record<string, unknown>[] };
+    expect(anyOf).toContainEqual(expect.objectContaining({ type: 'null' }));
+    expect(anyOf).toContainEqual(expect.objectContaining({ type: 'string' }));
+    // A null excerpt must not drag the whole concept down with it.
+    expect(item.required ?? []).not.toContain('source_excerpt');
+  });
 });

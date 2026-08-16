@@ -54,7 +54,13 @@ Rules:
 - The graph MUST be acyclic. Do not create cycles.
 - "difficulty" is an integer from 1 (easiest) to 5 (hardest).
 - "source_excerpt": a short verbatim quote (a sentence or two, at most ~300 characters) copied
-  exactly from the material where this concept is defined or introduced. Do not paraphrase.
+  exactly from the material, containing the clause that DEFINES this concept — what it is, what it
+  does, or how it works. Do not paraphrase.
+  Naming a concept is not defining it. If the material only mentions the term — a heading, a slide
+  title, an item in a list, a passing reference — without stating what it is, set "source_excerpt"
+  to null instead of quoting the mention. Prerequisite concepts the material assumes rather than
+  teaches are the common case here. A null excerpt is a correct answer, not a failure; still give
+  "source_page" if you know where the mention appears.
 - "source_page": the 1-based page number where that excerpt appears. For PDFs give the real page;
   for plain text or images with no page structure, use null.
 - "checkpoints": the specific things a student must demonstrate to be counted as understanding

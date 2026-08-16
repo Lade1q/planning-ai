@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/utils/test-utils';
+import userEvent from '@testing-library/user-event';
 import FocusPage from './FocusPage';
 import { reviewQueueApi } from '@/features/review-queue/api/review-queue.api';
 import {
@@ -31,7 +32,7 @@ vi.mock('@/features/focus/api/focus.api', () => ({
 }));
 
 vi.mock('@/features/study-planner/api/plan.api', () => ({
-  planApi: { getPlan: vi.fn() },
+  planApi: { getPlan: vi.fn(), getConceptDetail: vi.fn() },
 }));
 
 const LOGGED_IN = {
@@ -418,5 +419,85 @@ describe('FocusPage — orphan cleanup for sessions too short to offer (#311)', 
     await waitFor(() => {});
 
     expect(focusSessionApi.end).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * #373 — bố cục HAI CỘT (mở tài liệu). Quan sát gốc của người dùng: phần "Trích đoạn" đọc ra như
+ * chỉ bắt keyword. Khảo sát cho thấy nguyên nhân phần lớn nằm ở RENDER chứ không ở AI — mở tài
+ * liệu ra thì **tên khái niệm biến mất khỏi màn**, nên người đọc còn lại một mẩu chữ rời không có
+ * gì nói nó đang minh hoạ cho cái gì.
+ */
+describe('FocusPage — two-column document layout (#373)', () => {
+  async function startSessionWithDocument() {
+    vi.mocked(reviewQueueApi.getToday).mockResolvedValue({
+      items: [makeItem({ name: 'Ngăn xếp', conceptId: 'c1', planId: 'p1' })],
+      message: null,
+      noScheduleNote: null,
+      totalEstimatedMinutes: 0,
+    });
+    vi.mocked(focusSessionApi.create).mockResolvedValue({
+      created: true,
+      id: 's1',
+      planId: 'p1',
+      conceptIds: ['c1'],
+      status: 'running',
+      strictMode: false,
+      startedAt: new Date().toISOString(),
+    });
+    vi.mocked(planApi.getConceptDetail).mockResolvedValue({
+      id: 'c1',
+      name: 'Ngăn xếp',
+      difficulty: 3,
+      masteryScore: 0.5,
+      lastTestedAt: null,
+      isRemediating: false,
+      remediationReason: null,
+      history: [],
+      sources: [
+        {
+          documentId: 'd1',
+          filename: 'ctdl.pdf',
+          kind: 'pdf',
+          pageFrom: 41,
+          pageTo: 41,
+          excerpt: 'Tầng Mạng trong mô hình TCP/IP',
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+    render(<FocusPage />, { ...LOGGED_IN });
+
+    await user.click(await screen.findByRole('button', { name: 'Bắt đầu' }));
+    await user.click(await screen.findByRole('button', { name: 'Trích đoạn' }));
+    return user;
+  }
+
+  it('keeps the concept name on screen once the document takes over the stage', async () => {
+    await startSessionWithDocument();
+
+    expect(await screen.findByRole('heading', { name: 'Ngăn xếp' })).toBeInTheDocument();
+    expect(screen.getByText('Đang học')).toBeInTheDocument();
+  });
+
+  /**
+   * Câu cũ dựng sai mô hình trong đầu người đọc: nó gợi ra một trang tài liệu có một vùng được tô,
+   * trong khi thứ trên màn là một mẩu 65–119 ký tự mà 69–79% ĐÃ là vùng tô sáng. Ghim cả hai chiều
+   * — câu mới có mặt, câu cũ không được quay lại.
+   */
+  it('describes the excerpt as a quote, not as a highlight inside a larger document', async () => {
+    await startSessionWithDocument();
+
+    expect(await screen.findByText(/câu trích ngắn lấy nguyên văn/)).toBeInTheDocument();
+    expect(screen.queryByText(/Phần còn lại của tài liệu vẫn mở được/)).not.toBeInTheDocument();
+  });
+
+  it('marks a mid-sentence excerpt as truncated', async () => {
+    await startSessionWithDocument();
+
+    const mark = await screen.findByText('Tầng Mạng trong mô hình TCP/IP');
+    expect(mark.tagName).toBe('MARK');
+    expect(mark.parentElement?.textContent).toBe('“Tầng Mạng trong mô hình TCP/IP…”');
   });
 });

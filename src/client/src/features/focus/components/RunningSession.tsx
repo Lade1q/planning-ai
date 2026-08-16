@@ -378,6 +378,21 @@ export function RunningSession({
             </div>
 
             <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-[22px]">
+              {/* #373 ①: mở tài liệu ra thì tên khái niệm biến mất khỏi màn — người dùng còn lại
+                  mỗi một mẩu chữ rời và không có gì nói nó đang minh hoạ cho cái gì.
+                  ⚠️ Đặt ở CỘT PHẢI cạnh đồng hồ, KHÔNG phải đầu cột tài liệu: #227 đã cố ý gỡ nó
+                  khỏi chỗ đó vì nằm đúng vị trí tiêu đề mục thì nó đọc ra như một mục có thật
+                  trong tệp — một nhãn bịa (xem docstring `DocumentExcerpt`). Ở đây nó thuộc về
+                  khối trạng thái phiên, cạnh đồng hồ, nên không giả vờ là nội dung tài liệu. */}
+              <div className="text-center">
+                <div className="text-muted-foreground text-[11px] uppercase tracking-[0.08em]">
+                  Đang học
+                </div>
+                <h1 className="font-heading mt-1 text-balance text-[17px] leading-[1.25] tracking-[-0.02em]">
+                  {item.name}
+                </h1>
+              </div>
+
               <div className="text-center">
                 <div className="font-mono text-[34px] font-semibold tabular-nums tracking-[-0.03em]">
                   {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
@@ -388,9 +403,14 @@ export function RunningSession({
                 </div>
               </div>
 
+              {/* #373 ②: câu cũ — "Vùng tô sáng là đoạn khớp… Phần còn lại của tài liệu vẫn mở
+                  được…" — dựng sai mô hình trong đầu người đọc. Nó gợi ra một trang tài liệu có
+                  một vùng được tô, trong khi thứ trên màn là một mẩu trích 65–119 ký tự mà
+                  **69–79% đã là vùng tô sáng**: không có "phần còn lại" nào quanh nó để mà đối
+                  chiếu. Câu mới nói đúng thứ đang bày, và trỏ sang nút ngay dưới cho ngữ cảnh. */}
               <p className="text-muted-foreground m-0 text-xs leading-[1.6]">
                 {sessionDocument.level === 'excerpt'
-                  ? 'Vùng tô sáng là đoạn khớp với khái niệm đang học. Phần còn lại của tài liệu vẫn mở được, nhưng không mặc định chiếm màn hình.'
+                  ? 'Đây là câu trích ngắn lấy nguyên văn từ tài liệu, không phải cả đoạn quanh nó. Mở toàn văn để đọc trong ngữ cảnh.'
                   : 'Đang mở toàn văn. Thời gian tập trung vẫn chạy vì bạn còn ở trong tab này.'}
               </p>
 
