@@ -34,7 +34,7 @@ Planning AI là ứng dụng web giúp người dùng chuyển đổi ý định
 
 ### 1.3 Tài liệu tham chiếu
 
-- [Project Proposal v1.4](../requirements/project-proposal.md)
+- [Project Proposal v1.4](../../pa/pa0/project-proposal.md)
 - [Mẫu Test Case](./test-plans/test-case-template.md)
 - [Mẫu Bug Report](./bug-reports/bug-report-template.md)
 
