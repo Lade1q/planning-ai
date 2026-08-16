@@ -25,13 +25,25 @@ export type UpdatePomodoroConfigInput = z.infer<typeof updatePomodoroConfigSchem
  * `name` là cột duy nhất trong `users` mà người dùng sở hữu; email là khoá đăng
  * nhập nên không đổi ở đây. Giới hạn 100 khớp `@db.VarChar(100)` — để rộng hơn
  * thì Postgres mới là chỗ từ chối, và lỗi trả về sẽ là 500 thay vì 400.
+ *
+ * `.nullable()` vì `User.name` là **`String?`**: `null` nghĩa là *xoá tên*, và
+ * `updateProfile` ghi thẳng `data: { name: patch.name }` nên Prisma nhận được.
+ * Trước #360 schema này khai `z.string()` trần — kẻ lạc loài duy nhất giữa DB
+ * (nullable) và client (gửi `null` khi ô trống), nên xoá tên trả 400 còn người
+ * dùng đọc "Không thể lưu. Vui lòng thử lại."
+ *
+ * ⚠️ `min(2)` vẫn chặn tên **một ký tự** → 400 với cùng câu chung chung đó. Ca
+ * này đã biết và đang theo dõi ở #370; DB không đòi độ dài tối thiểu nào
+ * (`@db.VarChar(100)` chỉ chặn trên), nên con số 2 là quy ước của tầng này chứ
+ * không phải ràng buộc của dữ liệu. Đừng "sửa" nó ở đây mà chưa qua #370.
  */
 export const updateProfileSchema = z.object({
   name: z
     .string()
     .trim()
     .min(2, 'Name must be at least 2 characters')
-    .max(100, 'Name must be at most 100 characters'),
+    .max(100, 'Name must be at most 100 characters')
+    .nullable(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

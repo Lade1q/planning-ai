@@ -46,6 +46,8 @@ export const ENDPOINTS = {
     NOTE: (id: string, noteId: string) => `/api/v1/focus-sessions/${id}/notes/${noteId}`,
   },
   USERS: {
+    PROFILE: '/api/v1/users/me',
+    PASSWORD: '/api/v1/users/me/password',
     POMODORO_CONFIG: '/api/v1/users/me/pomodoro-config',
   },
 } as const;
