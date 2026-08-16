@@ -15,7 +15,7 @@ Tất cả các API quản lý Study Plan đều có tiền tố `/api/v1/plans`
   - `file` (file upload): File tài liệu học tập đính kèm (hỗ trợ `.pdf`, `.txt`, `.png`, `.jpg`, tối đa 10MB).
   - `content` (string): Text dán trực tiếp thay cho việc upload file (UC-02 A3 "Dán text", tối đa 10,000 ký tự). Server tự lưu thành một Document `kind: "text"` (`pageCount: null`) và chạy đúng pipeline phân tích text hiện có — không cần thay đổi gì phía `extractConcepts`.
 
-  **Bắt buộc chọn đúng một trong hai:** `file` hoặc `content`. Thiếu cả hai → `FILE_REQUIRED`; có cả hai → `CONTENT_OR_FILE_CONFLICT` (HTTP 400). Vì luôn có đúng một trong hai, **mọi Plan luôn có ít nhất 1 Document** — kịch bản "tạo plan chỉ bằng gõ concept, không file/text" (0 Document, không có `page_count`) không được mở qua endpoint này (Issue #172 chỉ phục vụ AF2 + dán text, xem mục 4).
+  **Bắt buộc chọn đúng một trong hai:** `file` hoặc `content`. Thiếu cả hai → `FILE_REQUIRED`; có cả hai → `CONTENT_OR_FILE_CONFLICT` (HTTP 400). Vì luôn có đúng một trong hai, **`POST /plans` luôn tạo đúng 1 Document** cho plan mới — kịch bản "tạo plan chỉ bằng gõ concept, không file/text" (0 Document, không có `page_count`) không được mở qua endpoint này (Issue #172 chỉ phục vụ AF2 + dán text, xem mục 4). Đây là phát biểu về **endpoint này**, không phải bất biến toàn hệ thống: seed data và các đường tạo Plan khác vẫn có thể để plan không Document (xem guard `NO_MATERIAL` ở luồng Interview, #272/#303).
 
 - **Response thành công (HTTP 201 Created):**
 

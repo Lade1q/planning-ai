@@ -24,12 +24,18 @@ export const createPlanSchema = z.object({
       const date = new Date(val);
       return !isNaN(date.getTime()) && toVnDateKey(date) >= toVnDateKey(new Date());
     }, 'Deadline must be today or a future date'),
-  content: z
-    .string()
-    .trim()
-    .min(1, 'Pasted content cannot be empty')
-    .max(MAX_PASTED_CONTENT_LENGTH, 'Pasted content is too long')
-    .optional(),
+  // A multipart form that submits a file also submits an untouched `content` textarea as
+  // `''`, not as an absent field — treat that the same as "not provided" so a file upload
+  // doesn't fail validation on an empty paste-text field it never meant to use.
+  content: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z
+      .string()
+      .trim()
+      .min(1, 'Pasted content cannot be empty')
+      .max(MAX_PASTED_CONTENT_LENGTH, 'Pasted content is too long')
+      .optional()
+  ),
 });
 
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;

@@ -84,6 +84,14 @@ describe('createPlanSchema content (dán text)', () => {
     expect(() => createPlanSchema.parse({ ...base, content: '   ' })).toThrow(/empty/);
   });
 
+  // Code review #363: một form multipart gửi file lại kèm luôn ô `content` chưa đụng tới
+  // dưới dạng chuỗi rỗng `''`, không phải field vắng mặt — coi nó như "không có" thay vì
+  // ném VALIDATION_ERROR vào một request upload-file hợp lệ.
+  it('coi content chuỗi rỗng ("") là không có, không phải lỗi', () => {
+    const result = createPlanSchema.parse({ ...base, content: '' });
+    expect(result.content).toBeUndefined();
+  });
+
   it('từ chối content vượt quá 10,000 ký tự', () => {
     const tooLong = 'a'.repeat(10_001);
     expect(() => createPlanSchema.parse({ ...base, content: tooLong })).toThrow(/too long/);

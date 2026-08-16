@@ -91,6 +91,33 @@ describe('createPlanController — dán text (UC-02 A3, Issue #172)', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('không coi là conflict khi có file và content rỗng ("") — form multipart luôn gửi kèm ô content chưa đụng tới', async () => {
+    mockedCreatePlanInDb.mockResolvedValue({
+      id: 'plan-uuid',
+      name: 'Kế hoạch từ file',
+      deadline: new Date('2099-12-31'),
+      status: 'draft',
+    });
+    mockedTriggerAnalysis.mockResolvedValue(undefined);
+
+    const req = {
+      userId: USER_ID,
+      body: {
+        name: 'Kế hoạch từ file',
+        deadline: '2099-12-31',
+        content: '',
+      },
+      file: { path: '/tmp/does-not-matter.txt', originalname: 'notes.txt', size: 10 },
+    } as unknown as Request;
+    const res = mockRes();
+
+    await createPlanController(req, res);
+
+    expect(mockedCreatePlanInDb).toHaveBeenCalledTimes(1);
+    expect(storage.upload).toHaveBeenCalledWith('/tmp/does-not-matter.txt', expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it('từ chối khi vừa có file vừa có content (CONTENT_OR_FILE_CONFLICT), không tạo plan', async () => {
     const req = {
       userId: USER_ID,
