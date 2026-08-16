@@ -118,6 +118,36 @@ describe('createPlanController — dán text (UC-02 A3, Issue #172)', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  // Review #363, vòng đo lại (04:41): cùng lớp lỗi với ca content:'' ở trên, lệch một bước —
+  // người dùng upload file, lỡ gõ một dấu cách vào ô dán text, và bị chặn oan bởi "nội dung
+  // dán không được rỗng" dù họ không định dán gì.
+  it('không coi là conflict khi có file và content toàn khoảng trắng ("   ")', async () => {
+    mockedCreatePlanInDb.mockResolvedValue({
+      id: 'plan-uuid',
+      name: 'Kế hoạch từ file',
+      deadline: new Date('2099-12-31'),
+      status: 'draft',
+    });
+    mockedTriggerAnalysis.mockResolvedValue(undefined);
+
+    const req = {
+      userId: USER_ID,
+      body: {
+        name: 'Kế hoạch từ file',
+        deadline: '2099-12-31',
+        content: '   ',
+      },
+      file: { path: '/tmp/does-not-matter.txt', originalname: 'notes.txt', size: 10 },
+    } as unknown as Request;
+    const res = mockRes();
+
+    await createPlanController(req, res);
+
+    expect(mockedCreatePlanInDb).toHaveBeenCalledTimes(1);
+    expect(storage.upload).toHaveBeenCalledWith('/tmp/does-not-matter.txt', expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it('từ chối khi vừa có file vừa có content (CONTENT_OR_FILE_CONFLICT), không tạo plan', async () => {
     const req = {
       userId: USER_ID,

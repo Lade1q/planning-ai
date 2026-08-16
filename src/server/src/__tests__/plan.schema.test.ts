@@ -80,15 +80,17 @@ describe('createPlanSchema content (dán text)', () => {
     expect(result.content).toBe('Nội dung bài học');
   });
 
-  it('từ chối content rỗng (toàn khoảng trắng)', () => {
-    expect(() => createPlanSchema.parse({ ...base, content: '   ' })).toThrow(/empty/);
-  });
-
-  // Code review #363: một form multipart gửi file lại kèm luôn ô `content` chưa đụng tới
-  // dưới dạng chuỗi rỗng `''`, không phải field vắng mặt — coi nó như "không có" thay vì
-  // ném VALIDATION_ERROR vào một request upload-file hợp lệ.
+  // Code review #363 (2 vòng): một form multipart gửi file lại kèm luôn ô `content` chưa
+  // đụng tới dưới dạng chuỗi rỗng `''`, hoặc lỡ gõ một dấu cách `'   '` — cả hai không phải
+  // ý định dán text, nên coi như "không có" thay vì ném VALIDATION_ERROR vào một request
+  // upload-file hợp lệ. Vòng đầu chỉ vá `''`; vòng hai mở rộng ra mọi chuỗi toàn khoảng trắng.
   it('coi content chuỗi rỗng ("") là không có, không phải lỗi', () => {
     const result = createPlanSchema.parse({ ...base, content: '' });
+    expect(result.content).toBeUndefined();
+  });
+
+  it('coi content toàn khoảng trắng ("   ") là không có, không phải lỗi', () => {
+    const result = createPlanSchema.parse({ ...base, content: '   ' });
     expect(result.content).toBeUndefined();
   });
 

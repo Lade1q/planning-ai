@@ -35,9 +35,11 @@ export const createPlanSchema = z.object({
     }, 'Deadline must be today or a future date'),
   // A multipart form that submits a file also submits an untouched `content` textarea as
   // `''`, not as an absent field — treat that the same as "not provided" so a file upload
-  // doesn't fail validation on an empty paste-text field it never meant to use.
+  // doesn't fail validation on an empty paste-text field it never meant to use. Trimmed to
+  // whitespace-only, not just exact `''`: a stray space typed into the textarea while
+  // uploading a file is the same "never meant to use this field" case (Review #363).
   content: z.preprocess(
-    (val) => (val === '' ? undefined : val),
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
     z
       .string()
       .transform((val) => normalizeLineEndings(val).trim())
