@@ -225,16 +225,16 @@ Thêm hai đường đã mở sẵn cho tương lai:
 
 Toàn bộ nằm ở `spike-s0/` (harness vứt đi, ngoài cây mã sản phẩm). Mỗi tệp nhật ký là JSONL, dòng cuối là bản ghi `result` chứa số kết luận.
 
-| Hiện vật                                                                      | Chứng minh điều gì                                                                                |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `runs/p4-auth-*.jsonl`                                                        | ④ — 3 phiên, `total1011: 0`, `pass: true`                                                         |
-| `runs/p1-latency-*.jsonl`                                                     | ① — `p50: 1065`, `p95: 1195`, `cold: 937`, `n: 24`; kèm 24 bản chép lời tiếng Việt giống hệt nhau |
-| `runs/p3-evidence-*.jsonl`                                                    | ③ — 10 lần bắn kèm mã checkpoint, nhánh quyết định, ca kiểm INV-2 hỏng                            |
-| `runs/p2-viquality-*.jsonl`                                                   | ② — nguyên văn 10 phát ngôn tiếng Việt để chấm tay                                                |
-| `runs/p5-model-audio-*.wav`                                                   | ⑤ — bản ghi thật tiếng mô hình nói tiếng Việt (12,8s và 16,4s, 24 kHz)                            |
-| `runs/d2-devapi-auth-*.jsonl`                                                 | Đường xác thực thứ hai (khoá API) cũng gọi được — hai đường sống, không một                       |
-| `docs/management/sprint-plans/s0-fixture-ipv4-classful.json`                  | Lát tài liệu + 10 checkpoint dùng cho ②③, trích tay từ giáo trình thật                            |
-| `src/server/src/utils/evidence-guard.ts` + `__tests__/evidence-guard.test.ts` | Hàng rào tất định sinh ra từ §5, 28 ca kiểm                                                       |
+| Hiện vật                                                                                     | Chứng minh điều gì                                                                                |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `runs/p4-auth-*.jsonl`                                                                       | ④ — 3 phiên, `total1011: 0`, `pass: true`                                                         |
+| `runs/p1-latency-*.jsonl`                                                                    | ① — `p50: 1065`, `p95: 1195`, `cold: 937`, `n: 24`; kèm 24 bản chép lời tiếng Việt giống hệt nhau |
+| `runs/p3-evidence-*.jsonl`                                                                   | ③ — 10 lần bắn kèm mã checkpoint, nhánh quyết định, ca kiểm INV-2 hỏng                            |
+| `runs/p2-viquality-*.jsonl`                                                                  | ② — nguyên văn 10 phát ngôn tiếng Việt để chấm tay                                                |
+| `runs/p5-model-audio-*.wav`                                                                  | ⑤ — bản ghi thật tiếng mô hình nói tiếng Việt (12,8s và 16,4s, 24 kHz)                            |
+| `runs/d2-devapi-auth-*.jsonl`                                                                | Đường xác thực thứ hai (khoá API) cũng gọi được — hai đường sống, không một                       |
+| `docs/management/sprint-plans/s0-fixture-ipv4-classful.json`                                 | Lát tài liệu + 10 checkpoint dùng cho ②③, trích tay từ giáo trình thật                            |
+| `src/server/src/utils/evidence-guard.ts` + `src/server/src/__tests__/evidence-guard.test.ts` | Hàng rào tất định sinh ra từ §5, 28 ca kiểm                                                       |
 
 **Chạy lại:** cài `spike-s0/`, cấu hình service account, chạy theo thứ tự `④ → ① → ③ → ② → ⑤`. Giao thức đầy đủ ở `s0-spike-protocol.md`.
 
