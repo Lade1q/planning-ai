@@ -7,7 +7,7 @@
 > **Phần ĐÃ GIAO:** §1 (hai bất biến) · §2 (grain bằng chứng, công thức phủ-lượng→điểm, hàng rào tất định) — **đã hợp nhất vào `src/`**. Phân biệt hai nửa, vì mức độ "đang chạy" khác nhau:
 >
 > - **Thu bằng chứng (checkpoint → evidence): đã hợp nhất VÀ đang chạy** trên đường văn bản — `grade_answer` phát `evidence` cộng thêm, `sanitizeEvidence` chặn trước khi vào công thức.
-> - **Phủ-lượng → điểm: đã hợp nhất nhưng CHƯA chạy.** `finalizeConceptCoverage` (`services/concept-coverage.service.ts`) tính đúng và có test, nhưng **chưa có caller ở đường sản phẩm** — điểm sinh viên nhìn thấy hôm nay vẫn tới từ `{score,verdict}` per-turn của `grade_answer`. ⚠️ **PR #362 đang nối đúng chỗ này** (định tuyến đóng khái niệm) và chưa merge tại thời điểm soạn — đọc trạng thái thật bằng `git grep finalizeConceptCoverage -- src` trước khi dựa vào mục này.
+> - **Phủ-lượng → điểm: đã hợp nhất nhưng CHƯA chạy.** `finalizeConceptCoverage` (`services/concept-coverage.service.ts`) tính đúng và có test, nhưng **chưa có caller ở đường sản phẩm** — điểm sinh viên nhìn thấy hôm nay vẫn tới từ `{score,verdict}` per-turn của `grade_answer`. 🚫 **Và sẽ không được nối trong phạm vi môn học:** PR #362 (định tuyến đóng khái niệm) đóng **không merge** ngày 16/08 cùng quyết định bỏ Interview v2, chuỗi #356→#357→#358 đóng `not planned`. `finalizeConceptCoverage` chính thức không có caller. Kiểm lại bằng `git grep finalizeConceptCoverage -- src`.
 >
 > **Phần HOÃN:** §3 §4 §5(#6) — kết nối Live, dò biên lượt nói, hội thoại tự do. Chi phí làm lại khi nối tiếp: **bằng không** (lý do ở §8 của báo cáo dưới).
 >
