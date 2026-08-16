@@ -112,17 +112,12 @@ describe('PersonalInfoTab', () => {
   });
 
   /**
-   * ⚠️ **Hai ca dưới ghim HÀNH VI HIỆN TẠI của client, không phải hợp đồng đã chạy được.**
+   * `null`, **không** phải `''`: `User.name` là `String?` và `null` là cách nói *xoá tên*.
+   * `updateProfileSchema` nhận `null` từ #360 trở đi — trước đó nó khai `z.string()` trần, nên
+   * đúng đường đi bình thường nhất của tính năng trả 400. Phía server có test đối xứng ghim cả
+   * schema lẫn `updateProfile` (`user-service.test.ts`).
    *
-   * `updateProfileSchema` phía server (`user.schema.ts`) khai `name: z.string().trim().min(2)` —
-   * **không** `.nullable()`. Parse thật cho kết quả: `{name: null}` → *expected string*,
-   * `{name: ''}` và `{name: 'A'}` → *min 2*. Nghĩa là xoá trắng ô tên **400 VALIDATION_ERROR**, và
-   * người dùng nhận "Không thể lưu. Vui lòng thử lại." — trong khi dòng chú thích ngay dưới ô hứa
-   * *"Bỏ trống thì hệ thống dùng phần đầu của email."*
-   *
-   * Giữ `null` (thay vì `''`) vẫn đúng hơn vì `''` cũng bị từ chối, nên đổi sang `''` không mua
-   * được gì. Nhưng **đừng đọc hai ca này là "đã chạy"** — cần một quyết định: hoặc server nhận
-   * `null` để cho phép xoá tên, hoặc client bỏ lời hứa "bỏ trống" và chặn tên < 2 ký tự.
+   * Một mutant đổi `trimmed || null` thành `trimmed` sống sót nếu test chỉ kiểm "có gọi API".
    */
   it('sends null (not an empty string) when the field is cleared', async () => {
     const user = userEvent.setup();
@@ -138,7 +133,7 @@ describe('PersonalInfoTab', () => {
     });
   });
 
-  it('sends null for a whitespace-only name (same caveat as above)', async () => {
+  it('sends null for a whitespace-only name', async () => {
     const user = userEvent.setup();
     vi.mocked(profileApi.updateName).mockResolvedValue({ ...BASE_USER, name: null });
 

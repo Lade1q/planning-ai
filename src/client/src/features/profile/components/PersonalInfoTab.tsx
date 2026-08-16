@@ -47,11 +47,12 @@ export function PersonalInfoTab() {
     setSuccess(false);
     try {
       const trimmed = nameInput.trim();
-      // ⚠️ `updateProfileSchema` phía server khai `name: z.string().trim().min(2)`, KHÔNG
-      // `.nullable()` — nên nhánh `null` này (và cả tên 1 ký tự) bị trả 400 VALIDATION_ERROR, còn
-      // dòng chú thích dưới ô vẫn hứa "Bỏ trống thì hệ thống dùng phần đầu của email". Chưa sửa ở
-      // đây vì phải chọn một trong hai hướng — server nhận `null`, hay client bỏ lời hứa và chặn
-      // tên < 2 ký tự — và đó là quyết định sản phẩm, không phải dọn dẹp. Xem PersonalInfoTab.test.
+      // `null` chứ không phải `''`: `User.name` là `String?`, và `null` là cách nói *xoá tên*.
+      // `updateProfileSchema` nhận `null` từ PR này (trước đó khai `z.string()` trần nên xoá tên
+      // trả 400).
+      //
+      // ⚠️ Còn hở: tên **một ký tự** vẫn bị `min(2)` phía server từ chối → 400 → câu chung chung
+      // "Không thể lưu.". Đang theo dõi ở #370; đừng vá riêng ở client kẻo hai tầng lệch luật.
       const result = await profileApi.updateName({ name: trimmed || null });
       updateUser({ name: result.name });
       setSuccess(true);
@@ -79,8 +80,15 @@ export function PersonalInfoTab() {
             placeholder="Chưa đặt"
             maxLength={100}
           />
+          {/*
+            Câu cũ — "Bỏ trống thì hệ thống dùng phần đầu của email." — mô tả một hành vi **không
+            còn tồn tại**. Nó có thật, nhưng chỉ trong `IdentitySection` (`email.split('@')[0]`),
+            một trong ba component không ai render, đã xoá cùng PR này. Bề mặt duy nhất hiển thị
+            tên là `DashboardHeader`, và nó **cố ý bỏ hẳn tên** khi `null`:
+            `{greeting}{name ? \`, ${name}\` : ''}`. Câu dưới đây nói đúng điều đó.
+          */}
           <p className="text-muted-foreground mt-1.5 text-[12px] leading-[1.6]">
-            Bỏ trống thì hệ thống dùng phần đầu của email.
+            Bỏ trống cũng được — lời chào ở Dashboard sẽ không kèm tên.
           </p>
         </div>
 
