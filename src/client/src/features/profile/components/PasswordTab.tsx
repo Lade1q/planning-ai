@@ -80,7 +80,7 @@ export function PasswordTab() {
           {serverError && (
             <p
               id="pw-old-error"
-              className="text-mastery-weak mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
+              className="text-destructive mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
             >
               <AlertCircle size={13} className="mt-0.5 flex-none" aria-hidden="true" />
               {serverError}
@@ -108,7 +108,7 @@ export function PasswordTab() {
           {passwordValidation.status === 'error' && (
             <p
               id="pw-new-hint"
-              className="text-mastery-weak mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
+              className="text-destructive mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
             >
               <AlertCircle size={13} className="mt-0.5 flex-none" aria-hidden="true" />
               {passwordValidation.message}
@@ -140,7 +140,7 @@ export function PasswordTab() {
           {confirmMismatch && (
             <p
               id="pw-confirm-error"
-              className="text-mastery-weak mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
+              className="text-destructive mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.6]"
             >
               <AlertCircle size={13} className="mt-0.5 flex-none" aria-hidden="true" />
               Mật khẩu không khớp.

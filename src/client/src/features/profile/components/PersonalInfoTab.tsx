@@ -15,28 +15,46 @@ function formatJoinDate(isoDate: string): string {
   }).format(new Date(isoDate));
 }
 
+/**
+ * Tab "Thông tin cá nhân" — SPEC #166.
+ *
+ * Chỉ có **một** ô sửa được: "Tên hiển thị", map thẳng vào cột `name` của `model User`. Bản đầu
+ * còn hai ô nữa, cả hai đã bỏ khi review #360:
+ *
+ * - **"Số điện thoại"** không có nơi chứa — `model User` không có cột nào cho nó, không gửi lên,
+ *   không đọc về. Một ô nhập gõ được rồi mất trắng sau khi tải lại.
+ * - **"Họ và tên"** trùng vai với "Tên hiển thị" và `onChange` của nó gọi `setNameInput(value)`,
+ *   tức gõ vào ô này **ghi đè im lặng** ô kia. Giữ "Tên hiển thị" vì đó đúng là nhãn người dùng
+ *   đã thấy lúc tự gõ giá trị vào (`SignupForm.tsx`), nên nó là chữ họ nhận ra.
+ */
 export function PersonalInfoTab() {
   const { user, updateUser } = useAuth();
-  const [fullNameInput, setFullNameInput] = useState('');
   const [nameInput, setNameInput] = useState(user?.name ?? '');
-  const [phoneInput, setPhoneInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const handleFullNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFullNameInput(value);
-    setNameInput(value);
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNameInput(e.target.value);
+    // Câu "Đã lưu thay đổi." nói về giá trị vừa gửi đi; user gõ tiếp là nó hết đúng.
+    setSuccess(false);
   }, []);
 
   const handleSave = useCallback(async () => {
     if (!user) return;
     setSaving(true);
     setError(null);
+    setSuccess(false);
     try {
       const trimmed = nameInput.trim();
+      // ⚠️ `updateProfileSchema` phía server khai `name: z.string().trim().min(2)`, KHÔNG
+      // `.nullable()` — nên nhánh `null` này (và cả tên 1 ký tự) bị trả 400 VALIDATION_ERROR, còn
+      // dòng chú thích dưới ô vẫn hứa "Bỏ trống thì hệ thống dùng phần đầu của email". Chưa sửa ở
+      // đây vì phải chọn một trong hai hướng — server nhận `null`, hay client bỏ lời hứa và chặn
+      // tên < 2 ký tự — và đó là quyết định sản phẩm, không phải dọn dẹp. Xem PersonalInfoTab.test.
       const result = await profileApi.updateName({ name: trimmed || null });
       updateUser({ name: result.name });
+      setSuccess(true);
     } catch {
       setError('Không thể lưu. Vui lòng thử lại.');
     } finally {
@@ -50,21 +68,6 @@ export function PersonalInfoTab() {
     <Card>
       <CardContent className="space-y-5 pt-2">
         <div className="max-w-[440px]">
-          <Label htmlFor="profile-fullname" className="mb-2 text-[13px] font-semibold">
-            Họ và tên
-          </Label>
-          <Input
-            id="profile-fullname"
-            type="text"
-            value={fullNameInput}
-            onChange={handleFullNameChange}
-            placeholder="Nguyễn Văn A"
-            maxLength={100}
-          />
-          <p className="text-muted-foreground mt-1.5 text-[12px] leading-[1.6]">Không bắt buộc.</p>
-        </div>
-
-        <div className="max-w-[440px]">
           <Label htmlFor="profile-name" className="mb-2 text-[13px] font-semibold">
             Tên hiển thị <span className="text-destructive ml-0.5">*</span>
           </Label>
@@ -72,28 +75,13 @@ export function PersonalInfoTab() {
             id="profile-name"
             type="text"
             value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
+            onChange={handleNameChange}
             placeholder="Chưa đặt"
             maxLength={100}
           />
           <p className="text-muted-foreground mt-1.5 text-[12px] leading-[1.6]">
             Bỏ trống thì hệ thống dùng phần đầu của email.
           </p>
-        </div>
-
-        <div className="max-w-[440px]">
-          <Label htmlFor="profile-phone" className="mb-2 text-[13px] font-semibold">
-            Số điện thoại
-          </Label>
-          <Input
-            id="profile-phone"
-            type="tel"
-            value={phoneInput}
-            onChange={(e) => setPhoneInput(e.target.value)}
-            placeholder="0123 456 789"
-            maxLength={15}
-          />
-          <p className="text-muted-foreground mt-1.5 text-[12px] leading-[1.6]">Không bắt buộc.</p>
         </div>
 
         <div className="max-w-[440px]">
@@ -110,7 +98,8 @@ export function PersonalInfoTab() {
       </CardContent>
 
       <CardFooter className="justify-end gap-3.5">
-        {error && <p className="text-mastery-weak text-[12px]">{error}</p>}
+        {success && <p className="text-mastery-strong text-[12px]">Đã lưu thay đổi.</p>}
+        {error && <p className="text-destructive text-[12px]">{error}</p>}
         <Button onClick={handleSave} loading={saving}>
           Lưu thay đổi
         </Button>
