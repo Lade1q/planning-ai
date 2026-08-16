@@ -9,6 +9,7 @@ import type {
   SelfGrade,
   StartInterviewResponse,
   SubmitAnswerResponse,
+  SessionSummaryResponse,
 } from '../types/interview.types';
 
 /** Backend bọc mọi response trong `{ success: true, data: {...} }`. */
@@ -50,6 +51,11 @@ export function getInterviewErrorMessage(error: unknown): string {
       return 'Không có khái niệm nào để kiểm tra. Hãy chọn khái niệm khác.';
     case 'NO_MATERIAL':
       return 'Kế hoạch này chưa có tài liệu để tạo câu hỏi. Hãy tải tài liệu lên trước khi bắt đầu kiểm tra.';
+    // Ngoại lệ của quy ước "không render thẳng error.message": PLAN_NOT_ACTIVE gộp hai trạng thái
+    // (`archived`/`draft`) với hai câu hành động khác nhau — một hằng số phía client không phủ
+    // được cả hai, nên dùng nguyên văn câu server đã dựng bằng buildInactivePlanMessage().
+    case 'PLAN_NOT_ACTIVE':
+      return error.response.data?.error?.message ?? 'Đã xảy ra lỗi, vui lòng thử lại.';
     case 'VALIDATION_ERROR':
       return 'Thông tin gửi lên chưa hợp lệ.';
     default:
@@ -155,5 +161,27 @@ export const interviewApi = {
       ENDPOINTS.INTERVIEWS.ABANDON(id)
     );
     return response.data.data;
+  },
+
+  /**
+   * GET /interviews/:id/summary (I6.5 / AE-09) — dữ liệu tổng hợp cuối phiên.
+   *
+   * Lần gọi đầu của một phiên chưa có cache phải chờ `summarize_session` (1 lượt + 1 lượt thử
+   * lại, chưa có timeout phía server — xem #292), nên dùng timeout dài như các lệnh chờ AI
+   * khác. Để mặc định 10s thì đúng lúc AI chậm hoặc hỏng — chính hoàn cảnh mà nhánh
+   * `generatedByAi: false` sinh ra để phục vụ — client lại bỏ cuộc trước khi server kịp trả
+   * bảng điểm, và người dùng mất luôn màn kết quả thay vì mất mỗi phần nhận xét.
+   */
+  getSummary: async (id: string): Promise<SessionSummaryResponse> => {
+    const response = await apiClient.get<ApiEnvelope<SessionSummaryResponse>>(
+      ENDPOINTS.INTERVIEWS.SUMMARY(id),
+      { timeout: AI_WAIT_TIMEOUT_MS }
+    );
+    return response.data.data;
+  },
+
+  /** PATCH /review-queue/:itemId — Bỏ khỏi lịch từ màn tổng kết */
+  skipReviewItem: async (itemId: string): Promise<void> => {
+    await apiClient.patch(ENDPOINTS.REVIEW_QUEUE.ITEM(itemId), { status: 'skipped' });
   },
 };

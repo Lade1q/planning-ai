@@ -6,7 +6,7 @@ Header `Authorization: Bearer <TOKEN>`.
 > **Vòng đời một phiên (I6.3 / AE-01…AE-09):** `POST /` mở phiên → `GET /:id` dựng lại màn →
 > `POST /:id/answers` nộp trả lời & lấy bước kế → `pause` / `resume` → `GET /:id/summary` kết
 > quả cuối; `POST /:id/abandon` kết thúc sớm mà vẫn chấm phần đã làm. Trường **`sourceCitation`**
-> (C5) đi kèm mọi câu hỏi — đặc tả ở mục 7.
+> (C5) đi kèm mọi câu hỏi — đặc tả ở mục 8.
 >
 > **Mục lục:** 1. Bắt đầu phiên · 2. Lấy trạng thái + transcript · 3. Nộp trả lời ⭐ · 4. Tạm dừng · 5. Tiếp tục · 6. Danh sách phiên (lịch sử) · 7. Kết quả tổng hợp · 8. `sourceCitation` · 9. Kết thúc sớm.
 
@@ -85,7 +85,7 @@ Header `Authorization: Bearer <TOKEN>`.
   - `created = false`: `message` mang gợi ý _"Đang tiếp tục phiên chưa kết thúc…"_; `question` là câu đang chờ của phiên cũ.
   - `fallback ≠ null` (vd `reason: "question_unavailable"`): AI lỗi lúc sinh câu đầu — phiên vẫn `active`, `session.fallbackMode` có thể đã bật, FE vào luồng flashcard.
 
-- **Response lỗi:** `400 VALIDATION_ERROR` (body sai schema) · `404 NOT_FOUND` (plan không tồn tại/không thuộc user) · `NO_MATERIAL` (plan chưa có tài liệu — #272).
+- **Response lỗi:** `400 VALIDATION_ERROR` (body sai schema) · `404 NOT_FOUND` (plan không tồn tại/không thuộc user) · `409 PLAN_NOT_ACTIVE` (plan `archived` hoặc `draft` — kể cả khi vừa bị `reanalyzePlan` hạ về `draft` trong lúc còn phiên dở; `message` khác nhau theo trạng thái, xem `buildInactivePlanMessage()`, cùng câu `GET /review-queue?planId=` dùng) · `409 NO_MATERIAL` (plan chưa có tài liệu — #272).
 
 - **Liên quan:** [`interview.service.ts`](../../src/server/src/services/interview.service.ts) `startInterview()`; [`scheduling.service.ts`](../../src/server/src/services/scheduling.service.ts) (chọn hộ khái niệm khi `conceptIds` vắng).
 

@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { buildInactivePlanMessage } from './scheduling.service';
 import { CreateFocusSessionInput, EndFocusSessionInput } from '../schemas/focus-session.schema';
 import {
   CreateFocusSessionResponse,
@@ -66,10 +67,13 @@ export async function createFocusSession(
   if (input.planId) {
     const plan = await prisma.studyPlan.findUnique({
       where: { id: input.planId },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, status: true },
     });
     if (!plan || plan.userId !== userId) {
       throw new AppError('Plan not found', 404, 'NOT_FOUND');
+    }
+    if (plan.status !== 'active') {
+      throw new AppError(buildInactivePlanMessage(plan.status), 409, 'PLAN_NOT_ACTIVE');
     }
 
     const matchingCount = await prisma.concept.count({

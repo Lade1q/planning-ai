@@ -163,7 +163,7 @@ function GraphNode({ data, selected }: NodeProps) {
           không "thoát" ra để nổi trên các node khác. NodeToolbar portal nội dung ra ngoài cây
           node nên luôn vẽ trên cùng, bất kể node nào khác đang chọn/đè lên. */}
       <NodeToolbar isVisible={isHovered} position={Position.Top} offset={6}>
-        <div className="bg-card border-border shadow-soft px-2.75 pointer-events-none w-max max-w-60 rounded-[calc(var(--radius)*0.7)] border py-2 text-[12px]">
+        <div className="bg-card border-border shadow-(--shadow-soft) px-2.75 pointer-events-none w-max max-w-60 rounded-[calc(var(--radius)*0.7)] border py-2 text-[12px]">
           <span className="font-medium">{data.label as string}</span>
           <span
             className={`ml-2 font-mono text-[11px] font-semibold tabular-nums ${BAND_TEXT_CLASS[band]}`}
@@ -198,7 +198,7 @@ function ViewportControls() {
   return (
     <Panel
       position="bottom-right"
-      className="border-border bg-card shadow-soft m-4! flex items-center gap-1 rounded-md border p-1"
+      className="border-border bg-card shadow-(--shadow-soft) m-4! flex items-center gap-1 rounded-md border p-1"
     >
       <button type="button" className={buttonClass} title="Thu nhỏ" onClick={() => zoomOut()}>
         −
@@ -1085,7 +1085,7 @@ export function ConceptGraph({
 
             {/* UC-17 [E2]: chưa có phiên kiểm tra nào — gợi ý điểm bắt đầu tự nhiên */}
             {mode === 'view' && !preview && allUntested && rootConceptIds.length > 0 && (
-              <div className="border-border bg-card/95 shadow-soft absolute right-6 top-6 z-10 w-60 rounded-[calc(var(--radius)*0.9)] border p-4 backdrop-blur-sm">
+              <div className="border-border bg-card/95 shadow-(--shadow-soft) absolute right-6 top-6 z-10 w-60 rounded-[calc(var(--radius)*0.9)] border p-4 backdrop-blur-sm">
                 <p className="mb-1.5 text-[13px] font-semibold">Chưa đo được gì</p>
                 <p className="text-muted-foreground mb-3 text-pretty text-[12px] leading-[1.65]">
                   Đồ thị đã dựng xong nhưng chưa biết bạn vững ở đâu. {rootConceptIds.length} khái

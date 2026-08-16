@@ -35,8 +35,17 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
   httpOptions: { timeout: GEMINI_TIMEOUT_MS },
 });
-const MODEL = process.env.GEMINI_MODEL_EXTRACT ?? 'gemini-2.5-flash';
-const MODEL_INTERVIEW = process.env.GEMINI_MODEL_INTERVIEW ?? 'gemini-flash-latest';
+/**
+ * Both calls fall back to the rolling `-latest` alias, never a pinned name: Google retires
+ * dated model IDs for new API keys with little notice, and a retired ID fails the call with
+ * HTTP 404 instead of degrading (measured 2026-08-13 on this project's key —
+ * `gemini-2.5-flash` returns 404 "no longer available to new users" on `interactions.create`,
+ * while `gemini-flash-latest` routes). Same reason as the README/.env.example `-latest` rule.
+ * `?.trim()` and not `??`, so a blank env value falls back too instead of sending model ''.
+ */
+const DEFAULT_MODEL = 'gemini-flash-latest';
+const MODEL = process.env.GEMINI_MODEL_EXTRACT?.trim() || DEFAULT_MODEL;
+const MODEL_INTERVIEW = process.env.GEMINI_MODEL_INTERVIEW?.trim() || DEFAULT_MODEL;
 
 const SYSTEM_INSTRUCTION = `You extract a concept prerequisite graph from a university student's study material.
 Rules:
@@ -48,6 +57,13 @@ Rules:
   exactly from the material where this concept is defined or introduced. Do not paraphrase.
 - "source_page": the 1-based page number where that excerpt appears. For PDFs give the real page;
   for plain text or images with no page structure, use null.
+- "checkpoints": the specific things a student must demonstrate to be counted as understanding
+  this concept. One short statement each, written in the language of the material, each one
+  checkable on its own. Take them from the material only — never from outside knowledge.
+  Give 3 to 6 for a typical concept. A harder or broader concept simply gets MORE of them (up
+  to 8); there is no difficulty or weight field on a checkpoint, so extra depth is expressed by
+  writing extra lines. If the material does not support any, return an empty list — never null,
+  and never a checkpoint you invented to fill the field.
 - Return ONLY the JSON object matching the provided schema.`;
 
 const EXTRACT_PROMPT = 'Extract the concept prerequisite graph from this document.';
@@ -204,6 +220,16 @@ Rules:
 - score and verdict must agree: "deep" requires score >= 0.7, "wrong" requires score < 0.4.
 - feedback: 1-3 sentences, in the same language as the material, addressed to the student.
 - Do not decide whether the interview should continue — you are only grading this answer.
+- "evidence": what this answer showed about the numbered checkpoints listed in the prompt.
+  One entry per checkpoint the answer actually addresses; omit the ones it does not touch, and
+  return an empty list if it touches none. Never report a checkpoint that was not listed.
+  - "checkpoint": the NUMBER of the checkpoint exactly as listed. Never a title, never an id.
+  - "status": "covered" = the answer demonstrates that checkpoint; "contradicted" = the answer
+    asserts something that conflicts with it. If the student was unsure or did not remember,
+    that is neither — omit the checkpoint.
+  - "quote": a span copied WORD FOR WORD from the student's answer above, exactly as they wrote
+    it. Do not paraphrase, do not translate, do not shorten it with "...", do not fix spelling or
+    punctuation. If you cannot copy such a span from their answer, omit that entry entirely.
 - Return ONLY the JSON object matching the provided schema.`;
 
 /** Per-mode steer for the next question. The caller picks the mode, never the model (C4). */
@@ -358,14 +384,38 @@ export interface GradeAnswerParams {
   answerText: string;
   /** From extract_concepts' `language_detected`; falls back to the material's language. */
   language?: string;
+  /**
+   * The concept's committed checkpoints (#346), in the order they will be numbered for the model.
+   *
+   * ⚠️ The caller must keep THIS array and resolve `evidence[].checkpoint` against it — the number
+   * the model returns means "the n-th line I was shown" and nothing more. Optional and defaulting
+   * to empty so a caller with no ruler (or none to spend) simply gets no evidence asked for; the
+   * response schema is unchanged either way, since `grade_answer` is one fixed schema, not two.
+   */
+  checkpoints?: readonly { text: string }[];
+}
+
+/**
+ * Renders the checkpoint list the `evidence` field indexes into. 1-based, in array order — the
+ * numbering here IS the contract, so this must not sort, filter or de-duplicate.
+ */
+function formatCheckpoints(checkpoints: readonly { text: string }[]): string {
+  if (checkpoints.length === 0) {
+    return '\n\nThis concept has no checkpoints; return an empty "evidence" list.';
+  }
+  const lines = checkpoints.map((checkpoint, index) => `${index + 1}. ${checkpoint.text}`);
+  return `\n\nCheckpoints for this concept (use these numbers in "evidence"):\n${lines.join('\n')}`;
 }
 
 /**
  * Calls the grade_answer schema (AE-03). The returned verdict is reconciled against the
  * score before it leaves this function, so callers can rely on the two agreeing.
+ *
+ * `evidence` comes back unvalidated on purpose (`gradeAnswerResponseSchema`): a malformed entry
+ * must not turn a good grade into `AI_BAD_FORMAT`. The caller runs it through `mapGradeEvidence`.
  */
 export async function gradeAnswer(params: GradeAnswerParams): Promise<GradeAnswerResponse> {
-  const { conceptName, material, questionText, answerText, language } = params;
+  const { conceptName, material, questionText, answerText, language, checkpoints = [] } = params;
 
   if (process.env.USE_MOCK_AI === 'true') {
     return mockGradeAnswer(answerText);
@@ -376,7 +426,8 @@ export async function gradeAnswer(params: GradeAnswerParams): Promise<GradeAnswe
     `Concept under examination: "${conceptName}".\n` +
     `Question asked:\n${questionText}\n\n` +
     `The student answered:\n${answerText}\n\n` +
-    `Grade this answer against the material.${languageLine}`;
+    `Grade this answer against the material.${languageLine}` +
+    formatCheckpoints(checkpoints);
 
   const graded = await callStructured(
     GRADE_SYSTEM_INSTRUCTION,
