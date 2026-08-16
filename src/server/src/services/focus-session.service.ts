@@ -58,8 +58,17 @@ async function reapStaleSessions(userId: string): Promise<void> {
  *
  * Chống trùng (#328): trước khi tạo, tìm phiên `running` của user (scope toàn user, không
  * theo plan/concept — một người chỉ "tập trung" được một lúc, cùng giả định `reapStaleSessions`
- * đã dùng). Có thì trả lại nguyên phiên đó (`created: false`) thay vì tạo thêm hàng, giống hệt
- * pattern resume của `startInterview` (`interview.service.ts:881`).
+ * đã dùng).
+ *
+ * - Phiên đang có **khớp đúng** plan + conceptIds vừa gửi (double-click, hai tab cùng một mục)
+ *   → trả lại nguyên phiên đó (`created: false`), giống pattern resume của `startInterview`
+ *   (`interview.service.ts:881`).
+ * - Phiên đang có ở **plan/concept khác** → `409 SESSION_ALREADY_RUNNING`, KHÔNG trả phiên đó
+ *   về như thể nó là phiên vừa yêu cầu. Review #371: bản đầu trả nguyên phiên cũ trong mọi
+ *   trường hợp — client duy nhất (`FocusPage.tsx`) không đọc `created`/so khớp lại, nên hiện
+ *   UI của concept vừa bấm trong khi đồng hồ/lịch sử ghi vào concept của phiên cũ, âm thầm
+ *   sai lệch dữ liệu học tập. 409 buộc client phải xử lý tường minh thay vì tự tưởng đã vào
+ *   đúng phiên.
  *
  * ⚠️ Đây là chốt app-level, không phải ràng buộc DB — thu hẹp race window (double-click, mở
  * tab trước-sau) chứ không đóng tuyệt đối cho N request thực sự đồng thời trong cùng một
@@ -103,11 +112,25 @@ export async function createFocusSession(
     orderBy: { startedAt: 'desc' },
   });
   if (existing) {
+    const existingConceptIds = toConceptIds(existing.conceptIds);
+    const isSameRequest =
+      existing.planId === (input.planId ?? null) &&
+      existingConceptIds.length === conceptIds.length &&
+      existingConceptIds.every((id) => conceptIds.includes(id));
+
+    if (!isSameRequest) {
+      throw new AppError(
+        'You already have a focus session running for a different plan or concept. End it before starting a new one.',
+        409,
+        'SESSION_ALREADY_RUNNING'
+      );
+    }
+
     return {
       created: false,
       id: existing.id,
       planId: existing.planId,
-      conceptIds: toConceptIds(existing.conceptIds),
+      conceptIds: existingConceptIds,
       status: existing.status,
       strictMode: existing.strictMode,
       startedAt: existing.startedAt,

@@ -181,8 +181,8 @@ describe('createFocusSession', () => {
   });
 
   // Issue #328: N request song song (double-click, hai tab) không còn tạo ra N phiên running.
-  // Chốt app-level — tìm phiên running trước khi tạo, trả lại nguyên phiên đó thay vì tạo
-  // thêm hàng, giống hệt pattern resume của startInterview (interview.service.ts:881).
+  // Chốt app-level — tìm phiên running trước khi tạo; có thì so khớp plan+conceptIds với
+  // request vừa gửi trước khi quyết định resume hay từ chối.
   describe('chống trùng phiên running (#328)', () => {
     const otherPlanId = '66666666-6666-6666-6666-666666666666';
     const otherConceptId = '77777777-7777-7777-7777-777777777777';
@@ -200,10 +200,19 @@ describe('createFocusSession', () => {
       };
     }
 
-    it('trả lại phiên running đang có, không tạo hàng mới, khi không kèm planId', async () => {
+    it('trả lại phiên running đang có, không tạo hàng mới, khi request khớp đúng planId+conceptIds', async () => {
+      mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+        id: otherPlanId,
+        userId: USER_ID,
+        status: 'active',
+      });
+      mockedPrisma.concept.count.mockResolvedValue(1);
       mockedPrisma.focusSession.findFirst.mockResolvedValue(existingRunningSession());
 
-      const result = await createFocusSession(USER_ID, { conceptIds: [otherConceptId] });
+      const result = await createFocusSession(USER_ID, {
+        planId: otherPlanId,
+        conceptIds: [otherConceptId],
+      });
 
       expect(mockedPrisma.focusSession.findFirst).toHaveBeenCalledWith({
         where: { userId: USER_ID, status: 'running' },
@@ -213,10 +222,24 @@ describe('createFocusSession', () => {
       expect(result).toMatchObject({ created: false, id: SESSION_ID, planId: otherPlanId });
     });
 
-    // Request thứ hai nhắm một plan/concept KHÁC vẫn bị chặn lại bởi phiên đang chạy — một
-    // người chỉ "tập trung" được một lúc, phiên trả về không nhất thiết khớp request vừa gửi
-    // (giống cách startInterview resume nguyên trạng thay vì merge yêu cầu mới vào).
-    it('trả lại phiên running dù request mới nhắm plan/concept khác', async () => {
+    // Phiên tự do (không planId) khớp đúng một phiên running cũng KHÔNG có planId + cùng
+    // conceptIds vẫn được coi là cùng một request — resume, không 409.
+    it('trả lại phiên running đang có khi cả hai đều là phiên tự do cùng conceptIds', async () => {
+      mockedPrisma.focusSession.findFirst.mockResolvedValue(
+        existingRunningSession({ planId: null, conceptIds: [otherConceptId] })
+      );
+
+      const result = await createFocusSession(USER_ID, { conceptIds: [otherConceptId] });
+
+      expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ created: false, id: SESSION_ID, planId: null });
+    });
+
+    // Review #371 (blocker): bản đầu trả nguyên phiên cũ trong MỌI trường hợp, kể cả khi
+    // request mới nhắm plan/concept khác — client duy nhất (FocusPage.tsx) không đọc lại
+    // `created`/so khớp, nên hiện UI của concept vừa bấm trong khi đồng hồ & lịch sử ghi vào
+    // concept của phiên cũ, âm thầm sai lệch dữ liệu học tập. Phải từ chối tường minh (409).
+    it('từ chối 409 SESSION_ALREADY_RUNNING khi phiên đang chạy ở plan/concept khác', async () => {
       mockedPrisma.studyPlan.findUnique.mockResolvedValue({
         id: PLAN_ID,
         userId: USER_ID,
@@ -225,14 +248,29 @@ describe('createFocusSession', () => {
       mockedPrisma.concept.count.mockResolvedValue(1);
       mockedPrisma.focusSession.findFirst.mockResolvedValue(existingRunningSession());
 
-      const result = await createFocusSession(USER_ID, {
+      const error = await createFocusSession(USER_ID, {
         planId: PLAN_ID,
         conceptIds: [CONCEPT_ID],
-      });
+      }).catch((e) => e);
 
+      expect(error).toBeInstanceOf(AppError);
+      expect(error).toMatchObject({ statusCode: 409, code: 'SESSION_ALREADY_RUNNING' });
       expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
-      expect(result.created).toBe(false);
-      expect(result.planId).toBe(otherPlanId); // phiên cũ, không phải PLAN_ID vừa gửi
+    });
+
+    // Ca phụ cùng họ với blocker (review #371, should-fix): request phiên tự do (không
+    // planId) không được phép "mượn" một phiên running đang gắn plan — trước đây lọt qua vì
+    // check cũ không so planId.
+    it('từ chối 409 khi request phiên tự do (không planId) nhưng phiên đang chạy có planId', async () => {
+      mockedPrisma.focusSession.findFirst.mockResolvedValue(existingRunningSession());
+
+      const error = await createFocusSession(USER_ID, {
+        conceptIds: [otherConceptId],
+      }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(AppError);
+      expect(error).toMatchObject({ statusCode: 409, code: 'SESSION_ALREADY_RUNNING' });
+      expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
     });
 
     it('reap phiên bỏ dở trước khi kiểm phiên running, để không khoá vĩnh viễn việc tạo mới', async () => {
