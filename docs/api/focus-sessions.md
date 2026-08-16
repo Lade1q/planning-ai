@@ -21,18 +21,45 @@ Tất cả các API dưới đây yêu cầu xác thực người dùng qua Head
   - `strictMode` (boolean, optional, mặc định `false`): phiên này có bật chế độ nghiêm ngặt
     (theo dõi rời tab qua Page Visibility API) hay không.
 
-- **Response thành công (HTTP 201 Created):**
+- **Chống trùng (#328):** trước khi tạo, server tìm phiên `running` của user (scope toàn user,
+  không theo plan/concept — một người chỉ "tập trung" được một lúc). Có thì:
+  - **Khớp đúng** `planId` + `conceptIds` với request vừa gửi (double-click, hai tab cùng một
+    mục) → trả lại **nguyên phiên đó**, `created: false`, **HTTP 200** (không tạo hàng mới).
+  - **Khác** `planId`/`conceptIds` → **HTTP 409** `SESSION_ALREADY_RUNNING` (xem bên dưới) —
+    server **không** tự ý trả về phiên không khớp yêu cầu.
+
+  ⚠️ Đây là chốt app-level, không phải ràng buộc DB — thu hẹp race window (double-click, mở tab
+  trước-sau) chứ không đóng tuyệt đối cho nhiều request thực sự đồng thời trong cùng một
+  round-trip DB.
+
+- **Response thành công — phiên mới (HTTP 201 Created):**
 
   ```json
   {
     "success": true,
     "data": {
+      "created": true,
       "id": "b1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
       "planId": "c1f8a8b1-3e4d-4b5a-9a8b-1c2d3e4f5a6b",
       "conceptIds": ["d1f8a8b1-..."],
       "status": "running",
       "strictMode": true,
       "startedAt": "2026-08-05T08:00:00.000Z"
+    }
+  }
+  ```
+
+- **Response thành công — phiên đang chạy khớp đúng request, trả lại nguyên trạng (HTTP 200
+  OK):** cùng field như trên, chỉ khác `"created": false` và HTTP status.
+
+- **Lỗi đã có phiên `running` khác plan/concept (HTTP 409 Conflict):**
+
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "SESSION_ALREADY_RUNNING",
+      "message": "You already have a focus session running for a different plan or concept. End it before starting a new one."
     }
   }
   ```

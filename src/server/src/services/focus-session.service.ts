@@ -55,6 +55,25 @@ async function reapStaleSessions(userId: string): Promise<void> {
  * Bắt đầu phiên học Pomodoro (FS-01 bước 1-3). Nếu có `planId`, plan phải thuộc user và
  * mọi `conceptIds` phải thuộc đúng plan đó. Không có `planId` (phiên tự do) thì bỏ qua bước
  * đối chiếu vì không có gì để kiểm tra.
+ *
+ * Chống trùng (#328): trước khi tạo, tìm phiên `running` của user (scope toàn user, không
+ * theo plan/concept — một người chỉ "tập trung" được một lúc, cùng giả định `reapStaleSessions`
+ * đã dùng).
+ *
+ * - Phiên đang có **khớp đúng** plan + conceptIds vừa gửi (double-click, hai tab cùng một mục)
+ *   → trả lại nguyên phiên đó (`created: false`), giống pattern resume của `startInterview`
+ *   (`interview.service.ts:881`).
+ * - Phiên đang có ở **plan/concept khác** → `409 SESSION_ALREADY_RUNNING`, KHÔNG trả phiên đó
+ *   về như thể nó là phiên vừa yêu cầu. Review #371: bản đầu trả nguyên phiên cũ trong mọi
+ *   trường hợp — client duy nhất (`FocusPage.tsx`) không đọc `created`/so khớp lại, nên hiện
+ *   UI của concept vừa bấm trong khi đồng hồ/lịch sử ghi vào concept của phiên cũ, âm thầm
+ *   sai lệch dữ liệu học tập. 409 buộc client phải xử lý tường minh thay vì tự tưởng đã vào
+ *   đúng phiên.
+ *
+ * ⚠️ Đây là chốt app-level, không phải ràng buộc DB — thu hẹp race window (double-click, mở
+ * tab trước-sau) chứ không đóng tuyệt đối cho N request thực sự đồng thời trong cùng một
+ * round-trip DB. Đóng hoàn toàn cần partial unique index (`WHERE status = 'running'`), việc
+ * Prisma không khai báo được qua schema — xem thảo luận trong issue #328.
  */
 export async function createFocusSession(
   userId: string,
@@ -84,6 +103,40 @@ export async function createFocusSession(
     }
   }
 
+  // Reap trước khi kiểm — một phiên bỏ dở >8 giờ (tab đóng không end) không được phép khoá
+  // vĩnh viễn việc bắt đầu phiên mới.
+  await reapStaleSessions(userId);
+
+  const existing = await prisma.focusSession.findFirst({
+    where: { userId, status: 'running' },
+    orderBy: { startedAt: 'desc' },
+  });
+  if (existing) {
+    const existingConceptIds = toConceptIds(existing.conceptIds);
+    const isSameRequest =
+      existing.planId === (input.planId ?? null) &&
+      existingConceptIds.length === conceptIds.length &&
+      existingConceptIds.every((id) => conceptIds.includes(id));
+
+    if (!isSameRequest) {
+      throw new AppError(
+        'You already have a focus session running for a different plan or concept. End it before starting a new one.',
+        409,
+        'SESSION_ALREADY_RUNNING'
+      );
+    }
+
+    return {
+      created: false,
+      id: existing.id,
+      planId: existing.planId,
+      conceptIds: existingConceptIds,
+      status: existing.status,
+      strictMode: existing.strictMode,
+      startedAt: existing.startedAt,
+    };
+  }
+
   const session = await prisma.focusSession.create({
     data: {
       userId,
@@ -94,6 +147,7 @@ export async function createFocusSession(
   });
 
   return {
+    created: true,
     id: session.id,
     planId: session.planId,
     conceptIds: toConceptIds(session.conceptIds),

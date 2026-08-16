@@ -38,6 +38,11 @@ export function getFocusSessionErrorMessage(
       return 'Thời gian tập trung ghi nhận không hợp lệ. Vui lòng tải lại trang.';
     case 'INVALID_CONCEPT_IDS':
       return 'Khái niệm không thuộc kế hoạch đã chọn.';
+    // #328/#371: có phiên running khác plan/concept đang chạy. Server đã KHÔNG trả nhầm phiên
+    // đó về (từng là bug — silently ghi giờ học vào sai khái niệm), nên ở đây chỉ còn việc báo
+    // rõ cho người dùng, không phải xử lý dữ liệu sai lệch nào.
+    case 'SESSION_ALREADY_RUNNING':
+      return 'Bạn đang có một phiên học tập trung khác đang chạy trên kế hoạch/khái niệm khác. Vui lòng kết thúc phiên đó trước khi bắt đầu phiên mới.';
     // Ngoại lệ của quy ước "không render thẳng error.message": PLAN_NOT_ACTIVE gộp hai trạng thái
     // (`archived`/`draft`) với hai câu hành động khác nhau — một hằng số phía client không phủ
     // được cả hai, nên dùng nguyên văn câu server đã dựng bằng buildInactivePlanMessage().

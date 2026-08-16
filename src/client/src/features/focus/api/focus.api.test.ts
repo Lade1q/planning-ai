@@ -65,6 +65,14 @@ describe('getFocusSessionErrorMessage', () => {
     );
   });
 
+  // #328/#371: server từ chối 409 thay vì âm thầm trả về một phiên running không khớp
+  // plan/concept vừa yêu cầu (blocker đã vá — xem focus-session.service.ts).
+  it('maps SESSION_ALREADY_RUNNING to its own message', () => {
+    expect(getFocusSessionErrorMessage(axiosErr(409, 'SESSION_ALREADY_RUNNING'))).toBe(
+      'Bạn đang có một phiên học tập trung khác đang chạy trên kế hoạch/khái niệm khác. Vui lòng kết thúc phiên đó trước khi bắt đầu phiên mới.'
+    );
+  });
+
   // PLAN_NOT_ACTIVE is the one code whose message is rendered straight from the server: it
   // covers two different plan states (archived / draft) with two different action sentences,
   // so a single client-side constant can't stand in for both (review #350).
@@ -111,6 +119,7 @@ describe('getFocusSessionErrorMessage', () => {
       getFocusSessionErrorMessage(axiosErr(400, 'FOCUSED_SECONDS_EXCEEDS_ELAPSED')),
       getFocusSessionErrorMessage(axiosErr(400, 'INVALID_CONCEPT_IDS')),
       getFocusSessionErrorMessage(axiosErr(422, 'VALIDATION_ERROR')),
+      getFocusSessionErrorMessage(axiosErr(409, 'SESSION_ALREADY_RUNNING')),
     ];
     for (const m of messages) {
       expect(m.length).toBeGreaterThan(0);

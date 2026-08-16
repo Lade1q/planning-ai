@@ -11,6 +11,11 @@ export interface PomodoroConfig {
 
 /** Response của POST /focus-sessions. */
 export interface CreateFocusSessionResponse {
+  /** `false` khi một phiên `running` khớp đúng request được trả lại thay vì tạo mới (#328) —
+   *  luôn đi kèm HTTP 200 thay vì 201. Phiên KHÔNG khớp request thì server từ chối 409
+   *  `SESSION_ALREADY_RUNNING` thay vì trả về đây — trường này không bao giờ mang dữ liệu
+   *  của một plan/concept khác với thứ vừa gửi lên. */
+  created: boolean;
   id: string;
   planId: string | null;
   conceptIds: string[];
