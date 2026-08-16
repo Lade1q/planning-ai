@@ -39,6 +39,11 @@ export function DocumentExcerpt({ sources }: { sources: ConceptSourceExcerpt[] }
     <div className="flex flex-col gap-7">
       {sources.map((source, index) => {
         const anchor = formatPageAnchor(source.pageFrom, source.pageTo);
+        // `.trim()` chứ không phải `source.excerpt` trần: schema server là `z.string().min(1)`
+        // **không** `.trim()`, nên `"   "` lưu được và là truthy — render ra `“   …”`, tức một cặp
+        // ngoặc kép bao quanh không có gì, kèm dấu `…` hứa rằng còn nữa. Cắt ở client là đủ và
+        // không đụng tới dữ liệu đã lưu.
+        const quote = source.excerpt?.trim();
 
         return (
           <article key={`${source.documentId}-${index}`}>
@@ -51,19 +56,24 @@ export function DocumentExcerpt({ sources }: { sources: ConceptSourceExcerpt[] }
             </DocumentBar>
 
             <div className="text-muted-foreground max-w-[62ch] text-[13px] leading-[1.85]">
-              {source.excerpt ? (
+              {quote ? (
                 <p className="m-0">
                   <span aria-hidden="true">“</span>
                   <mark className="bg-focus-session/16 text-foreground box-decoration-clone px-0 py-px">
-                    {source.excerpt}
+                    {quote}
                   </mark>
-                  {isTruncatedQuote(source.excerpt) && <span aria-hidden="true">…</span>}
+                  {isTruncatedQuote(quote) && <span aria-hidden="true">…</span>}
                   <span aria-hidden="true">”</span>
                 </p>
               ) : (
-                // Có neo trang nhưng không có câu trích: hàng vẫn thật, chỉ thiếu chữ. Nói đúng
-                // điều đó thay vì để khoảng trắng — "không có" khác "chưa tải được".
-                <p className="m-0 italic">Đoạn này chỉ có neo vị trí, không có câu trích dẫn.</p>
+                // Hàng vẫn thật, chỉ thiếu chữ — "không có" khác "chưa tải được". Nhưng câu phải
+                // khớp đúng thứ hàng NÀY có: khoe "chỉ có neo vị trí" trong khi `pageFrom` rỗng là
+                // khai một cái neo không tồn tại, lúc đó hàng chỉ còn mỗi tên tệp.
+                <p className="m-0 italic">
+                  {anchor
+                    ? 'Đoạn này chỉ có neo vị trí, không có câu trích dẫn.'
+                    : 'Khái niệm này chưa neo được vào vị trí cụ thể trong tệp, và không có câu trích dẫn.'}
+                </p>
               )}
             </div>
           </article>

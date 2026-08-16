@@ -363,11 +363,13 @@ export function RunningSession({
           đã ẩn tài liệu ⇒ nhánh dưới rơi về màn đang chạy NGUYÊN VẸN. */}
       <div className="relative flex min-h-0 flex-1 flex-col min-[900px]:flex-row">
         {documentPlanId !== null && isDocumentOpen ? (
-          /* Bố cục hai cột của mockup (`.split`): tài liệu trái, cột phải giữ ĐỒNG HỒ RÚT GỌN + nút
-           đổi mức. Theo mockup, cột phải CHỈ có đồng hồ + ghi chú + một nút duy nhất — cụm dừng/kết
-           thúc thuộc màn không-tài-liệu; ở đây `Space` vẫn tạm dừng, và bấm "Ẩn" trên thanh trên là
-           về màn đó. Mỗi cột tự cuộn (`min-h-0` + `overflow-y-auto`) để trang PDF cao đến đâu cũng
-           không đẩy đồng hồ khỏi tầm mắt. */
+          /* Bố cục hai cột của mockup (`.split`): tài liệu trái, cột phải giữ TÊN KHÁI NIỆM + ĐỒNG
+           HỒ RÚT GỌN + nút đổi mức. Mockup vẽ cột phải chỉ có đồng hồ + ghi chú + một nút duy nhất;
+           khối tên khái niệm là phần THÊM của #373 và là chỗ lệch mockup duy nhất ở đây — mở tài
+           liệu ra mà không còn tên khái niệm thì người đọc mất luôn thứ mà mẩu trích đang minh hoạ.
+           Cụm dừng/kết thúc vẫn thuộc màn không-tài-liệu; ở đây `Space` vẫn tạm dừng, và bấm "Ẩn"
+           trên thanh trên là về màn đó. Mỗi cột tự cuộn (`min-h-0` + `overflow-y-auto`) để trang PDF
+           cao đến đâu cũng không đẩy đồng hồ khỏi tầm mắt. */
           <div
             ref={contentRef}
             tabIndex={-1}

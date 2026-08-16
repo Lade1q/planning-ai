@@ -60,6 +60,36 @@ describe('DocumentExcerpt (FS-04)', () => {
   });
 
   /**
+   * Schema server là `z.string().min(1)` **không `.trim()`**, nên `"   "` lưu được và `truthy` —
+   * bản đầu của #373 render nó thành một cặp ngoặc kép bao quanh không có gì, kèm `…` hứa rằng
+   * còn nữa. Cắt ở client (không đụng dữ liệu đã lưu, đang tuần freeze).
+   */
+  it('coi câu trích toàn khoảng trắng như KHÔNG có câu trích', () => {
+    const { container } = render(<DocumentExcerpt sources={[source({ excerpt: '   ' })]} />);
+
+    expect(container.querySelector('mark')).toBeNull();
+    expect(container.textContent).not.toContain('“');
+    expect(screen.getByText(/chỉ có neo vị trí/)).toBeInTheDocument();
+  });
+
+  /**
+   * ⚠️ **Ca này KHÔNG tới được bằng dữ liệu thật** — `buildConceptSourceRows` (`concept-source.ts`)
+   * là nơi DUY NHẤT ghi `concept_sources`, và nó bỏ hẳn hàng khi cả `source_page` lẫn
+   * `source_excerpt` đều null. Ghim ở đây là ghim **hợp đồng của component** với chính kiểu prop nó
+   * khai (`pageFrom: number | null`), không phải khẳng định một trạng thái production.
+   *
+   * Vẫn đáng sửa vì câu cũ **khai một cái neo không tồn tại**: "chỉ có neo vị trí" trong khi hàng
+   * chỉ còn mỗi tên tệp. Nếu #378 hay lối thêm khái niệm tay (#172) mở đường tới tổ hợp này, câu
+   * đúng đã sẵn ở đây thay vì một lời nói dối chờ được kích hoạt.
+   */
+  it('không khoe "neo vị trí" khi hàng không có neo nào', () => {
+    render(<DocumentExcerpt sources={[source({ excerpt: null, pageFrom: null, pageTo: null })]} />);
+
+    expect(screen.getByText(/chưa neo được vào vị trí cụ thể/)).toBeInTheDocument();
+    expect(screen.queryByText(/chỉ có neo vị trí/)).not.toBeInTheDocument();
+  });
+
+  /**
    * #373 — dấu hiệu trích dẫn. 46/67 mẩu trong DB không kết bằng dấu câu (bullet slide PDF), nên
    * bày trần thì đọc ra như một câu trọn vẹn có thật trong tệp.
    *
