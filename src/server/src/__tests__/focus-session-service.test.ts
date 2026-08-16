@@ -5,6 +5,10 @@ import {
 } from '../services/focus-session.service';
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
+import {
+  PLAN_ARCHIVED_MESSAGE,
+  PLAN_AWAITING_CONFIRMATION_MESSAGE,
+} from '../services/scheduling.service';
 
 jest.mock('../config/prisma', () => ({
   __esModule: true,
@@ -70,8 +74,36 @@ describe('createFocusSession', () => {
     }).catch((e) => e);
 
     expect(error).toBeInstanceOf(AppError);
-    expect(error).toMatchObject({ statusCode: 409, code: 'PLAN_NOT_ACTIVE' });
+    expect(error).toMatchObject({
+      statusCode: 409,
+      code: 'PLAN_NOT_ACTIVE',
+      message: PLAN_ARCHIVED_MESSAGE,
+    });
     expect(mockedPrisma.concept.count).not.toHaveBeenCalled();
+    expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
+  });
+
+  // `draft` is blocked too, not just `archived` (review #350) — reanalyzePlan can put a plan
+  // back into `draft` while it's already in use, and the two states carry different, both
+  // actionable, sentences (buildInactivePlanMessage), so both need their own coverage.
+  it('throws 409 PLAN_NOT_ACTIVE with the awaiting-confirmation message when the plan is still draft', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'draft',
+    });
+
+    const error = await createFocusSession(USER_ID, {
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+    }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
+      statusCode: 409,
+      code: 'PLAN_NOT_ACTIVE',
+      message: PLAN_AWAITING_CONFIRMATION_MESSAGE,
+    });
     expect(mockedPrisma.focusSession.create).not.toHaveBeenCalled();
   });
 

@@ -1,6 +1,7 @@
 import { startInterview } from '../services/interview.service';
 import prisma from '../config/prisma';
 import { generateQuestion } from '../services/gemini.service';
+import { getReviewQueueForPlan, PLAN_ARCHIVED_MESSAGE } from '../services/scheduling.service';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -58,6 +59,7 @@ const mockedPrisma = prisma as unknown as {
   questionCache: { findMany: jest.Mock };
 };
 const mockedGenerateQuestion = generateQuestion as jest.Mock;
+const mockedGetReviewQueueForPlan = getReviewQueueForPlan as jest.Mock;
 
 const USER_ID = 'user-uuid';
 const PLAN_ID = 'plan-uuid';
@@ -123,10 +125,49 @@ describe('startInterview — no-material and first-question failures (#272)', ()
 
     await expect(
       startInterview(USER_ID, { planId: PLAN_ID, conceptIds: [CONCEPT_ID] })
-    ).rejects.toMatchObject({ statusCode: 409, code: 'PLAN_NOT_ACTIVE' });
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'PLAN_NOT_ACTIVE',
+      message: PLAN_ARCHIVED_MESSAGE,
+    });
 
     expect(mockedPrisma.document.findFirst).not.toHaveBeenCalled();
     expect(mockedPrisma.interviewSession.create).not.toHaveBeenCalled();
+  });
+
+  // `draft` is blocked too (review #350): reanalyzePlan can drop an in-use plan back to `draft`
+  // (plan.service.ts), and that state is long-lived (#265) — not a rare few-second window.
+  it('rejects a draft plan the same way', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'draft',
+    });
+
+    await expect(
+      startInterview(USER_ID, { planId: PLAN_ID, conceptIds: [CONCEPT_ID] })
+    ).rejects.toMatchObject({ statusCode: 409, code: 'PLAN_NOT_ACTIVE' });
+
+    expect(mockedPrisma.interviewSession.create).not.toHaveBeenCalled();
+  });
+
+  // Contract change flagged in review #350: before this guard, omitting conceptIds on a
+  // non-active plan fell through to resolveConceptQueue -> getReviewQueueForPlan and surfaced
+  // as 409 NO_CONCEPTS_TO_REVIEW (right status, wrong reason). Now the top-level guard catches
+  // it first, so getReviewQueueForPlan is never even called.
+  it('rejects an archived plan before consulting getReviewQueueForPlan when conceptIds is omitted', async () => {
+    mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+      id: PLAN_ID,
+      userId: USER_ID,
+      status: 'archived',
+    });
+
+    await expect(startInterview(USER_ID, { planId: PLAN_ID })).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'PLAN_NOT_ACTIVE',
+    });
+
+    expect(mockedGetReviewQueueForPlan).not.toHaveBeenCalled();
   });
 
   it('rejects a plan with no document before any session row is created', async () => {
