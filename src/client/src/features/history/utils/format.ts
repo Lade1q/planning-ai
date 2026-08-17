@@ -28,8 +28,12 @@ export function formatTime(iso: string): string {
 /**
  * Dòng meta dưới tiêu đề panel: `21:40 – 22:06 · 26 phút · Tên kế hoạch`.
  *
- * Phiên chưa đóng (`active`/`paused`) không có `endedAt`, và `durationMinutes` của `/summary`
- * chỉ có với phiên đã đóng — nên hai phần đó biến mất thay vì hiện `0 phút`, một con số sai.
+ * Thời lượng chỉ hiện khi có `endedAt`, và điều kiện đó nằm ở ĐÂY chứ không ở chỗ gọi.
+ * `/summary` trả `durationMinutes: 0` — không phải `null` — cho phiên `endedAt` null
+ * (`session-summary.service.ts`: `session.endedAt ? … : 0`), nên chỉ guard `null` là chưa đủ:
+ * hàng cũ bị bỏ dở trước khi `abandonInterview` biết ghi `endedAt` sẽ in ra "0 phút", một con
+ * số vừa sai vừa trông như phiên chớp nhoáng. Không có `endedAt` thì không đo được thời lượng,
+ * và im lặng đúng hơn số 0.
  */
 export function formatSessionMeta({
   startedAt,
@@ -44,7 +48,7 @@ export function formatSessionMeta({
 }): string {
   const parts: string[] = [];
   parts.push(endedAt ? `${formatTime(startedAt)} – ${formatTime(endedAt)}` : formatTime(startedAt));
-  if (durationMinutes !== null) parts.push(`${durationMinutes} phút`);
+  if (endedAt !== null && durationMinutes !== null) parts.push(`${durationMinutes} phút`);
   parts.push(planName);
   return parts.join(' · ');
 }

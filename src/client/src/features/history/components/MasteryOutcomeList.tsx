@@ -24,9 +24,18 @@ export function MasteryOutcomeList({
   const uniqueConcepts = dedupeByConceptId(concepts);
   if (uniqueConcepts.length === 0) return null;
 
-  // Số lượt đã chấm của từng khái niệm — để nói "chấm trên 2/3 lượt" cho phiên bỏ dở.
+  // Số lượt ĐÃ CHẤM của từng khái niệm — để nói "chấm trên 2/3 lượt" cho phiên bỏ dở.
+  //
+  // Đếm `turns.length` là sai: `/summary` trả **mọi** lượt, kể cả lượt đã hỏi mà chưa trả lời
+  // (`score: null`). Đó chính là ca abandon thường gặp nhất — bỏ dở đúng lúc câu kế vừa hiện —
+  // và nó làm dòng này ghi "chấm trên 2/3 lượt" trong khi khối phép tính ngay bên dưới ghi
+  // "trọng số gốc của 1 lượt đầu", vì `MasteryCalculation` vốn đã lọc theo `score !== null`.
+  // Hai con số cùng nói về một khái niệm thì phải đếm cùng một thứ.
   const turnCountByConcept = new Map(
-    (summary?.concepts ?? []).map((concept) => [concept.conceptId, concept.turns.length])
+    (summary?.concepts ?? []).map((concept) => [
+      concept.conceptId,
+      concept.turns.filter((turn) => turn.score !== null).length,
+    ])
   );
   // Đếm khái niệm nền mà truy ngược đã chèn, gom theo `sourceConceptId` (#310) chứ không theo
   // tên: hai khái niệm trùng tên sẽ cộng nhầm vào nhau.

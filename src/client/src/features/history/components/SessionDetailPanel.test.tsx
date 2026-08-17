@@ -184,6 +184,100 @@ describe('SessionDetailPanel — AF3 phiên bỏ dở', () => {
   });
 });
 
+/**
+ * Bất biến của `useSessionDetail`: **đổi phiên là panel trống ngay**, không có nhịp nào dữ liệu
+ * của phiên trước nằm dưới tiêu đề của phiên vừa chọn.
+ *
+ * Đây là lý do hook này tồn tại thay vì dùng `useAsyncResource` — nên nó phải có test canh.
+ * Test có răng: đổi khoá của hook thành hằng số (mô phỏng đúng lối `useAsyncResource` khoá vào
+ * phiên đầu tiên) thì test này phải ĐỎ.
+ */
+describe('SessionDetailPanel — đổi phiên không được rò dữ liệu phiên cũ', () => {
+  it('xoá nội dung phiên cũ ngay khi prop session đổi, trước khi phiên mới tải xong', async () => {
+    const sessionB: InterviewSessionListItem = {
+      ...listItem('completed'),
+      id: 'session-2',
+      plan: { id: 'plan-2', name: 'Hệ điều hành' },
+    };
+
+    // Phiên B cố tình KHÔNG bao giờ resolve trong bài test này: ta đo đúng khoảnh khắc giữa
+    // "đã đổi phiên" và "phiên mới tải xong" — chính là khoảnh khắc dữ liệu cũ có thể rò ra.
+    const never = () => new Promise<never>(() => {});
+    mockedApi.getInterview.mockImplementation((id: string) =>
+      id === 'session-1' ? Promise.resolve(transcript('completed')) : never()
+    );
+    mockedApi.getSummary.mockImplementation((id: string) =>
+      id === 'session-1'
+        ? Promise.resolve({ ...abandonedSummary(), status: 'completed' as const })
+        : never()
+    );
+
+    const { rerender } = render(
+      <SessionDetailPanel session={listItem('completed')} onSessionChanged={() => {}} />
+    );
+
+    // Phiên A đã hiện thật sự.
+    expect(await screen.findByText(/DFS duyệt một đồ thị theo thứ tự/)).toBeInTheDocument();
+    expect(screen.getByText(/Cấu trúc dữ liệu & Giải thuật/)).toBeInTheDocument();
+
+    rerender(<SessionDetailPanel session={sessionB} onSessionChanged={() => {}} />);
+
+    // KHÔNG await: phải trống ngay ở lượt render này, không phải "trống sau khi B về".
+    expect(screen.queryByText(/DFS duyệt một đồ thị theo thứ tự/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Bản ghi hỏi–đáp/)).not.toBeInTheDocument();
+    // Tiêu đề đã là của phiên mới, và bên dưới là khung chờ chứ không phải nội dung phiên cũ.
+    expect(screen.getByText(/Hệ điều hành/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Đang tải chi tiết phiên')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Ca abandon thường gặp nhất: bỏ dở đúng lúc câu kế vừa hiện. `/summary` trả cả lượt đã hỏi mà
+ * chưa trả lời (`score: null`), nên đếm `turns.length` sẽ ghi "chấm trên 2/3 lượt" trong khi
+ * khối phép tính ngay bên dưới chỉ tính 1 lượt — hai con số cùng nói về một khái niệm mà đá nhau.
+ */
+describe('SessionDetailPanel — "chấm trên N/3 lượt" chỉ đếm lượt ĐÃ CHẤM', () => {
+  it('lượt đã hỏi mà chưa trả lời không được tính vào số lượt đã chấm', async () => {
+    mockedApi.getInterview.mockResolvedValue({
+      ...transcript('abandoned'),
+      turns: [
+        transcript('abandoned').turns[0]!,
+        {
+          ...transcript('abandoned').turns[0]!,
+          id: 'turn-2',
+          turnIndex: 2,
+          questionText: 'Khi quay lui, thuật toán nhớ chỗ cần quay về bằng cách nào?',
+          answerText: null,
+          score: null,
+          feedback: null,
+          verdict: null,
+          answeredAt: null,
+        },
+      ],
+    });
+    mockedApi.getSummary.mockResolvedValue({
+      ...abandonedSummary(),
+      concepts: [
+        {
+          conceptId: 'concept-1',
+          name: 'Duyệt đồ thị DFS',
+          masteryScore: 0.42,
+          turns: [
+            { turnIndex: 1, score: 0.42, verdict: 'shallow' },
+            // Câu đã hỏi, chưa trả lời — server vẫn trả lượt này.
+            { turnIndex: 2, score: null, verdict: null },
+          ],
+        },
+      ],
+    });
+
+    render(<SessionDetailPanel session={listItem('abandoned')} onSessionChanged={() => {}} />);
+
+    expect(await screen.findByText(/chấm trên 1\/3 lượt/)).toBeInTheDocument();
+    expect(screen.queryByText(/chấm trên 2\/3 lượt/)).not.toBeInTheDocument();
+  });
+});
+
 describe('SessionDetailPanel — AF4 phiên tự chấm', () => {
   it('gắn nhãn tự chấm ở đầu panel', async () => {
     mockedApi.getInterview.mockResolvedValue(transcript('completed'));

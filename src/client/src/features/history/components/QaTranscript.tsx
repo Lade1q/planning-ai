@@ -129,6 +129,10 @@ function ConceptTranscript({
           <span className="hidden group-open:inline">−</span>
         </span>
         {concept.name}
+        {/* Đếm lượt ĐÃ HỎI, cố ý khác con số "chấm trên N/3 lượt" ở khối biến động (khối đó
+            đếm lượt đã CHẤM). Ở đây con số phải khớp số khối hỏi–đáp render ngay bên dưới —
+            một lượt đã hỏi mà chưa trả lời vẫn có câu hỏi để đọc lại. Ghi "2/3 lượt" rồi hiện
+            2 khối là nhất quán; đổi thành lượt-đã-chấm sẽ ghi "1/3" mà vẫn hiện 2 khối. */}
         <span className="text-muted-foreground ml-auto shrink-0 font-mono text-[11px]">
           {concept.turns.length}/{TURN_WEIGHTS.length} lượt
         </span>
