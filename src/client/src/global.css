@@ -736,7 +736,10 @@ kbd,
 
 .node__diff {
   font-family: var(--font-mono);
-  font-size: 10px;
+  /* 11px là sàn cỡ chữ của app (#386 mục 2). Site này nấp sau class global nên không lộ khi
+     grep `text-[` trong `.tsx` — nó là chữ render BÊN TRONG node đồ thị, và vì
+     `MiniConceptGraph` dùng lại `ConceptGraph` nên nó xuất hiện ở cả Dashboard. */
+  font-size: 11px;
   color: var(--muted-foreground);
   position: absolute;
   top: 100%;

@@ -441,7 +441,7 @@ export function RunningSession({
             >
               {awayInfo ? (
                 <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
-                  <div className="font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+                  <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
                     {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
                   </div>
                   <h1 className="font-heading text-[19px] tracking-[-0.02em]">
@@ -475,7 +475,7 @@ export function RunningSession({
                 </div>
               ) : isBreak ? (
                 <div className="flex w-full flex-col items-center gap-[18px] px-8 py-[30px] text-center">
-                  <div className="font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
+                  <div className="text-muted-foreground font-mono text-[44px] font-semibold tabular-nums tracking-[-0.03em]">
                     {formatClock(Math.max(0, timer.phaseTargetMs - timer.phaseElapsedMs))}
                   </div>
                   <h1 className="font-heading text-[19px] tracking-[-0.02em]">{breakLabel}</h1>
