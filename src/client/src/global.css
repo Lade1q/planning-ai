@@ -175,9 +175,11 @@
   --sidebar-border: oklch(0.76 0.005 262);
   --sidebar-ring: oklch(0.5 0.16 262);
 
-  /* Ultra-diffuse shadow — cards are defined by a 1px border, this is
-     hover-lift only, opacity kept under 0.05 per the minimalist protocol. */
-  --shadow-soft: 0 2px 8px oklch(0 0 0 / 0.04);
+  /* Cards are defined by a 1px border first, this is hover-lift second —
+     but at 4% alpha it rendered as functionally invisible next to dark
+     mode's 22%. Doubled to the smallest step that reads as a shadow on
+     a light canvas rather than a border-adjacent rounding error. */
+  --shadow-soft: 0 2px 8px oklch(0 0 0 / 0.08);
 
   /*
     RECALL AI — Custom Tokens (Light)
@@ -734,7 +736,10 @@ kbd,
 
 .node__diff {
   font-family: var(--font-mono);
-  font-size: 10px;
+  /* 11px là sàn cỡ chữ của app (#386 mục 2). Site này nấp sau class global nên không lộ khi
+     grep `text-[` trong `.tsx` — nó là chữ render BÊN TRONG node đồ thị, và vì
+     `MiniConceptGraph` dùng lại `ConceptGraph` nên nó xuất hiện ở cả Dashboard. */
+  font-size: 11px;
   color: var(--muted-foreground);
   position: absolute;
   top: 100%;
