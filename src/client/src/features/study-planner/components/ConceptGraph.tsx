@@ -170,7 +170,7 @@ function GraphNode({ data, selected }: NodeProps) {
           >
             {score !== null ? score.toFixed(2) : '—'}
           </span>
-          <div className="text-muted-foreground mt-0.75 break-words font-mono text-[10.5px]">
+          <div className="text-muted-foreground mt-0.75 break-words font-mono text-[11px]">
             {lastTestedAt
               ? `kiểm tra lần cuối ${formatRelativeDays(lastTestedAt)}`
               : 'chưa kiểm tra'}
@@ -1109,7 +1109,7 @@ export function ConceptGraph({
           <aside className="w-70 border-border bg-card absolute bottom-0 right-0 top-0 z-10 flex shrink-0 flex-col gap-4 overflow-y-auto border-l p-[18px_18px_20px] shadow-lg lg:static lg:w-80 lg:border-none lg:shadow-none">
             <div>
               <div className="mb-1.5 flex items-start justify-between gap-3">
-                <p className="text-muted-foreground mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.07em]">
+                <p className="text-muted-foreground mt-0.5 font-mono text-[11px] uppercase tracking-[0.07em]">
                   Khái niệm đang chọn
                 </p>
                 <button
