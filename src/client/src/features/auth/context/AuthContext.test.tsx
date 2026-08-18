@@ -19,7 +19,12 @@ beforeEach(() => {
 function authResponse(over: Partial<AuthResponse['data']> = {}): AuthResponse {
   return {
     data: {
-      user: { id: 'u1', email: 'new@example.com', name: 'New User', createdAt: '2026-08-16T00:00:00Z' },
+      user: {
+        id: 'u1',
+        email: 'new@example.com',
+        name: 'New User',
+        createdAt: '2026-08-16T00:00:00Z',
+      },
       accessToken: 'access-123',
       refreshToken: 'refresh-456',
       ...over,
