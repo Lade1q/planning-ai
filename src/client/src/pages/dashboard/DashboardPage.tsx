@@ -30,6 +30,11 @@ export default function DashboardPage() {
   // trong mini graph. Chỉ là gợi ý trực quan: today hỏng thì không tô, mini graph về plan đầu.
   const currentPlanId = today.data?.items[0]?.planId ?? null;
 
+  // A1 (DB-01 [E1]) đúng nghĩa đen — 0 KẾ HOẠCH, không phải 0 mục hàng đợi. Suy trực tiếp từ dữ
+  // kiện client đã có (độ dài danh mục kế hoạch), KHÔNG parse chuỗi `message` (#389). `null` khi
+  // `plans` chưa tải xong: chưa biết ca nào thì không được đoán.
+  const isBrandNewAccount = plans.data !== null && plans.data.length === 0;
+
   // A1 (DB-01 [E1]) — tài khoản hoàn toàn trống: mọi chỉ số bằng 0. Ẩn hẳn dải chỉ số thay vì
   // hiện ba số 0 cạnh khối gợi ý rỗng ("trông như app hỏng", mockup A1). Chỉ ẩn khi đã tải xong
   // và thật sự toàn 0 — plan `active` bất kỳ đều làm `conceptsTotal > 0`.
@@ -43,18 +48,22 @@ export default function DashboardPage() {
     <div className="mx-auto w-full max-w-[1060px]">
       <DashboardHeader />
 
-      {/* (2) Gợi ý hôm nay (DB-04) — đứng đầu vì là điểm vào vòng lặp học tập (FS-01/AE-01). */}
-      <section className="mb-5">
-        {today.loading && today.data === null ? (
-          <TodayNudgeSkeleton />
-        ) : today.error && today.data === null ? (
-          <BlockError message="Không tải được gợi ý hôm nay." onRetry={today.reload} />
-        ) : today.data ? (
-          // `onChanged` = đọc lại đúng khối này sau khi hoãn / bỏ qua (DB-09 #233). Hai thao tác
-          // đó chỉ đổi hàng đợi hôm nay, nên không kéo theo `/dashboard/stats` hay `/plans`.
-          <TodayNudge data={today.data} onChanged={today.reload} />
-        ) : null}
-      </section>
+      {/* (2) Gợi ý hôm nay (DB-04) — đứng đầu vì là điểm vào vòng lặp học tập (FS-01/AE-01).
+          Ẩn hẳn ở tài khoản 0-kế-hoạch: mockup A1 chỉ có MỘT thẻ, và thẻ đó là onboarding của
+          danh mục kế hoạch bên dưới — không phải khối này (#389). */}
+      {!isBrandNewAccount && (
+        <section className="mb-5">
+          {today.loading && today.data === null ? (
+            <TodayNudgeSkeleton />
+          ) : today.error && today.data === null ? (
+            <BlockError message="Không tải được gợi ý hôm nay." onRetry={today.reload} />
+          ) : today.data ? (
+            // `onChanged` = đọc lại đúng khối này sau khi hoãn / bỏ qua (DB-09 #233). Hai thao tác
+            // đó chỉ đổi hàng đợi hôm nay, nên không kéo theo `/dashboard/stats` hay `/plans`.
+            <TodayNudge data={today.data} onChanged={today.reload} />
+          ) : null}
+        </section>
+      )}
 
       {/* (3) Dải 3 chỉ số (DB-01) — ẩn ở trạng thái tài khoản trống (A1). */}
       {!statsAllZero && (
@@ -80,6 +89,7 @@ export default function DashboardPage() {
             activePlans={activePlans}
             hasAnyPlan={plans.data.length > 0}
             currentPlanId={currentPlanId}
+            noPlanMessage={today.data?.message ?? null}
           />
         ) : null}
       </section>

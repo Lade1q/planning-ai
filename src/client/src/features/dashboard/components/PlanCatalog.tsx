@@ -39,8 +39,17 @@ function DashboardPlanCard({ plan, isCurrent }: { plan: PlanSummary; isCurrent: 
   );
 }
 
-/** A1 (DB-01 [E1]) — chưa có kế hoạch nào. Onboarding thay cho một lưới trống. */
-function CatalogOnboarding() {
+/**
+ * A1 (DB-01 [E1]) — chưa có kế hoạch nào. Onboarding thay cho một lưới trống, và thay luôn cho
+ * thẻ "Gợi ý hôm nay" (`TodayNudge`) mà `DashboardPage` cố ý không render trong ca này — mockup
+ * A1 chỉ có MỘT thẻ, không phải hai thẻ nói cùng một điều bằng hai giọng khác nhau (#389).
+ *
+ * `message` là `NO_PLAN_MESSAGE` server trả về nguyên văn (cùng nguồn dữ liệu `TodayNudge` từng
+ * dùng để tự render thẻ thứ hai) — không phải copy tự viết ở client (#273/#278 cấm việc đó cho
+ * mọi ca rỗng trừ A2b). `null` khi `/review-queue/today` chưa tải xong hoặc lỗi: chỉ ẩn đoạn thân
+ * bài, không thay bằng chữ bịa ra.
+ */
+function CatalogOnboarding({ message }: { message: string | null }) {
   return (
     <div className="border-border bg-card rounded-xl border px-7 py-10">
       <div className="mx-auto max-w-[460px] text-center">
@@ -68,11 +77,10 @@ function CatalogOnboarding() {
         <h2 className="font-heading mb-2 text-[20px] tracking-[-0.02em]">
           Bắt đầu kế hoạch ôn tập đầu tiên
         </h2>
-        <p className="text-muted-foreground mb-5 text-pretty text-[13.5px] leading-[1.7]">
-          Tải lên một chương bài giảng, hệ thống sẽ tách nó thành các khái niệm, tìm khái niệm nào
-          là nền của khái niệm nào, rồi xếp lịch ôn theo đúng thứ tự đó.
+        <p className="text-muted-foreground mb-5 min-h-[1.7em] text-pretty text-[13.5px] leading-[1.7]">
+          {message}
         </p>
-        <Button asChild>
+        <Button asChild size="lg">
           <Link to="/plan/new">Tạo kế hoạch đầu tiên</Link>
         </Button>
       </div>
@@ -101,13 +109,15 @@ export function PlanCatalog({
   activePlans,
   hasAnyPlan,
   currentPlanId,
+  noPlanMessage,
 }: {
   activePlans: PlanSummary[];
   hasAnyPlan: boolean;
   currentPlanId: string | null;
+  noPlanMessage: string | null;
 }) {
   if (activePlans.length === 0) {
-    return hasAnyPlan ? <CatalogNoActive /> : <CatalogOnboarding />;
+    return hasAnyPlan ? <CatalogNoActive /> : <CatalogOnboarding message={noPlanMessage} />;
   }
 
   return (
