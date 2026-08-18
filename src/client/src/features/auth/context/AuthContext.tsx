@@ -63,7 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
-    await registerApi({ email, password, name, confirmPassword: password });
+    const res = await registerApi({ email, password, name, confirmPassword: password });
+    localStorage.setItem('access_token', res.data.accessToken);
+    localStorage.setItem('refresh_token', res.data.refreshToken);
+    setUser(res.data.user);
   }, []);
 
   const updateUser = useCallback((partial: Partial<User>) => {
