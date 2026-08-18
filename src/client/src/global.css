@@ -217,8 +217,24 @@
   --mastery-untested: oklch(0.75 0.008 262);
   --mastery-untested-fg: oklch(0.4 0.01 262);
 
-  /* REMEDIATE: muted orange — Hệ thống tự chèn prerequisite vào lịch */
-  --remediate: oklch(0.55 0.13 55);
+  /* REMEDIATE: muted orange — Hệ thống tự chèn prerequisite vào lịch.
+
+     L 0.55 -> 0.50: đây là accent DUY NHẤT không nằm ở L 0.5 như bốn accent còn
+     lại (ai 0.5/235, strong 0.5/155, learning 0.5/85, weak 0.5/25), và chỗ lệch
+     đó làm nó trượt chuẩn tương phản ở đúng nơi nó được dùng nhiều nhất.
+
+     Đo trong browser trên nền đã hợp thành alpha, light mode:
+       `<Badge tone="remediate">` = text-remediate trên bg-remediate/14  -> 4.13  ✗
+       trên --accent / --secondary                                      -> 4.39  ✗
+       trên --muted                                                     -> 4.44  ✗
+     Bốn tone badge kia đều đạt (4.65–5.12); remediate là ca hỏng duy nhất, và nó
+     mang nhãn `TRUY NGƯỢC · TẦNG N` — một trong những chip người học đọc nhiều nhất.
+
+     Sau khi hạ về L 0.5 (C 0.13 -> 0.14 để giữ độ đậm của màu):
+       badge 5.02 · --accent/--secondary 5.48 · --muted 5.54 · --card 6.22
+     Dark mode không đổi: --remediate ở đó là 0.72 0.13 55, đã đồng bộ với anh em
+     và đo được 5.55 trên badge. */
+  --remediate: oklch(0.5 0.14 55);
   --remediate-foreground: oklch(0.99 0.002 262);
 
   /* ANIMATION TOKENS */
@@ -234,10 +250,26 @@
 
 /*
   DARK MODE — primary target, not an afterthought.
-  Warm dark charcoal (never cold navy, never pure black). Ink/paper
-  invert: primary becomes a warm off-white solid on dark charcoal text.
+  Warm dark charcoal (never cold navy, never pure black).
   Semantic accents brighten (higher L, slightly more C) to stay legible
   against the dark canvas, same hue as light mode for consistency.
+
+  Câu "ink/paper invert: primary becomes a warm off-white solid on dark
+  charcoal text" từng đứng ở đây đã bị GỠ: nó mô tả một thiết kế không
+  tồn tại trong file. `--primary` ở dark là xanh `oklch(0.56 0.17 262)`
+  với chữ gần trắng, không phải off-white với chữ than. Ai đọc chú thích
+  cũ rồi "khôi phục" cho khớp sẽ lật ngược mọi nút primary của app.
+
+  ⚠️ CÒN NỢ, chưa sửa ở đây vì không sửa được bằng một con số:
+  `--primary` ở dark KHÔNG đạt 4.5:1 khi dùng làm CHỮ trên mọi mặt phẳng
+  (--background 3.99 · --card 3.70 · --muted 3.33 · --secondary/--accent
+  3.13 · --sidebar 3.84), trong khi repo có 15 chỗ dùng `text-primary`
+  (nhãn "Đang diễn ra", tab đang chọn, số bước trên `bg-primary/10`…).
+  Nâng L để cứu chữ thì hỏng nút: đo được L 0.64 cho chữ 5.16 ✓ nhưng
+  `--primary-foreground` trên `--primary` tụt còn 3.25 ✗ (hiện 4.55).
+  Một token không phục vụ được cả hai vai. Hai lối, đều cần người quyết:
+  tách token riêng cho vai CHỮ, hoặc đảo `--primary-foreground` ở dark
+  sang mực tối rồi nâng `--primary`. Đừng tự chọn khi vá lặt vặt.
 */
 .dark {
   --background: oklch(0.17 0.006 262);
