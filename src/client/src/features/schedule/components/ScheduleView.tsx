@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { DayPanel } from './DayPanel';
+import { DayPanel, type DayPanelScope } from './DayPanel';
 import { MonthGrid } from './MonthGrid';
 import { useSchedule } from '../hooks/useSchedule';
 import { useScheduleViewState } from '../hooks/useScheduleViewState';
 import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
-import { formatDayLabel, groupByDateKey } from '../utils/schedule-date';
+import { groupByDateKey } from '../utils/schedule-date';
 
 /**
  * View "Lịch" của `/plans` (#400) — **chủ sở hữu toàn bộ state của màn** (`useScheduleViewState`).
@@ -13,8 +13,10 @@ import { formatDayLabel, groupByDateKey } from '../utils/schedule-date';
  * ngày đang chọn ↔ panel đang mở ↔ mục đang mở rộng), mà hai cây state song song thì chỉ đồng bộ
  * đúng cho tới lần sửa thứ hai.
  *
- * Ở Giai đoạn 0 (#401) hai con còn rỗng — #404 dựng lưới, #405 dựng panel + thanh "Còn nợ" + bộ
- * lọc, cả hai cắm vào đúng chữ ký đã có sẵn ở đây.
+ * Ngược lại, tệp này KHÔNG giữ câu chữ nào: panel tự dựng microcopy của nó. Ranh giới đặt ở đây
+ * để #404 (lưới) và #405 (panel) không phải quay lại sửa cùng một tệp.
+ *
+ * Ở Giai đoạn 0 (#401) hai con còn rỗng — cả hai cắm vào đúng chữ ký đã có sẵn ở đây.
  */
 export function ScheduleView() {
   const { todayDateKey, items } = useSchedule();
@@ -30,7 +32,7 @@ export function ScheduleView() {
     [visibleItems, todayDateKey]
   );
 
-  const panel = buildPanel(days, state.selectedDateKey, todayDateKey, state.debtOpen);
+  const panel = resolvePanel(days, state.selectedDateKey, state.debtOpen);
 
   return (
     <>
@@ -40,11 +42,12 @@ export function ScheduleView() {
         selectedDateKey={state.selectedDateKey}
         days={days}
         onSelectDay={state.selectDay}
+        onShiftMonth={state.shiftMonth}
       />
       {panel !== null && (
         <DayPanel
-          title={panel.title}
-          subtitle={panel.subtitle}
+          scope={panel.scope}
+          todayDateKey={todayDateKey}
           items={panel.items}
           expandedItemId={state.expandedItemId}
           onToggleItem={state.toggleItem}
@@ -60,48 +63,28 @@ export function ScheduleView() {
 /** "Dời sang ngày…" cần `PATCH scheduledFor` (#403); "Gỡ khỏi lịch" cần luồng gỡ của #405. */
 function noop(): void {}
 
-interface PanelContent {
-  title: string;
-  subtitle: string;
-  items: ScheduleItem[];
-}
-
 /**
- * Nội dung panel: nhóm "Còn nợ", hoặc một ngày, hoặc không mở.
- *
- * Tiêu đề/phụ đề dựng ở phía chủ state vì `DayPanel` dùng chung cho cả hai ca và không được tự
- * suy mình đang là ca nào. Câu chữ ở đây là mức tối thiểu để hợp đồng có nghĩa — **#405 sở hữu
- * microcopy cuối** (đếm ngày quá hạn, câu cho ngày trống).
+ * Panel đang mở nói về cái gì, và với những mục nào. Chỉ chọn dữ liệu — câu chữ là của `DayPanel`.
  */
-function buildPanel(
+function resolvePanel(
   days: ScheduleDay[],
   selectedDateKey: string | null,
-  todayDateKey: string,
   debtOpen: boolean
-): PanelContent | null {
+): { scope: DayPanelScope; items: ScheduleItem[] } | null {
   if (debtOpen) {
     // "Còn nợ" gom mọi ngày quá hạn — đọc `isOverdue` mà `groupByDateKey` đã tính, để luật "quá
     // hạn" chỉ nằm ở một chỗ; lưới và panel không thể nói hai con số khác nhau.
-    const overdue = days.filter((day) => day.isOverdue);
     return {
-      title: 'Còn nợ',
-      subtitle: summarise(
-        overdue.reduce((count, day) => count + day.items.length, 0),
-        overdue.reduce((minutes, day) => minutes + day.totalMinutes, 0)
-      ),
-      items: overdue.flatMap((day) => day.items),
+      scope: { kind: 'debt' },
+      items: days.filter((day) => day.isOverdue).flatMap((day) => day.items),
     };
   }
   if (selectedDateKey === null) return null;
 
-  const day = days.find((d) => d.dateKey === selectedDateKey);
   return {
-    title: selectedDateKey === todayDateKey ? 'Hôm nay' : formatDayLabel(selectedDateKey),
-    subtitle: day ? summarise(day.items.length, day.totalMinutes) : 'không có gì được xếp',
-    items: day?.items ?? [],
+    scope: { kind: 'day', dateKey: selectedDateKey },
+    // Ngày không có mục nào thì không có `ScheduleDay` nào — panel nhận mảng rỗng và tự nói câu
+    // cho ngày trống.
+    items: days.find((day) => day.dateKey === selectedDateKey)?.items ?? [],
   };
-}
-
-function summarise(conceptCount: number, minutes: number): string {
-  return `${conceptCount} khái niệm · ≈ ${minutes} phút`;
 }

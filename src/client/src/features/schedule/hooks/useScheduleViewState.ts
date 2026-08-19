@@ -1,10 +1,13 @@
 import { useCallback, useState } from 'react';
-import { monthCursorFromDateKey, type MonthCursor } from '../utils/schedule-date';
+import { monthCursorFromDateKey, shiftMonthCursor, type MonthCursor } from '../utils/schedule-date';
 
 export interface ScheduleViewState {
   /** Tháng lưới đang hiện. KHÔNG cắt dữ liệu — chỉ quyết định 42 ô nào được vẽ (#404). */
   monthCursor: MonthCursor;
+  /** Nhảy thẳng tới một tháng (nút "Hôm nay" của #404). */
   setMonthCursor: (cursor: MonthCursor) => void;
+  /** Lùi/tiến `delta` tháng (‹ ›). Cuộn năm nằm trong `shiftMonthCursor`, không ở nơi gọi. */
+  shiftMonth: (delta: number) => void;
   /** Ngày đang chọn, `null` khi panel đóng. */
   selectedDateKey: string | null;
   /** Panel đang hiện nhóm "Còn nợ" thay cho một ngày. */
@@ -50,6 +53,10 @@ export function useScheduleViewState(todayDateKey: string): ScheduleViewState {
   const [hiddenPlanIds, setHiddenPlanIds] = useState<Set<string>>(() => new Set());
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
+  const shiftMonth = useCallback((delta: number) => {
+    setMonthCursor((prev) => shiftMonthCursor(prev, delta));
+  }, []);
+
   const selectDay = useCallback((dateKey: string) => {
     setSelectedDateKey(dateKey);
     setDebtOpen(false);
@@ -75,6 +82,7 @@ export function useScheduleViewState(todayDateKey: string): ScheduleViewState {
   return {
     monthCursor,
     setMonthCursor,
+    shiftMonth,
     selectedDateKey,
     debtOpen,
     hiddenPlanIds,

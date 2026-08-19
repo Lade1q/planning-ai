@@ -12,6 +12,12 @@ export interface MonthGridProps {
    */
   days: ScheduleDay[];
   onSelectDay: (dateKey: string) => void;
+  /**
+   * Lùi/tiến `delta` tháng (‹ › của #404). Nhận **delta** chứ không nhận `MonthCursor` dựng sẵn:
+   * phép cuộn năm khi đó nằm ở một chỗ duy nhất (`shiftMonthCursor`), và lưới không phải biết
+   * con trỏ tháng được lưu ra sao.
+   */
+  onShiftMonth: (delta: number) => void;
 }
 
 /**
