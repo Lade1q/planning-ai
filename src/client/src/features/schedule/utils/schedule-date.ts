@@ -1,0 +1,68 @@
+import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
+
+/**
+ * Tháng đang xem. Cả màn Lịch làm việc trên **chuỗi ngày `YYYY-MM-DD`** chứ không trên `Date`:
+ * `dateKey` do server cắt theo giờ VN, mọi phép so sánh ngày ở client vì thế chỉ là so chuỗi.
+ * `Date` chỉ xuất hiện đúng một chỗ — dựng 42 ô của lưới (#404) — và ở đó dùng `Date.UTC`.
+ */
+export interface MonthCursor {
+  year: number;
+  /** **1–12**, không phải chỉ số 0-based của `Date`. */
+  month: number;
+}
+
+/** `'2026-08-18'` → `{ year: 2026, month: 8 }`. */
+export function monthCursorFromDateKey(dateKey: string): MonthCursor {
+  return { year: Number(dateKey.slice(0, 4)), month: Number(dateKey.slice(5, 7)) };
+}
+
+/** `{ 2026, 8 }` → `'2026-08'` — tiền tố để lọc theo tháng bằng `dateKey.startsWith(...)`. */
+export function monthCursorPrefix(cursor: MonthCursor): string {
+  return `${cursor.year}-${String(cursor.month).padStart(2, '0')}`;
+}
+
+/** Lùi/tiến `delta` tháng, tự cuộn năm. Không đi qua `Date` nên không có gì để lệch múi giờ. */
+export function shiftMonthCursor(cursor: MonthCursor, delta: number): MonthCursor {
+  const zeroBased = cursor.year * 12 + (cursor.month - 1) + delta;
+  return { year: Math.floor(zeroBased / 12), month: (zeroBased % 12) + 1 };
+}
+
+/**
+ * Nhóm phẳng → theo ngày. Lưới KHÔNG tự nhóm (hợp đồng `MonthGrid`), và việc nhóm chạy trên
+ * TRỌN mảng chứ không trên tháng đang xem: nhờ thế đổi lưới-tháng sang dải-ngày về sau chỉ là
+ * đổi một hàm render, không đụng dữ liệu.
+ *
+ * Thứ tự mục trong ngày giữ nguyên thứ tự server trả (truy ngược trước, rồi `priority` giảm
+ * dần) — luật hai tầng đó đã có ở server, cài lại ở client là mở đường cho hai nơi lệch nhau.
+ */
+export function groupByDateKey(
+  items: readonly ScheduleItem[],
+  todayDateKey: string
+): ScheduleDay[] {
+  const byDate = new Map<string, ScheduleItem[]>();
+  for (const item of items) {
+    const bucket = byDate.get(item.dateKey);
+    if (bucket) bucket.push(item);
+    else byDate.set(item.dateKey, [item]);
+  }
+
+  return [...byDate].map(([dateKey, dayItems]) => ({
+    dateKey,
+    items: dayItems,
+    totalMinutes: dayItems.reduce((sum, item) => sum + item.estimatedMinutes, 0),
+    // So chuỗi ISO là so ngày. Suy tại chỗ đọc thay vì nhận cờ từ server: một cờ tính sẵn sẽ sai
+    // khi tab mở qua nửa đêm, còn `todayDateKey` thì refetch là đúng lại.
+    isOverdue: dateKey < todayDateKey,
+  }));
+}
+
+const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] as const;
+
+/**
+ * `'2026-08-20'` → `'T5, 20/08'`. Dựng `Date` ở UTC từ một `dateKey` đã là ngày VN: chỉ để lấy
+ * thứ trong tuần, không có phép đổi múi giờ nào ở đây (đổi lần nữa là lệch một ngày).
+ */
+export function formatDayLabel(dateKey: string): string {
+  const weekday = WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
+  return `${weekday}, ${dateKey.slice(8)}/${dateKey.slice(5, 7)}`;
+}

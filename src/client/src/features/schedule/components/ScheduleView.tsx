@@ -1,0 +1,106 @@
+import { useMemo } from 'react';
+import { DayPanel } from './DayPanel';
+import { MonthGrid } from './MonthGrid';
+import { useSchedule } from '../hooks/useSchedule';
+import { useScheduleViewState } from '../hooks/useScheduleViewState';
+import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
+import { formatDayLabel, groupByDateKey, monthCursorFromDateKey } from '../utils/schedule-date';
+
+/**
+ * View "Lịch" của `/plans` (#400) — **chủ sở hữu toàn bộ state của màn** (`useScheduleViewState`).
+ *
+ * `MonthGrid` và `DayPanel` không giữ state nào: lưới và panel phải kể cùng một câu chuyện (ô
+ * ngày đang chọn ↔ panel đang mở ↔ mục đang mở rộng), mà hai cây state song song thì chỉ đồng bộ
+ * đúng cho tới lần sửa thứ hai.
+ *
+ * Ở Giai đoạn 0 (#401) hai con còn rỗng — #404 dựng lưới, #405 dựng panel + thanh "Còn nợ" + bộ
+ * lọc, cả hai cắm vào đúng chữ ký đã có sẵn ở đây.
+ */
+export function ScheduleView() {
+  const { todayDateKey, items } = useSchedule();
+  const state = useScheduleViewState(monthCursorFromDateKey(todayDateKey));
+
+  const visibleItems = useMemo(
+    () => items.filter((item) => !state.hiddenPlanIds.has(item.planId)),
+    [items, state.hiddenPlanIds]
+  );
+  // Nhóm trên TRỌN mảng, không cắt theo `monthCursor` — xem `groupByDateKey`.
+  const days = useMemo(
+    () => groupByDateKey(visibleItems, todayDateKey),
+    [visibleItems, todayDateKey]
+  );
+  const debtItems = useMemo(
+    () => visibleItems.filter((item) => item.dateKey < todayDateKey),
+    [visibleItems, todayDateKey]
+  );
+
+  const panel = buildPanel({
+    debtOpen: state.debtOpen,
+    debtItems,
+    selectedDateKey: state.selectedDateKey,
+    todayDateKey,
+    days,
+  });
+
+  return (
+    <>
+      <MonthGrid
+        monthCursor={state.monthCursor}
+        todayDateKey={todayDateKey}
+        selectedDateKey={state.selectedDateKey}
+        days={days}
+        onSelectDay={state.selectDay}
+      />
+      {panel !== null && (
+        <DayPanel
+          title={panel.title}
+          subtitle={panel.subtitle}
+          items={panel.items}
+          expandedItemId={state.expandedItemId}
+          onToggleItem={state.toggleItem}
+          onClose={state.closePanel}
+          onReschedule={noReschedule}
+          onRemove={noRemove}
+        />
+      )}
+    </>
+  );
+}
+
+/** "Dời sang ngày…" cần `PATCH scheduledFor` (#403); "Gỡ khỏi lịch" cần luồng gỡ của #405. */
+function noReschedule(_item: ScheduleItem): void {}
+function noRemove(_item: ScheduleItem): void {}
+
+/**
+ * Nội dung panel: nhóm "Còn nợ", hoặc một ngày, hoặc không mở.
+ *
+ * Tiêu đề/phụ đề dựng ở phía chủ state vì `DayPanel` dùng chung cho cả hai ca và không được tự
+ * suy mình đang là ca nào. Câu chữ ở đây là mức tối thiểu để hợp đồng có nghĩa — **#405 sở hữu
+ * microcopy cuối** (đếm ngày quá hạn, câu cho ngày trống).
+ */
+function buildPanel(args: {
+  debtOpen: boolean;
+  debtItems: ScheduleItem[];
+  selectedDateKey: string | null;
+  todayDateKey: string;
+  days: ScheduleDay[];
+}): { title: string; subtitle: string; items: ScheduleItem[] } | null {
+  const { debtOpen, debtItems, selectedDateKey, todayDateKey, days } = args;
+
+  if (debtOpen) {
+    return { title: 'Còn nợ', subtitle: summarise(debtItems), items: debtItems };
+  }
+  if (selectedDateKey === null) return null;
+
+  const day = days.find((d) => d.dateKey === selectedDateKey);
+  return {
+    title: selectedDateKey === todayDateKey ? 'Hôm nay' : formatDayLabel(selectedDateKey),
+    subtitle: day ? summarise(day.items) : 'không có gì được xếp',
+    items: day?.items ?? [],
+  };
+}
+
+function summarise(items: readonly ScheduleItem[]): string {
+  const minutes = items.reduce((sum, item) => sum + item.estimatedMinutes, 0);
+  return `${items.length} khái niệm · ≈ ${minutes} phút`;
+}
