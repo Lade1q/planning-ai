@@ -12,10 +12,11 @@
  *   tier = weak traceback ? 0 : 1,  then `createdAt` descending
  *
  * "The traceback row represents the concept for as long as the concept is still weak; once it
- * is no longer weak, the newest measurement represents it." That is the exact inverse of the
- * predicate that produced the row in the first place — `tracebackSkipReason()` returns
- * `'mastered'` at `>= MASTERY_THRESHOLD` — so the rule cannot drift away from the engine that
- * feeds it without one of the two being changed on purpose.
+ * is no longer weak, the newest measurement represents it." That inverts the predicate that
+ * produced the row in the first place: `tracebackSkipReason()` (`concept-schedule.service.ts`)
+ * stops writing traceback rows at `>= MASTERY_THRESHOLD`, so the same bar decides both when a
+ * row is born and when it stops speaking for its concept. The two do differ on `null`, and
+ * deliberately — see `isWeakTraceback()`.
  *
  * 🪤 This is deliberately NOT `orderBy: { createdAt: 'desc' }` on the query. The existing read
  * path re-sorts its input through `sortReviewItems()` on `dedupeByConcept()`'s first line, so a
@@ -64,21 +65,19 @@ export function isWeakTraceback(row: RepresentativeRow): boolean {
  */
 export function pickRepresentative<T extends RepresentativeRow>(rows: readonly T[]): T | undefined {
   let best: T | undefined;
-  let bestTier = Number.POSITIVE_INFINITY;
-
   for (const row of rows) {
-    const tier = isWeakTraceback(row) ? 0 : 1;
-    if (best === undefined || tier < bestTier) {
-      best = row;
-      bestTier = tier;
-      continue;
-    }
-    // Same tier → the newest measurement wins. Strictly greater, so a tie on `createdAt` keeps
-    // the first row seen and the fold stays a function of the input, not of the sort's stability.
-    if (tier === bestTier && row.createdAt.getTime() > best.createdAt.getTime()) {
-      best = row;
-    }
+    if (best === undefined || beats(row, best)) best = row;
   }
-
   return best;
+}
+
+/**
+ * Does `challenger` represent the concept better than `holder`? Tier first, then recency —
+ * strictly, so a tie on `createdAt` keeps the row seen first and the fold stays a function of
+ * its input rather than of a sort's stability.
+ */
+function beats(challenger: RepresentativeRow, holder: RepresentativeRow): boolean {
+  const challengerIsWeakTraceback = isWeakTraceback(challenger);
+  if (challengerIsWeakTraceback !== isWeakTraceback(holder)) return challengerIsWeakTraceback;
+  return challenger.createdAt.getTime() > holder.createdAt.getTime();
 }

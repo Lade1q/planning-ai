@@ -5,7 +5,6 @@ import {
   formatDayLabel,
   groupByDateKey,
   monthCursorFromDateKey,
-  monthCursorPrefix,
   shiftMonthCursor,
 } from './schedule-date';
 
@@ -41,11 +40,6 @@ describe('monthCursor', () => {
 
   it('rolls the year backward past January', () => {
     expect(shiftMonthCursor({ year: 2026, month: 1 }, -1)).toEqual({ year: 2025, month: 12 });
-  });
-
-  it('pads the month so the prefix matches a dateKey', () => {
-    expect(monthCursorPrefix({ year: 2026, month: 9 })).toBe('2026-09');
-    expect('2026-09-01'.startsWith(monthCursorPrefix({ year: 2026, month: 9 }))).toBe(true);
   });
 });
 

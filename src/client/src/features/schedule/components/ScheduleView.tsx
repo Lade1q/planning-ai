@@ -4,7 +4,7 @@ import { MonthGrid } from './MonthGrid';
 import { useSchedule } from '../hooks/useSchedule';
 import { useScheduleViewState } from '../hooks/useScheduleViewState';
 import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
-import { formatDayLabel, groupByDateKey, monthCursorFromDateKey } from '../utils/schedule-date';
+import { formatDayLabel, groupByDateKey } from '../utils/schedule-date';
 
 /**
  * View "Lịch" của `/plans` (#400) — **chủ sở hữu toàn bộ state của màn** (`useScheduleViewState`).
@@ -18,7 +18,7 @@ import { formatDayLabel, groupByDateKey, monthCursorFromDateKey } from '../utils
  */
 export function ScheduleView() {
   const { todayDateKey, items } = useSchedule();
-  const state = useScheduleViewState(monthCursorFromDateKey(todayDateKey));
+  const state = useScheduleViewState(todayDateKey);
 
   const visibleItems = useMemo(
     () => items.filter((item) => !state.hiddenPlanIds.has(item.planId)),
@@ -29,18 +29,8 @@ export function ScheduleView() {
     () => groupByDateKey(visibleItems, todayDateKey),
     [visibleItems, todayDateKey]
   );
-  const debtItems = useMemo(
-    () => visibleItems.filter((item) => item.dateKey < todayDateKey),
-    [visibleItems, todayDateKey]
-  );
 
-  const panel = buildPanel({
-    debtOpen: state.debtOpen,
-    debtItems,
-    selectedDateKey: state.selectedDateKey,
-    todayDateKey,
-    days,
-  });
+  const panel = buildPanel(days, state.selectedDateKey, todayDateKey, state.debtOpen);
 
   return (
     <>
@@ -59,8 +49,8 @@ export function ScheduleView() {
           expandedItemId={state.expandedItemId}
           onToggleItem={state.toggleItem}
           onClose={state.closePanel}
-          onReschedule={noReschedule}
-          onRemove={noRemove}
+          onReschedule={noop}
+          onRemove={noop}
         />
       )}
     </>
@@ -68,8 +58,13 @@ export function ScheduleView() {
 }
 
 /** "Dời sang ngày…" cần `PATCH scheduledFor` (#403); "Gỡ khỏi lịch" cần luồng gỡ của #405. */
-function noReschedule(_item: ScheduleItem): void {}
-function noRemove(_item: ScheduleItem): void {}
+function noop(): void {}
+
+interface PanelContent {
+  title: string;
+  subtitle: string;
+  items: ScheduleItem[];
+}
 
 /**
  * Nội dung panel: nhóm "Còn nợ", hoặc một ngày, hoặc không mở.
@@ -78,29 +73,35 @@ function noRemove(_item: ScheduleItem): void {}
  * suy mình đang là ca nào. Câu chữ ở đây là mức tối thiểu để hợp đồng có nghĩa — **#405 sở hữu
  * microcopy cuối** (đếm ngày quá hạn, câu cho ngày trống).
  */
-function buildPanel(args: {
-  debtOpen: boolean;
-  debtItems: ScheduleItem[];
-  selectedDateKey: string | null;
-  todayDateKey: string;
-  days: ScheduleDay[];
-}): { title: string; subtitle: string; items: ScheduleItem[] } | null {
-  const { debtOpen, debtItems, selectedDateKey, todayDateKey, days } = args;
-
+function buildPanel(
+  days: ScheduleDay[],
+  selectedDateKey: string | null,
+  todayDateKey: string,
+  debtOpen: boolean
+): PanelContent | null {
   if (debtOpen) {
-    return { title: 'Còn nợ', subtitle: summarise(debtItems), items: debtItems };
+    // "Còn nợ" gom mọi ngày quá hạn — đọc `isOverdue` mà `groupByDateKey` đã tính, để luật "quá
+    // hạn" chỉ nằm ở một chỗ; lưới và panel không thể nói hai con số khác nhau.
+    const overdue = days.filter((day) => day.isOverdue);
+    return {
+      title: 'Còn nợ',
+      subtitle: summarise(
+        overdue.reduce((count, day) => count + day.items.length, 0),
+        overdue.reduce((minutes, day) => minutes + day.totalMinutes, 0)
+      ),
+      items: overdue.flatMap((day) => day.items),
+    };
   }
   if (selectedDateKey === null) return null;
 
   const day = days.find((d) => d.dateKey === selectedDateKey);
   return {
     title: selectedDateKey === todayDateKey ? 'Hôm nay' : formatDayLabel(selectedDateKey),
-    subtitle: day ? summarise(day.items) : 'không có gì được xếp',
+    subtitle: day ? summarise(day.items.length, day.totalMinutes) : 'không có gì được xếp',
     items: day?.items ?? [],
   };
 }
 
-function summarise(items: readonly ScheduleItem[]): string {
-  const minutes = items.reduce((sum, item) => sum + item.estimatedMinutes, 0);
-  return `${items.length} khái niệm · ≈ ${minutes} phút`;
+function summarise(conceptCount: number, minutes: number): string {
+  return `${conceptCount} khái niệm · ≈ ${minutes} phút`;
 }

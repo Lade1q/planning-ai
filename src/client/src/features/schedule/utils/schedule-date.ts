@@ -16,11 +16,6 @@ export function monthCursorFromDateKey(dateKey: string): MonthCursor {
   return { year: Number(dateKey.slice(0, 4)), month: Number(dateKey.slice(5, 7)) };
 }
 
-/** `{ 2026, 8 }` → `'2026-08'` — tiền tố để lọc theo tháng bằng `dateKey.startsWith(...)`. */
-export function monthCursorPrefix(cursor: MonthCursor): string {
-  return `${cursor.year}-${String(cursor.month).padStart(2, '0')}`;
-}
-
 /** Lùi/tiến `delta` tháng, tự cuộn năm. Không đi qua `Date` nên không có gì để lệch múi giờ. */
 export function shiftMonthCursor(cursor: MonthCursor, delta: number): MonthCursor {
   const zeroBased = cursor.year * 12 + (cursor.month - 1) + delta;

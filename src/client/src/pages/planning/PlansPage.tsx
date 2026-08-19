@@ -49,7 +49,7 @@ const VIEWS = [
   { value: 'plans', label: 'Kế hoạch' },
 ] as const;
 
-type PlansView = (typeof VIEWS)[number]['value'];
+const DEFAULT_VIEW = VIEWS[0].value;
 
 const POLL_INTERVAL_MS = 2500;
 const CLOCK_INTERVAL_MS = 1000;
@@ -57,7 +57,6 @@ const CLOCK_INTERVAL_MS = 1000;
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [hasError, setHasError] = useState(false);
-  const [view, setView] = useState<PlansView>('schedule');
   const [activeTab, setActiveTab] = useState<PlanStatus>('active');
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [planPendingDelete, setPlanPendingDelete] = useState<PlanSummary | null>(null);
@@ -205,7 +204,7 @@ export default function PlansPage() {
            `--muted` vs. gạch chân): hai control này lọc hai thứ khác nhau, và nếu chúng trông
            giống nhau thì `Lịch / Kế hoạch` sẽ bị đọc thành một bộ lọc trạng thái thứ hai. Dải tab
            trạng thái vẫn là `role="tablist"` viết tay như trước — nó đang chạy đúng, không thay. */
-        <Tabs value={view} onValueChange={(next) => setView(next as PlansView)}>
+        <Tabs defaultValue={DEFAULT_VIEW}>
           <TabsList aria-label="Chế độ xem" className="mb-2 rounded-full">
             {VIEWS.map(({ value, label }) => (
               <TabsTrigger

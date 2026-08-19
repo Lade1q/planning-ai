@@ -26,9 +26,9 @@ describe('isWeakTraceback', () => {
   });
 
   it('is false once the concept reaches the bar — the exact inverse of `tracebackSkipReason`', () => {
-    expect(
-      isWeakTraceback(row('a', '2026-08-01T00:00:00Z', 'traceback', MASTERY_THRESHOLD))
-    ).toBe(false);
+    expect(isWeakTraceback(row('a', '2026-08-01T00:00:00Z', 'traceback', MASTERY_THRESHOLD))).toBe(
+      false
+    );
   });
 
   it('treats `null` mastery as not-yet-mastered (`never_tested`), not as missing data', () => {

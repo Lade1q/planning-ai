@@ -8,7 +8,14 @@ import type { ReviewQueueItem } from '@/features/review-queue/types/review-queue
  * nhau là hỏng ngay chỗ dùng lại đó.
  */
 export type ScheduleItem = ReviewQueueItem & {
-  /** Instant engine đã chốt (`ReviewQueueItem.scheduledFor`) — đến giờ mới ra khỏi server. */
+  /**
+   * SIẾT lại `string | null` của `ReviewQueueItem`: `null` ở đó là dành cho gợi ý ảo A3, mà mục
+   * ảo không có `scheduledFor` nên không bao giờ đặt lên lịch được — endpoint này không trả mục
+   * nào như vậy. Siết ở đây để #403 và #405 khỏi phải `item.id!` ở mọi chỗ dùng.
+   */
+  id: string;
+  /** Instant engine đã chốt (cột `ReviewQueueItem.scheduledFor` trong DB) — đến giờ mới ra khỏi
+   *  server; `ReviewQueueItem` phía client chưa từng mang nó. */
   scheduledFor: string;
   /**
    * Ngày lịch VN của `scheduledFor`, do SERVER cắt (`toVnDateKey`). Client không tự suy: cả cây
