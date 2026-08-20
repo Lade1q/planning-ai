@@ -24,10 +24,35 @@ export interface DemoConcept {
   score: number | null;
   /** Các khái niệm phải hiểu TRƯỚC khái niệm này. */
   prereqs: readonly string[];
+  /**
+   * Chỗ Gấu Trúc đứng khi truy ngược dừng ở khái niệm này, lệch so với tâm node.
+   *
+   * Là DỮ LIỆU TỪNG NODE chứ không phải một hằng số dùng chung, vì không tồn
+   * tại hằng số nào dùng chung được: mỗi node có nhãn ở trên và điểm số ở dưới,
+   * ba node lại nằm sát rìa khung 640×400 — quét toàn bộ lưới vị trí thì mỗi
+   * node riêng lẻ có hàng nghìn chỗ sạch, nhưng GIAO của bảy tập đó rỗng.
+   *
+   * Bốn node giữa dùng chung `(-52, 24)`; ba node còn lại lệch đi vì hết chỗ.
+   * Con số chọn bằng cách đo bbox thật của mọi nhãn rồi tìm ô trống gần dáng
+   * đứng ưa thích nhất, chừa thêm 6 đơn vị cho thoáng.
+   *
+   * ⚠️ Dời `x`/`y` của node, đổi nhãn dài hơn, hay đổi cỡ sprite thì phải đo
+   * lại chỗ này — không có test nào bắt được, vì bề rộng chữ chỉ có thật trong
+   * trình duyệt.
+   */
+  walker: { dx: number; dy: number };
 }
 
 export const DEMO_GRAPH: Record<string, DemoConcept> = {
-  'quan-he': { id: 'quan-he', label: 'Quan hệ', x: 88, y: 214, score: 0.88, prereqs: [] },
+  'quan-he': {
+    id: 'quan-he',
+    label: 'Quan hệ',
+    x: 88,
+    y: 214,
+    score: 0.88,
+    prereqs: [],
+    walker: { dx: -46, dy: 74 },
+  },
   'khoa-chinh': {
     id: 'khoa-chinh',
     label: 'Khoá chính',
@@ -35,6 +60,7 @@ export const DEMO_GRAPH: Record<string, DemoConcept> = {
     y: 100,
     score: 0.81,
     prereqs: ['quan-he'],
+    walker: { dx: -52, dy: 24 },
   },
   'phu-thuoc-ham': {
     id: 'phu-thuoc-ham',
@@ -43,8 +69,17 @@ export const DEMO_GRAPH: Record<string, DemoConcept> = {
     y: 322,
     score: 0.42,
     prereqs: ['quan-he'],
+    walker: { dx: -52, dy: 24 },
   },
-  nf1: { id: 'nf1', label: 'Chuẩn hoá 1NF', x: 356, y: 88, score: 0.79, prereqs: ['khoa-chinh'] },
+  nf1: {
+    id: 'nf1',
+    label: 'Chuẩn hoá 1NF',
+    x: 356,
+    y: 88,
+    score: 0.79,
+    prereqs: ['khoa-chinh'],
+    walker: { dx: -52, dy: 24 },
+  },
   nf2: {
     id: 'nf2',
     label: 'Chuẩn hoá 2NF',
@@ -52,9 +87,26 @@ export const DEMO_GRAPH: Record<string, DemoConcept> = {
     y: 216,
     score: 0.68,
     prereqs: ['nf1', 'phu-thuoc-ham'],
+    walker: { dx: -52, dy: 24 },
   },
-  nf3: { id: 'nf3', label: 'Chuẩn hoá 3NF', x: 500, y: 148, score: null, prereqs: ['nf2'] },
-  bcnf: { id: 'bcnf', label: 'BCNF', x: 570, y: 306, score: null, prereqs: ['nf3'] },
+  nf3: {
+    id: 'nf3',
+    label: 'Chuẩn hoá 3NF',
+    x: 500,
+    y: 148,
+    score: null,
+    prereqs: ['nf2'],
+    walker: { dx: -90, dy: -8 },
+  },
+  bcnf: {
+    id: 'bcnf',
+    label: 'BCNF',
+    x: 570,
+    y: 306,
+    score: null,
+    prereqs: ['nf3'],
+    walker: { dx: -68, dy: 18 },
+  },
 };
 
 export const DEMO_CONCEPT_IDS = Object.keys(DEMO_GRAPH);

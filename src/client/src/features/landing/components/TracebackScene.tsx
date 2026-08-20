@@ -84,7 +84,14 @@ export function TracebackScene() {
   const index = step === null ? chain.length - 1 : Math.min(step, chain.length - 1);
   const anchor = DEMO_GRAPH[chain[index]];
   const previous = DEMO_GRAPH[chain[index > 0 ? index - 1 : index]];
-  const facing = anchor.x < previous.x ? -1 : 1;
+  /*
+   * Đứng yên thì quay MẶT VÀO node.
+   *
+   * Chỗ đậu luôn nằm bên trái node (xem `walker` trong concept-graph), nên khi
+   * đã tới nơi mà vẫn quay theo hướng vừa đi thì có lúc Gấu soi khái niệm bằng
+   * gáy. Lúc đang đi thì vẫn quay theo hướng di chuyển.
+   */
+  const facing = walk === 'walking' ? (anchor.x < previous.x ? -1 : 1) : 1;
   const pose = walk === 'walking' ? 'walk' : walk === 'arrived' ? 'surprise' : 'dig';
 
   return (
@@ -163,22 +170,22 @@ export function TracebackScene() {
               )}
 
               {/*
-                Gấu vẽ TRƯỚC các node, để nhãn node vẽ đè lên nó.
+                Gấu vẽ TRƯỚC các node, và đậu ở chỗ do từng node tự khai.
 
-                Sprite chiếm dải y [anchor.y - 66, anchor.y + 4] còn nhãn nằm ở
-                anchor.y - 26, nên nhãn luôn lọt trong thân con vật. Khi Gấu đã
-                tới nơi thì anchor CHÍNH LÀ khái niệm nền thuật toán vừa tìm ra
-                — che nhãn ở đó là che đúng thứ cả cảnh dựng lên để nói.
+                Hai thứ này chữa hai bệnh khác nhau, đừng bỏ bớt cái nào:
 
-                Đẩy Gấu lên cao hơn không cứu được: đo thật thì ở anchor.y - 60
-                nó vẫn chồng lên "Phụ thuộc hàm" [288, 305] VÀ chồng thêm cả
-                "BCNF" [272, 289]. Đổi thứ tự vẽ là cách rẻ và đúng — toạ độ giữ
-                nguyên, chữ nổi lên trên.
+                · Chỗ đậu (`walker` trong concept-graph) là thuốc chính — nó
+                  khiến Gấu KHÔNG còn nằm chồng lên nhãn nữa. Bản trước đậu ở
+                  `(±26, -34)`, và đo ra thì nó đè nhãn của CẢ BẢY node.
+                · Thứ tự vẽ là lưới an toàn. Nếu sau này ai dời node hay đặt
+                  nhãn dài hơn mà quên đo lại chỗ đậu, chữ vẫn nổi lên trên con
+                  vật — xấu, nhưng còn đọc được. Che mất tên khái niệm mà thuật
+                  toán vừa tìm ra thì cảnh này mất luôn thứ nó định nói.
               */}
               <g
                 className="lp-walker"
                 style={{
-                  transform: `translate(${anchor.x + 26 * facing}px, ${anchor.y - 34}px) scaleX(${facing})`,
+                  transform: `translate(${anchor.x + anchor.walker.dx}px, ${anchor.y + anchor.walker.dy}px) scaleX(${facing})`,
                 }}
               >
                 {walk === 'arrived' && (
