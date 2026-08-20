@@ -5,6 +5,7 @@ import {
   snoozeReviewQueueItem,
   updateReviewQueueItemStatus,
 } from '../services/scheduling.service';
+import { getReviewSchedule } from '../services/review-schedule.service';
 import {
   getReviewQueueQuerySchema,
   getTodayQueueQuerySchema,
@@ -49,6 +50,26 @@ export async function getTodayReviewQueueController(req: Request, res: Response)
   res.status(200).json({
     success: true,
     data: queue,
+  });
+}
+
+/**
+ * GET /api/v1/review-queue/schedule
+ * Toàn bộ lịch ôn của user, mỗi mục kèm ngày (#402 — màn Lịch của `/plans`).
+ *
+ * Không param, không query, không body ⇒ mã lỗi duy nhất là `401` đã có sẵn. `new Date()` đọc ở
+ * đây rồi truyền xuống, giữ service không đọc đồng hồ (R05).
+ */
+export async function getReviewScheduleController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const schedule = await getReviewSchedule(req.userId, new Date());
+
+  res.status(200).json({
+    success: true,
+    data: schedule,
   });
 }
 
