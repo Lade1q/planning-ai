@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { scheduleApi } from '../api/schedule.api';
 import type { ScheduleItem, ScheduleResponse } from '../types/schedule.types';
 
@@ -16,7 +16,8 @@ export interface UseScheduleReturn {
    * `readonly` để không ai `.sort()` tại chỗ rồi phá thứ tự hai tầng mà server vừa cam kết.
    */
   items: readonly ScheduleItem[];
-  /** Chỉ cho lần tải ĐẦU TIÊN — theo đúng khuôn `useReviewQueue`. */
+  /** Bật cho lần tải đầu tiên VÀ cho mỗi lần `reload()` — nếu không, bấm "Thử lại" xong màn
+   *  đứng yên ở trạng thái lỗi cho tới khi response về, không phản hồi gì. */
   isLoading: boolean;
   /** Chỉ bật khi lần tải đầu tiên thất bại, tức không có gì để hiện. */
   hasError: boolean;
@@ -58,11 +59,20 @@ export function useSchedule(): UseScheduleReturn {
     };
   }, []);
 
-  const reload = async (): Promise<void> => {
-    const schedule = await scheduleApi.getSchedule();
-    setData(schedule);
+  // `useCallback` vì #405 sẽ đưa `reload` vào deps của effect/callback — một identity mới mỗi
+  // render ở đó là một vòng lặp. Hôm nay vô hại, và đó chính là lúc rẻ nhất để đóng.
+  const reload = useCallback(async (): Promise<void> => {
+    // Về lại trạng thái đang-tải: đây là điều kiện để nút "Thử lại" có phản hồi thấy được.
+    setData(null);
     setHasError(false);
-  };
+    try {
+      setData(await scheduleApi.getSchedule());
+    } catch (error) {
+      console.error('Failed to reload review schedule', error);
+      setHasError(true);
+      throw error;
+    }
+  }, []);
 
   return {
     todayDateKey: data?.todayDateKey ?? null,

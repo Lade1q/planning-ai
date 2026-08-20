@@ -54,6 +54,8 @@ export function ScheduleView({ plans }: ScheduleViewProps) {
   // `todayDateKey === null` sau khi hết loading nghĩa là tải hỏng — gộp hai ca vào một nhánh để
   // không có đường nào render lưới mà thiếu mốc hôm nay.
   if (hasError || todayDateKey === null) {
+    // `reload` đã tự set `hasError` và tự log trước khi ném lại; `catch` ở đây chỉ để lời hứa
+    // không thành unhandled rejection, nên nó KHÔNG nuốt mất thông tin nào.
     return <ScheduleLoadError onRetry={() => void reload().catch(() => undefined)} />;
   }
 

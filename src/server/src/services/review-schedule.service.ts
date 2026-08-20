@@ -117,6 +117,14 @@ export async function getReviewSchedule(
       plan: { select: { id: true, name: true, deadline: true } },
       ...SCHEDULE_CONCEPT_SELECT,
     },
+    // `pickRepresentative` phá hoà bằng "giữ hàng thấy trước", nên KHÔNG có `orderBy` thì người
+    // phá hoà là Postgres — và ngày 20/08 trên DB dev đang có đúng một cụm hoà cả hai khoá sắp
+    // (2 mục traceback, cùng `priority`), tức hai mục đổi chỗ được giữa hai lần tải.
+    //
+    // ⚠️ Đây KHÔNG phải cách cài luật đại diện — cảnh báo của #400 vẫn đúng: một `orderBy` không
+    // tạo ra luật, và luật vẫn nằm trọn trong fold thuần. `orderBy` ở đây chỉ làm **tất định**
+    // phần mà luật cố ý để mở.
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
   });
 
   const plansById = new Map<string, QueuePlan>();
@@ -132,9 +140,13 @@ export async function getReviewSchedule(
   const perPlan = await Promise.all(
     [...byPlan].map(async ([planId, planRows]) => {
       const responses = await toResponseItems(planRows, plansById.get(planId)!, now);
-      // `toResponseItems` là `rows.map(...)` thuần thứ tự — không sort, không dedupe — nên hai
-      // mảng luôn cùng độ dài, cùng chỉ số. Zip theo CHỈ SỐ, không match theo `id`.
-      return planRows.map((row, index) => toScheduleItem(responses[index]!, row));
+      // Ghép theo `id`, KHÔNG theo chỉ số. Zip-theo-chỉ-số hôm nay vẫn đúng — `toResponseItems`
+      // là `rows.map(...)` thuần thứ tự — nhưng thứ giữ nó đúng khi đó chỉ là một comment, và
+      // comment không chạy trong CI. Hai kiểu vỡ rất khác nhau: lệch ĐỘ DÀI thì `id!` ném lỗi,
+      // ồn ào, sửa được; đổi THỨ TỰ thì `scheduledFor`/`dateKey` gắn nhầm mục và im lặng tuyệt
+      // đối. Tra map đóng luôn cửa thứ hai.
+      const rowsById = new Map(planRows.map((row) => [row.id, row]));
+      return responses.map((item) => toScheduleItem(item, rowsById.get(item.id!)!));
     })
   );
 
