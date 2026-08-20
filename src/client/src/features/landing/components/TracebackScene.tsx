@@ -80,7 +80,7 @@ export function TracebackScene() {
           </h2>
         </div>
         <p className="text-muted-foreground mt-3 max-w-[64ch] text-[14px] leading-[1.7]">
-          Với bất kỳ khái niệm nào, Gấu Trúc đều lần ngược qua từng mối liên hệ để tìm ra kiến thức
+          Với bất kỳ khái niệm nào, Recall AI đều lần ngược qua từng mối liên hệ để tìm ra kiến thức
           nền có thể đang là nút thắt.
         </p>
 

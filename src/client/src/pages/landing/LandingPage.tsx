@@ -64,10 +64,10 @@ export default function LandingPage() {
         <section className="px-5 py-16 sm:px-8 lg:px-14 lg:py-20">
           <div className="border-border bg-card mx-auto max-w-[1160px] rounded-xl border p-8 text-center lg:p-12">
             <h2 className="font-heading mx-auto max-w-[26ch] text-balance text-[24px] sm:text-[27px]">
-              Không chỉ hỏi bạn, Gấu Trúc biết bạn đã hiểu đến đâu.
+              Không chỉ hỏi bạn, Recall AI biết bạn đã hiểu đến đâu.
             </h2>
             <p className="text-muted-foreground mx-auto mt-4 max-w-[68ch] text-pretty text-[14px] leading-[1.8]">
-              Gấu Trúc đặt câu hỏi dựa trên tài liệu bạn học, đánh giá câu trả lời và cập nhật lộ
+              Recall AI đặt câu hỏi dựa trên tài liệu bạn học, đánh giá câu trả lời và cập nhật lộ
               trình theo những gì bạn thể hiện, để bạn không chỉ hoàn thành bài học, mà biết mình
               thực sự đã hiểu bản chất chưa.
             </p>

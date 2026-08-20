@@ -44,7 +44,7 @@ export function VerdictScene() {
 
           <p className="text-muted-foreground text-[15px] leading-[1.8]">
             Có thể bạn đang suy nghĩ, trả lời chưa hết, hoặc đơn giản là cần thêm một chút thời
-            gian. Hầu hết các hệ thống ghi nhận đó là điểm thấp. Gấu Trúc không vội đánh dấu sai,
+            gian. Hầu hết các hệ thống ghi nhận đó là điểm thấp. Recall AI không vội đánh dấu sai,
             chỉ ghi nhận rằng mình{' '}
             <strong className="text-foreground">chưa đủ căn cứ để kết luận</strong> bạn đã hiểu hay
             chưa. Khái niệm sẽ được đưa về trạng thái chưa kiểm tra để bạn có thể thử lại sau.

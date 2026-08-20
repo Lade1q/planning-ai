@@ -86,8 +86,8 @@ export function ExtractScene() {
           </h2>
         </div>
         <p className="text-muted-foreground mt-3 max-w-[66ch] text-[14px] leading-[1.7]">
-          Gấu Trúc tách tài liệu thành từng khái niệm, rồi nối chúng lại theo mối quan hệ phụ thuộc,
-          để bạn biết cần hiểu gì trước và học gì sau.
+          Recall AI tách tài liệu thành từng khái niệm, rồi nối chúng lại theo mối quan hệ phụ
+          thuộc, để bạn biết cần hiểu gì trước và học gì sau.
         </p>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-14">
