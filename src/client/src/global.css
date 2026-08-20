@@ -637,32 +637,55 @@ kbd,
   nội suy giữa hai trạng thái. Ngoại lệ duy nhất là cú chạy qua lại ở hero —
   nó không mang trạng thái nào nên keyframe là chỗ đúng của nó.
 */
+/*
+  Quãng chạy đo bằng `left` theo phần trăm, KHÔNG bằng `translateX(100vw - …)`.
+
+  Bản trước tính quãng chạy theo bề rộng KHUNG NHÌN, trong khi đường chạy nằm
+  trong `<main class="max-w-[1280px]">`. Trên màn rộng hơn 1280px hai con số đó
+  rời nhau, và Gấu chạy quá đà đúng bằng phần chênh:
+
+    · từ ~1434px  — Gấu lọt ra ngoài cột nội dung
+    · từ ~1700px  — Gấu vượt hẳn mép phải khung nhìn và ĐẺ RA THANH CUỘN NGANG
+                    (đo ở 1920px: mép phải Gấu ở 2030px, tràn 110px, và không
+                    tổ tiên nào có `overflow-x` để chặn)
+
+  Phần trăm của `left` lấy mốc là khối chứa — chính là đường chạy — nên quãng
+  chạy khớp cột nội dung ở MỌI bề rộng, không cần biết khung nhìn rộng bao
+  nhiêu. `--lp-runner-w` do `LandingHero` truyền xuống, ngay cạnh chỗ đặt cỡ
+  sprite, để hai con số không thể lệch nhau.
+*/
 .lp-runner {
+  left: 0;
   transform-origin: center bottom;
   animation: lp-run 24s linear infinite;
 }
 
 @keyframes lp-run {
   0% {
-    transform: translateX(0) scaleX(1);
+    left: 0;
+    transform: scaleX(1);
   }
 
   45%,
   47% {
-    transform: translateX(calc(100vw - 26rem)) scaleX(1);
+    left: calc(100% - var(--lp-runner-w, 150px));
+    transform: scaleX(1);
   }
 
   50% {
-    transform: translateX(calc(100vw - 26rem)) scaleX(-1);
+    left: calc(100% - var(--lp-runner-w, 150px));
+    transform: scaleX(-1);
   }
 
   95%,
   97% {
-    transform: translateX(0) scaleX(-1);
+    left: 0;
+    transform: scaleX(-1);
   }
 
   100% {
-    transform: translateX(0) scaleX(1);
+    left: 0;
+    transform: scaleX(1);
   }
 }
 
