@@ -41,7 +41,7 @@ const TABS = [
 ] as const satisfies readonly { status: PlanStatus; label: string }[];
 
 /**
- * Hai view của `/plans` (#400). `schedule` là mặc định: lịch trả lời được câu "hôm nay học gì",
+ * Hai view của `/plans` (#400). Lịch đứng trước vì nó là view trả lời được câu "hôm nay học gì",
  * còn lưới thẻ chỉ trả lời "mình đã tạo được bao nhiêu kế hoạch".
  */
 const VIEWS = [
@@ -49,7 +49,15 @@ const VIEWS = [
   { value: 'plans', label: 'Kế hoạch' },
 ] as const;
 
-const DEFAULT_VIEW = VIEWS[0].value;
+/**
+ * Lịch là view mặc định **của epic**, nhưng chưa phải hôm nay: lưới tháng còn rỗng cho tới #404,
+ * nên mở thẳng vào Lịch là màn trắng. Đo LIVE bắt được một hồi quy thật từ đó — tài khoản chỉ có
+ * kế hoạch `draft` mất luôn bằng chứng duy nhất trên màn rằng họ CÓ kế hoạch (badge
+ * `Chưa xác nhận 1` trên dải tab trạng thái), vì cả dải tab lẫn lưới thẻ đều nằm trong view kia.
+ *
+ * ⇒ Mặc định là `plans` cho tới khi lưới có nội dung. **Bật lại `schedule` là AC của #404.**
+ */
+const DEFAULT_VIEW: (typeof VIEWS)[number]['value'] = 'plans';
 
 const POLL_INTERVAL_MS = 2500;
 const CLOCK_INTERVAL_MS = 1000;
@@ -218,7 +226,7 @@ export default function PlansPage() {
           </TabsList>
 
           <TabsContent value="schedule">
-            <ScheduleView />
+            <ScheduleView plans={plans ?? []} />
           </TabsContent>
 
           <TabsContent value="plans">

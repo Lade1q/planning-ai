@@ -3,8 +3,22 @@ import { DayPanel, type DayPanelScope } from './DayPanel';
 import { MonthGrid } from './MonthGrid';
 import { useSchedule } from '../hooks/useSchedule';
 import { useScheduleViewState } from '../hooks/useScheduleViewState';
+import type { PlanSummary } from '@/features/study-planner/types/concept';
 import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
 import { groupByDateKey } from '../utils/schedule-date';
+
+export interface ScheduleViewProps {
+  /**
+   * Danh sách kế hoạch của `GET /plans`, do `PlansPage` đã tải sẵn — truyền xuống chứ KHÔNG gọi
+   * lại: #400 cấm nhân đôi metadata kế hoạch vào payload lịch, và gọi `/plans` lần thứ hai trên
+   * cùng một trang chính là cùng một lỗi ở dạng khác.
+   *
+   * Hai người tiêu thụ đều thuộc #405: bộ lọc "hiện kế hoạch nào trên lịch" (phải liệt kê **cả
+   * kế hoạch 0 mục** — chúng chưa có buổi ôn nào, không phải bị ẩn, nên không suy ra được từ
+   * `items`) và banner đếm kế hoạch `draft`. Giai đoạn 0 chưa dùng tới.
+   */
+  plans: readonly PlanSummary[];
+}
 
 /**
  * View "Lịch" của `/plans` (#400) — **chủ sở hữu toàn bộ state của màn** (`useScheduleViewState`).
@@ -18,7 +32,7 @@ import { groupByDateKey } from '../utils/schedule-date';
  *
  * Ở Giai đoạn 0 (#401) hai con còn rỗng — cả hai cắm vào đúng chữ ký đã có sẵn ở đây.
  */
-export function ScheduleView() {
+export function ScheduleView({ plans: _plans }: ScheduleViewProps) {
   const { todayDateKey, items } = useSchedule();
   const state = useScheduleViewState(todayDateKey);
 

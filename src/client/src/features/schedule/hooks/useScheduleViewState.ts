@@ -4,9 +4,11 @@ import { monthCursorFromDateKey, shiftMonthCursor, type MonthCursor } from '../u
 export interface ScheduleViewState {
   /** Tháng lưới đang hiện. KHÔNG cắt dữ liệu — chỉ quyết định 42 ô nào được vẽ (#404). */
   monthCursor: MonthCursor;
-  /** Nhảy thẳng tới một tháng (nút "Hôm nay" của #404). */
-  setMonthCursor: (cursor: MonthCursor) => void;
-  /** Lùi/tiến `delta` tháng (‹ ›). Cuộn năm nằm trong `shiftMonthCursor`, không ở nơi gọi. */
+  /**
+   * Lùi/tiến `delta` tháng — cả ‹ › lẫn nút "Hôm nay" (`MonthGrid` có sẵn `monthCursor` và
+   * `todayDateKey` nên tự tính được delta). Cuộn năm nằm trong `shiftMonthCursor`, không ở nơi
+   * gọi: chữ ký nào để hai nơi cùng biết cách cộng tháng là chữ ký sẽ lệch.
+   */
   shiftMonth: (delta: number) => void;
   /** Ngày đang chọn, `null` khi panel đóng. */
   selectedDateKey: string | null;
@@ -14,10 +16,14 @@ export interface ScheduleViewState {
   debtOpen: boolean;
   /**
    * Kế hoạch bị TẮT trên lịch (#405). Lưu id bị **ẩn** chứ không phải id được hiện: kế hoạch mới
-   * tạo phải tự có mặt trên lịch, không phải chờ ai đó tick nó vào.
+   * tạo phải tự có mặt trên lịch, không phải chờ ai đó tick nó vào. Chỉ ĐỌC — sửa bằng hai hàm
+   * dưới đây.
    */
-  hiddenPlanIds: Set<string>;
-  setHiddenPlanIds: (planIds: Set<string>) => void;
+  hiddenPlanIds: ReadonlySet<string>;
+  /** Bật/tắt một kế hoạch trên lịch. */
+  togglePlan: (planId: string) => void;
+  /** "Chọn tất cả" / "Bỏ chọn tất cả" — đặt lại trọn danh sách id bị ẩn. */
+  setHiddenPlans: (planIds: readonly string[]) => void;
   /** `id` mục đang mở rộng tại chỗ trong panel, `null` khi không mục nào mở. */
   expandedItemId: string | null;
   selectDay: (dateKey: string) => void;
@@ -50,11 +56,28 @@ export function useScheduleViewState(todayDateKey: string): ScheduleViewState {
   );
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [debtOpen, setDebtOpen] = useState(false);
-  const [hiddenPlanIds, setHiddenPlanIds] = useState<Set<string>>(() => new Set());
+  const [hiddenPlanIds, setHiddenPlanIds] = useState<ReadonlySet<string>>(() => new Set());
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   const shiftMonth = useCallback((delta: number) => {
     setMonthCursor((prev) => shiftMonthCursor(prev, delta));
+  }, []);
+
+  // CỐ Ý không xuất `setHiddenPlanIds` ra ngoài. Một `Set` + setter thay-cả-cụm là cái bẫy dễ
+  // dính nhất trong React: `prev.add(id); setHiddenPlanIds(prev)` giữ nguyên identity nên React
+  // bail out, không re-render — bộ lọc bấm không ăn mà không có lỗi nào. Hai hàm dưới luôn dựng
+  // `Set` MỚI, nên nơi gọi không có đường viết sai.
+  const togglePlan = useCallback((planId: string) => {
+    setHiddenPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(planId)) next.delete(planId);
+      else next.add(planId);
+      return next;
+    });
+  }, []);
+
+  const setHiddenPlans = useCallback((planIds: readonly string[]) => {
+    setHiddenPlanIds(new Set(planIds));
   }, []);
 
   const selectDay = useCallback((dateKey: string) => {
@@ -81,12 +104,12 @@ export function useScheduleViewState(todayDateKey: string): ScheduleViewState {
 
   return {
     monthCursor,
-    setMonthCursor,
     shiftMonth,
     selectedDateKey,
     debtOpen,
     hiddenPlanIds,
-    setHiddenPlanIds,
+    togglePlan,
+    setHiddenPlans,
     expandedItemId,
     selectDay,
     openDebt,

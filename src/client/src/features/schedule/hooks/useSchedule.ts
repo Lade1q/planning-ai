@@ -4,8 +4,13 @@ import type { ScheduleItem } from '../types/schedule.types';
 export interface UseScheduleReturn {
   /** Hôm nay theo giờ VN, do server chốt (fixture: `2026-08-18`). */
   todayDateKey: string;
-  /** Mảng phẳng, đã sắp sẵn từ server. Bộ lọc kế hoạch (#405) chạy trên chính mảng này. */
-  items: ScheduleItem[];
+  /**
+   * Mảng phẳng, đã sắp sẵn từ server. Bộ lọc kế hoạch (#405) chạy trên chính mảng này.
+   *
+   * `readonly` vì hôm nay đây là **chính object fixture cấp module**: một `.sort()` tại chỗ sẽ
+   * hỏng fixture cho cả phiên chạy, và không có lỗi biên dịch nào.
+   */
+  items: readonly ScheduleItem[];
 }
 
 /**

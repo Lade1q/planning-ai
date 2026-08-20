@@ -27,8 +27,12 @@ export function shiftMonthCursor(cursor: MonthCursor, delta: number): MonthCurso
  * TRỌN mảng chứ không trên tháng đang xem: nhờ thế đổi lưới-tháng sang dải-ngày về sau chỉ là
  * đổi một hàm render, không đụng dữ liệu.
  *
- * Thứ tự mục trong ngày giữ nguyên thứ tự server trả (truy ngược trước, rồi `priority` giảm
+ * Thứ tự mục TRONG một ngày giữ nguyên thứ tự server trả (truy ngược trước, rồi `priority` giảm
  * dần) — luật hai tầng đó đã có ở server, cài lại ở client là mở đường cho hai nơi lệch nhau.
+ *
+ * Thứ tự CÁC NGÀY thì sắp lại tại đây thay vì thừa hưởng thứ tự mảng: "Còn nợ" của #405 đọc
+ * `days.filter(isOverdue)` và hiện đúng thứ tự này, nên nó phải là một tính chất của hàm chứ
+ * không phải một điều may mắn của response. So chuỗi ISO là so ngày.
  */
 export function groupByDateKey(
   items: readonly ScheduleItem[],
@@ -41,14 +45,16 @@ export function groupByDateKey(
     else byDate.set(item.dateKey, [item]);
   }
 
-  return [...byDate].map(([dateKey, dayItems]) => ({
-    dateKey,
-    items: dayItems,
-    totalMinutes: dayItems.reduce((sum, item) => sum + item.estimatedMinutes, 0),
-    // So chuỗi ISO là so ngày. Suy tại chỗ đọc thay vì nhận cờ từ server: một cờ tính sẵn sẽ sai
-    // khi tab mở qua nửa đêm, còn `todayDateKey` thì refetch là đúng lại.
-    isOverdue: dateKey < todayDateKey,
-  }));
+  return [...byDate]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([dateKey, dayItems]) => ({
+      dateKey,
+      items: dayItems,
+      totalMinutes: dayItems.reduce((sum, item) => sum + item.estimatedMinutes, 0),
+      // So chuỗi ISO là so ngày. Suy tại chỗ đọc thay vì nhận cờ từ server: một cờ tính sẵn sẽ sai
+      // khi tab mở qua nửa đêm, còn `todayDateKey` thì refetch là đúng lại.
+      isOverdue: dateKey < todayDateKey,
+    }));
 }
 
 const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] as const;

@@ -76,6 +76,22 @@ describe('groupByDateKey', () => {
     expect(days.map((d) => d.isOverdue)).toEqual([true, false]);
   });
 
+  // Ghim HƯỚNG của phép so, không chỉ ghim "hôm nay thì không quá hạn": đổi `<` thành `!==` cũng
+  // qua được ca trên. Hệ quả thật nếu để lọt — `resolvePanel` gom thanh "Còn nợ" bằng
+  // `days.filter(d => d.isOverdue)`, nên một phép so sai hướng làm nó hốt cả lịch tương lai.
+  it('does not call a future day overdue', () => {
+    const days = groupByDateKey([item('2026-08-25', 'A', 1)], today);
+    expect(days[0].isOverdue).toBe(false);
+  });
+
+  it('sorts days by dateKey even when the input arrives out of order', () => {
+    const days = groupByDateKey(
+      [item('2026-08-25', 'C', 1), item('2026-08-12', 'A', 1), item('2026-08-19', 'B', 1)],
+      today
+    );
+    expect(days.map((d) => d.dateKey)).toEqual(['2026-08-12', '2026-08-19', '2026-08-25']);
+  });
+
   it('groups the real payload into 3 quá hạn · 2 hôm nay · 5 sắp tới', () => {
     const days = groupByDateKey(SCHEDULE_SAMPLE.items, SCHEDULE_SAMPLE.todayDateKey);
     const count = (predicate: (dateKey: string) => boolean): number =>

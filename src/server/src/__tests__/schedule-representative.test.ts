@@ -35,6 +35,15 @@ describe('isWeakTraceback', () => {
     expect(isWeakTraceback(row('a', '2026-08-01T00:00:00Z', 'traceback', null))).toBe(true);
   });
 
+  // Ghim rằng ngưỡng ĐỌC từ `MASTERY_THRESHOLD`, không phải một `0.6` gõ cứng trùng giá trị. Gõ
+  // cứng thì hôm nay vẫn xanh; ngày mốc dời (0.6 -> 0.7) màn Lịch lặng lẽ giữ mốc cũ và CI không
+  // hé một chữ. Cặp ca này — ngay dưới mốc là "yếu", đúng mốc là "không" — kẹp cả hai hướng.
+  it('reads the bar from MASTERY_THRESHOLD instead of a copy of its value', () => {
+    expect(
+      isWeakTraceback(row('a', '2026-08-01T00:00:00Z', 'traceback', MASTERY_THRESHOLD - 0.01))
+    ).toBe(true);
+  });
+
   it('is false for a non-traceback row however weak the concept is', () => {
     expect(isWeakTraceback(row('a', '2026-08-01T00:00:00Z', 'spaced_repetition', 0))).toBe(false);
   });
@@ -94,6 +103,18 @@ describe('pickRepresentative', () => {
       row('newer', '2026-08-09T00:00:00Z', 'spaced_repetition', 0.2),
     ];
     expect(pickRepresentative([...rows].reverse())?.id).toBe('traceback');
+  });
+
+  // Hoà `createdAt` gần như không tới được với dữ liệu thật, nhưng module này là hợp đồng cho 4
+  // nhánh: `>` đổi thành `>=` phải làm test đỏ, không được lặng lẽ đảo người thắng.
+  it('keeps the row seen first when two rows of the same tier tie on createdAt', () => {
+    const at = '2026-08-05T00:00:00Z';
+    const rows = [
+      row('first', at, 'spaced_repetition', 0.5),
+      row('second', at, 'spaced_repetition', 0.5),
+    ];
+    expect(pickRepresentative(rows)?.id).toBe('first');
+    expect(pickRepresentative([...rows].reverse())?.id).toBe('second');
   });
 
   it('returns undefined for an empty cluster', () => {
