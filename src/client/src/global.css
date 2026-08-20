@@ -626,6 +626,106 @@ kbd,
 }
 
 /*
+  LANDING (#388) — hoạt hoạ của trang công khai `/`.
+
+  Tiền tố `lp-` cho MỌI lớp ở đây: `.node` đã bị khối mockup phía dưới chiếm,
+  và landing cũng có node đồ thị của riêng nó.
+
+  Phần lớn kịch bản (Gấu khiêng khái niệm, quăng cạnh, đi dọc đường truy
+  ngược) do React điều khiển trong `features/landing`, không phải bằng
+  @keyframes: nhịp nằm trong hàm thuần test được, còn CSS ở đây chỉ lo phần
+  nội suy giữa hai trạng thái. Ngoại lệ duy nhất là cú chạy qua lại ở hero —
+  nó không mang trạng thái nào nên keyframe là chỗ đúng của nó.
+*/
+.lp-runner {
+  transform-origin: center bottom;
+  animation: lp-run 24s linear infinite;
+}
+
+@keyframes lp-run {
+  0% {
+    transform: translateX(0) scaleX(1);
+  }
+
+  45%,
+  47% {
+    transform: translateX(calc(100vw - 26rem)) scaleX(1);
+  }
+
+  50% {
+    transform: translateX(calc(100vw - 26rem)) scaleX(-1);
+  }
+
+  95%,
+  97% {
+    transform: translateX(0) scaleX(-1);
+  }
+
+  100% {
+    transform: translateX(0) scaleX(1);
+  }
+}
+
+/* Gấu đi giữa trang tài liệu và đồ thị ở cảnh 1. React đổi `left`, CSS lo
+   phần trượt — 900ms ngắn hơn nhịp 1000ms một chút để có một nhịp dừng rất
+   ngắn ở mỗi đầu, đọc ra thành "đặt xuống rồi mới quay đi".
+
+   `bottom` chuyển chậm hơn và đi kèm nhịp nảy nhẹ: đó là lúc nó trèo thang,
+   mà trèo thì phải thấy được từng nấc chứ không trượt thẳng lên như thang máy. */
+.lp-carrier {
+  transition:
+    left 1800ms var(--ease-standard),
+    bottom 1700ms steps(9, end);
+}
+
+/* Thang dựng lên / cất đi cùng nhịp với hồi nối cạnh. */
+.lp-ladder {
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+/* Mỗi chặng của đường truy ngược ở cảnh 2. 520ms so với 560ms giữa hai bước:
+   khoảng hở đó là thứ làm nó đọc ra thành "bước qua từng nút" thay vì trôi
+   một mạch tới đích. */
+.lp-walker {
+  transition: transform 520ms cubic-bezier(0.4, 0, 0.55, 1);
+}
+
+.lp-node {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.lp-node:hover {
+  transform: scale(1.16);
+}
+
+.lp-node:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Xung chạy dọc cạnh đang thuộc đường truy ngược. */
+.lp-edge-live {
+  stroke-dasharray: 7 6;
+  animation: lp-flow 700ms linear infinite;
+}
+
+@keyframes lp-flow {
+  to {
+    stroke-dashoffset: -13;
+  }
+}
+
+.lp-chip {
+  transition:
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-spring);
+}
+
+/*
   ACCESSIBILITY — prefers-reduced-motion
   Tắt tất cả animation khi user yêu cầu, bao gồm reveal-on-scroll.
 */
@@ -634,7 +734,14 @@ kbd,
   .is-remediating,
   .reveal-on-scroll,
   .concept-node,
-  .react-flow__node {
+  .react-flow__node,
+  .lp-runner,
+  .lp-carrier,
+  .lp-ladder,
+  .lp-walker,
+  .lp-node,
+  .lp-edge-live,
+  .lp-chip {
     animation: none !important;
     transition: none !important;
   }
