@@ -5,7 +5,7 @@ import {
   CARRY_SLOTS,
   CHIP_H,
   CHIP_W,
-  SEQUENCE_LENGTH,
+  FROZEN_TICK,
   carryEdgeGeometry,
   carryFrame,
 } from '../data/carry-sequence';
@@ -56,7 +56,7 @@ const LADDER_H = CLIMB_TO + RAIL_OVERHANG;
  * kéo giãn còn chip thì định vị bằng pixel CSS, và chúng không bao giờ khớp.
  */
 export function ExtractScene() {
-  const tick = useSceneTicker(TICK_MS, SEQUENCE_LENGTH - 1);
+  const tick = useSceneTicker(TICK_MS, FROZEN_TICK);
   const legTick = useSceneTicker(STEP_MS, 0);
   const frame = carryFrame(tick);
   /*

@@ -179,8 +179,23 @@ export function carryFrame(tick: number): CarryFrame {
   };
 }
 
-/** Trạng thái cuối — dùng khi người dùng bật giảm chuyển động. */
-export const FINAL_FRAME: CarryFrame = carryFrame(SEQUENCE_LENGTH - 1);
+/**
+ * Nhịp để ĐÓNG BĂNG cảnh khi người dùng bật giảm chuyển động.
+ *
+ * Không phải nhịp cuối vòng lặp. Nhịp cuối là nhịp DỌN SẠCH sân khấu để chuyến
+ * sau có chỗ bắt đầu — đóng băng ở đó thì người xem nhận một đồ thị trống
+ * không. Nhịp áp cuối mới là lúc đồ thị đã dựng xong, thang đã cất, Gấu đang
+ * ăn mừng: đó là bức ảnh đáng để đứng yên.
+ *
+ * Hằng số này từng tên là `FINAL_FRAME` và trỏ vào `SEQUENCE_LENGTH - 1`. Cái
+ * tên nghe như "khung kết thúc" nên không ai buồn kiểm nó chứa gì, và
+ * `ExtractScene` đã đóng băng đúng vào khung rỗng suốt một thời gian. Tên bây
+ * giờ nói ĐÚNG công dụng, để lần sau không ai với tay nhầm.
+ */
+export const FROZEN_TICK = SEQUENCE_LENGTH - 2;
+
+/** Khung tương ứng với `FROZEN_TICK` — export để test soi được nội dung của nó. */
+export const FROZEN_FRAME: CarryFrame = carryFrame(FROZEN_TICK);
 
 interface Point {
   x: number;

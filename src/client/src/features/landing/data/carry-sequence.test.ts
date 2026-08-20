@@ -5,7 +5,8 @@ import {
   CARRY_SLOTS,
   CHIP_H,
   CHIP_W,
-  FINAL_FRAME,
+  FROZEN_FRAME,
+  FROZEN_TICK,
   SEQUENCE_LENGTH,
   carryEdgeGeometry,
   carryFrame,
@@ -118,12 +119,34 @@ describe('kịch bản khiêng khái niệm', () => {
    * một khái niệm ngay mép phải. Hai khẳng định dưới đây khoá lại đúng chỗ đó.
    */
   it('nhịp cuối đưa Gấu VỀ phía tài liệu, tay không, sân khấu dọn sạch', () => {
-    expect(FINAL_FRAME).toMatchObject({
+    expect(carryFrame(SEQUENCE_LENGTH - 1)).toMatchObject({
       side: 'doc',
       carrying: null,
       placed: 0,
       edges: 0,
     });
+  });
+
+  /**
+   * Hồi quy: nhịp để ĐÓNG BĂNG không được là nhịp cuối vòng lặp.
+   *
+   * Hằng số này từng tên `FINAL_FRAME` và trỏ vào `SEQUENCE_LENGTH - 1`. Nghe
+   * như "khung kết thúc" nên không ai kiểm nó chứa gì — mà nó chứa đúng cái
+   * sân khấu vừa dọn sạch ở ca trên. Hai khẳng định dưới đây khoá cả nội dung
+   * lẫn việc nó KHÁC nhịp cuối.
+   */
+  it('khung đóng băng còn nguyên nội dung: đồ thị dựng xong, thang đã cất', () => {
+    expect(FROZEN_FRAME).toMatchObject({
+      placed: CARRY_LABELS.length,
+      edges: CARRY_EDGES.length,
+      onLadder: false,
+      ladderUp: false,
+      pose: 'cheer',
+    });
+  });
+
+  it('khung đóng băng không phải nhịp dọn sạch', () => {
+    expect(FROZEN_TICK).not.toBe(SEQUENCE_LENGTH - 1);
   });
 
   it('không bao giờ ôm sẵn khái niệm khi đang đứng ở phía đồ thị', () => {

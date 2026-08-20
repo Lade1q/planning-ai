@@ -1,10 +1,19 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PandaSprite } from './PandaSprite';
-import { useSceneTicker } from '../hooks/useSceneTicker';
+import { usePrefersReducedMotion, useSceneTicker } from '../hooks/useSceneTicker';
 
 /** Nhịp bước: đổi khung chân. Cũng là nhịp để chớp mắt thưa hơn. */
 const STEP_MS = 400;
+/**
+ * Cỡ Gấu trên đường chạy.
+ *
+ * Đi xuống CSS thành biến thay vì chép tay sang `global.css`: quãng chạy phải
+ * trừ đúng bề rộng con vật thì nó mới dừng sát mép phải mà không lố. Hai con
+ * số ở hai tệp thì sớm muộn cũng lệch.
+ */
+const RUNNER_SIZE = 150;
 
 /**
  * Hero: tiêu đề ở giữa, bên dưới là một dải đất rộng cả trang mà Gấu Trúc
@@ -14,11 +23,18 @@ const STEP_MS = 400;
  * đọc ra thành chuyển động, nên nhân vật đứng yên chớp mắt cho gọn.
  */
 export function LandingHero() {
+  const reduced = usePrefersReducedMotion();
   const tick = useSceneTicker(STEP_MS, 0);
-  /* Đổi giữa HAI khung bước, không phải đứng-rồi-bước: chân phải đá so le
-     thì mới ra dáng đi. */
-  const pose = tick % 2 === 0 ? 'walk' : 'walk2';
-  const blinking = tick % 14 === 0;
+  /*
+   * Đứng yên thì phải đứng cho tử tế — tư thế idle và MỞ MẮT.
+   *
+   * Bản trước để hai giá trị này suy ra từ `tick`, mà giảm chuyển động thì
+   * `tick` đứng ở 0, và `0 % 14 === 0` đúng — nên Gấu nhắm tịt mắt vĩnh viễn
+   * (chớp mắt là vẽ ĐÈ đốm sáng bằng màu lông đen, không phải làm mờ). Nó còn
+   * chết cứng giữa một sải chân. Cả hai thứ đó phải nói thẳng ra, không suy.
+   */
+  const pose = reduced ? 'idle' : tick % 2 === 0 ? 'walk' : 'walk2';
+  const blinking = !reduced && tick % 14 === 0;
 
   return (
     <section className="flex flex-col items-center gap-5 px-5 pt-16 text-center sm:px-8 sm:pt-20">
@@ -51,8 +67,11 @@ export function LandingHero() {
           chân đã đủ neo nhân vật, mà một đường ngang hết bề rộng thì đọc thành
           vạch chia section chứ không phải mặt đất. */}
       <div className="relative mt-8 hidden h-[190px] w-full md:block">
-        <div className="lp-runner absolute bottom-0 left-6">
-          <PandaSprite pose={pose} size={150} blinking={blinking} shadow />
+        <div
+          className="lp-runner absolute bottom-0"
+          style={{ '--lp-runner-w': `${RUNNER_SIZE}px` } as CSSProperties}
+        >
+          <PandaSprite pose={pose} size={RUNNER_SIZE} blinking={blinking} shadow />
         </div>
       </div>
 
