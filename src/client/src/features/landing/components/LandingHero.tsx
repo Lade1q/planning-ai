@@ -25,12 +25,20 @@ export function LandingHero() {
       <span className="text-remediate font-mono text-[11px] uppercase tracking-[0.14em]">
         Chào, mình là Gấu Trúc
       </span>
+      {/*
+        Nguyên văn theo PNG, không diễn đạt lại. Bảng định đoạt của issue #388
+        có bảy hàng, sáu hàng là BỎ/SỬA vì PNG hứa năng lực không có thật —
+        hero là hàng DUY NHẤT ghi "giữ nguyên văn", vì nó không hứa sai gì cả.
+
+        Cụm cuối tô màu đúng chỗ PNG nhấn, nhưng bằng token `--remediate` của
+        hệ thống chứ không lấy màu của PNG: nhấn cùng CHỖ, không cùng MÀU.
+      */}
       <h1 className="font-heading max-w-[20ch] text-balance text-[34px] sm:text-[44px] lg:text-[54px]">
-        Mình đào tới chỗ kiến thức của bạn bị hổng.
+        Ôn tập thông minh, truy ngược tận gốc <span className="text-remediate">kiến thức yếu</span>
       </h1>
       <p className="text-muted-foreground max-w-[56ch] text-pretty text-[15px] leading-[1.7] sm:text-[17px]">
-        Bạn sai một câu, mình lần ngược đồ thị khái niệm để tìm ra khái niệm nền thật sự gây ra lỗi
-        đó — rồi xếp nó lên trước trong lịch ôn của bạn.
+        Giải pháp AI toàn diện giúp sinh viên Việt Nam tối ưu hóa lộ trình học tập và lấp đầy lỗ
+        hổng kiến thức.
       </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
         <Button asChild size="lg">

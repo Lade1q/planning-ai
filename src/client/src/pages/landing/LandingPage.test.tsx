@@ -12,12 +12,27 @@ import LandingPage from './LandingPage';
  * không type-check hay lint nào báo trước.
  */
 describe('LandingPage (#388)', () => {
-  it('mở bằng đúng một h1', () => {
+  /**
+   * Hero là hàng DUY NHẤT trong bảng định đoạt của #388 ghi "giữ nguyên văn".
+   * Ghim cả câu, không ghim một mẩu: bản trước đã bị thay bằng một câu khác
+   * hẳn mà không có gì báo, vì không test nào canh chỗ này.
+   */
+  it('mở bằng đúng một h1, nguyên văn theo bảng định đoạt', () => {
     render(<LandingPage />);
 
     const h1 = screen.getAllByRole('heading', { level: 1 });
     expect(h1).toHaveLength(1);
-    expect(h1[0]).toHaveTextContent('Mình đào tới chỗ kiến thức của bạn bị hổng.');
+    expect(h1[0]).toHaveTextContent('Ôn tập thông minh, truy ngược tận gốc kiến thức yếu');
+  });
+
+  it('sub hero cũng nguyên văn', () => {
+    render(<LandingPage />);
+
+    expect(
+      screen.getByText(
+        /Giải pháp AI toàn diện giúp sinh viên Việt Nam tối ưu hóa lộ trình học tập và lấp đầy lỗ hổng kiến thức\./
+      )
+    ).toBeInTheDocument();
   });
 
   it('CTA chính trỏ /register, "Đăng nhập" trỏ /login', () => {

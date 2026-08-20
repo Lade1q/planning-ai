@@ -89,7 +89,7 @@ describe('Route "/" (RootRoute, #388)', () => {
     const { container } = render(<App />);
 
     // Không thấy nội dung landing lẫn dashboard.
-    expect(screen.queryByText(/Mình đào tới chỗ kiến thức/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ôn tập thông minh, truy ngược tận gốc/)).not.toBeInTheDocument();
     expect(screen.queryByText('DASHBOARD-STUB')).not.toBeInTheDocument();
     // Không bị điều hướng đi đâu cả trong lúc chờ xác định phiên.
     expect(window.location.pathname).toBe('/');
@@ -120,7 +120,7 @@ describe('Route "/" (RootRoute, #388)', () => {
     render(<App />);
 
     expect(await screen.findByText('DASHBOARD-STUB')).toBeInTheDocument();
-    expect(screen.queryByText(/Mình đào tới chỗ kiến thức/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ôn tập thông minh, truy ngược tận gốc/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Bắt đầu miễn phí' })).not.toBeInTheDocument();
     // <Navigate replace> phải thật sự đổi URL trình duyệt, không chỉ đổi nội dung render.
     expect(window.location.pathname).toBe('/dashboard');
@@ -133,7 +133,7 @@ describe('Route "/" (RootRoute, #388)', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Mình đào tới chỗ kiến thức của bạn bị hổng.',
+        name: 'Ôn tập thông minh, truy ngược tận gốc kiến thức yếu',
       })
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Bắt đầu miễn phí' })).toHaveAttribute(
