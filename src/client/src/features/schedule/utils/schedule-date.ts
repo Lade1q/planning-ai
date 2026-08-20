@@ -16,10 +16,27 @@ export function monthCursorFromDateKey(dateKey: string): MonthCursor {
   return { year: Number(dateKey.slice(0, 4)), month: Number(dateKey.slice(5, 7)) };
 }
 
+/** Số thứ tự tháng tuyệt đối. Là chỗ DUY NHẤT biết "một năm có 12 tháng" trong feature này. */
+function toMonthIndex(cursor: MonthCursor): number {
+  return cursor.year * 12 + (cursor.month - 1);
+}
+
 /** Lùi/tiến `delta` tháng, tự cuộn năm. Không đi qua `Date` nên không có gì để lệch múi giờ. */
 export function shiftMonthCursor(cursor: MonthCursor, delta: number): MonthCursor {
-  const zeroBased = cursor.year * 12 + (cursor.month - 1) + delta;
+  const zeroBased = toMonthIndex(cursor) + delta;
   return { year: Math.floor(zeroBased / 12), month: (zeroBased % 12) + 1 };
+}
+
+/**
+ * Cần cộng bao nhiêu tháng vào `from` để tới `to` (âm nếu `to` ở trước).
+ *
+ * Nghịch đảo của `shiftMonthCursor`, và tồn tại để số học tháng **không có nơi thứ hai biết**:
+ * `MonthGrid` chỉ nhận `onShiftMonth(delta)`, nên nút "Hôm nay" của #404 viết là
+ * `onShiftMonth(monthsBetween(monthCursor, monthCursorFromDateKey(todayDateKey)))` — chứ đừng tự
+ * gõ `year * 12 + month` ở đó.
+ */
+export function monthsBetween(from: MonthCursor, to: MonthCursor): number {
+  return toMonthIndex(to) - toMonthIndex(from);
 }
 
 /**

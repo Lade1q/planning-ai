@@ -5,6 +5,7 @@ import {
   formatDayLabel,
   groupByDateKey,
   monthCursorFromDateKey,
+  monthsBetween,
   shiftMonthCursor,
 } from './schedule-date';
 
@@ -40,6 +41,20 @@ describe('monthCursor', () => {
 
   it('rolls the year backward past January', () => {
     expect(shiftMonthCursor({ year: 2026, month: 1 }, -1)).toEqual({ year: 2025, month: 12 });
+  });
+
+  // Ghim `monthsBetween` là nghịch đảo của `shiftMonthCursor` — hai hàm này là lý do số học tháng
+  // chỉ có một chỗ biết, nên chúng phải khớp nhau chứ không chỉ "mỗi hàm tự đúng".
+  it('measures the delta that shiftMonthCursor would need, across a year boundary', () => {
+    const from = { year: 2025, month: 11 };
+    const to = { year: 2026, month: 3 };
+    expect(monthsBetween(from, to)).toBe(4);
+    expect(monthsBetween(to, from)).toBe(-4);
+    expect(shiftMonthCursor(from, monthsBetween(from, to))).toEqual(to);
+  });
+
+  it('is zero for the same month', () => {
+    expect(monthsBetween({ year: 2026, month: 8 }, { year: 2026, month: 8 })).toBe(0);
   });
 });
 
