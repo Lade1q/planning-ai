@@ -4,7 +4,11 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
+    "predev": "prisma migrate status",
     "dev": "ts-node-dev --respawn --files src/server.ts",
+    "dev:nocheck": "ts-node-dev --respawn --files src/server.ts",
+    "db:sync": "prisma migrate deploy && prisma generate",
+    "db:status": "prisma migrate status",
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "lint": "eslint .",
