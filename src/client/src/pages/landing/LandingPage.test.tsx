@@ -38,7 +38,7 @@ describe('LandingPage (#388)', () => {
   it('CTA chính trỏ /register, "Đăng nhập" trỏ /login', () => {
     render(<LandingPage />);
 
-    for (const name of ['Bắt đầu miễn phí', 'Tạo kế hoạch đầu tiên']) {
+    for (const name of ['Bắt đầu miễn phí', 'Nhận lộ trình ngay', 'Nhận lộ trình học ngay']) {
       for (const link of screen.getAllByRole('link', { name })) {
         expect(link).toHaveAttribute('href', '/register');
       }

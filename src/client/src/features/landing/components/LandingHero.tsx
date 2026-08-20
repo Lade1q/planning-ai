@@ -42,11 +42,9 @@ export function LandingHero() {
       </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
         <Button asChild size="lg">
-          <Link to="/register">Tạo kế hoạch đầu tiên</Link>
+          <Link to="/register">Nhận lộ trình ngay</Link>
         </Button>
-        <span className="text-muted-foreground font-mono text-[12px]">
-          Miễn phí · không cần thẻ
-        </span>
+        <span className="text-muted-foreground font-mono text-[12px]">Hoàn toàn miễn phí</span>
       </div>
 
       {/* Đường chạy — chỉ trên màn rộng. Không kẻ vạch mặt đất: bóng đổ dưới

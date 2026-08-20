@@ -76,12 +76,12 @@ export function TracebackScene() {
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <span className="text-remediate font-mono text-[11px] tracking-[0.1em]">CẢNH 2</span>
           <h2 className="font-heading text-[22px] sm:text-[27px]">
-            Bấm một khái niệm — xem mình đào tới gốc
+            Chọn một khái niệm, tìm xem mình đang vướng ở đâu.
           </h2>
         </div>
         <p className="text-muted-foreground mt-3 max-w-[64ch] text-[14px] leading-[1.7]">
-          Bấm bất kỳ nút nào. Thuật toán truy ngược chạy thật, và Gấu Trúc đi từng chặng tới đúng
-          khái niệm nền mà nó tìm ra.
+          Với bất kỳ khái niệm nào, Gấu Trúc đều lần ngược qua từng mối liên hệ để tìm ra kiến thức
+          nền có thể đang là nút thắt.
         </p>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-stretch">

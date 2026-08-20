@@ -23,7 +23,7 @@ export function VerdictScene() {
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <span className="text-remediate font-mono text-[11px] tracking-[0.1em]">CẢNH 3</span>
           <h2 className="font-heading text-[22px] sm:text-[27px]">
-            Trả lời dở dang không bị chấm là sai
+            Trả lời dở dang không đồng nghĩa bạn sai.
           </h2>
         </div>
 
@@ -43,10 +43,11 @@ export function VerdictScene() {
           </div>
 
           <p className="text-muted-foreground text-[15px] leading-[1.8]">
-            Bạn bị ngắt giữa chừng, hoặc trả lời được một nửa. Hầu hết hệ thống ghi đó là điểm thấp
-            — và điểm thấp ấy theo bạn mãi. Recall AI dừng lại và nói thẳng rằng nó{' '}
-            <strong className="text-foreground">chưa đủ căn cứ để kết luận</strong>. Khái niệm quay
-            lại hàng đợi ở trạng thái chưa kiểm.
+            Có thể bạn đang suy nghĩ, trả lời chưa hết, hoặc đơn giản là cần thêm một chút thời
+            gian. Hầu hết các hệ thống ghi nhận đó là điểm thấp. Gấu Trúc không vội đánh dấu sai,
+            chỉ ghi nhận rằng mình{' '}
+            <strong className="text-foreground">chưa đủ căn cứ để kết luận</strong> bạn đã hiểu hay
+            chưa. Khái niệm sẽ được đưa về trạng thái chưa kiểm tra để bạn có thể thử lại sau.
           </p>
 
           <div className="border-border bg-card flex flex-col gap-4 rounded-xl border p-6">

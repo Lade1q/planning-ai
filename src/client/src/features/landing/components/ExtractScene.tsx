@@ -82,12 +82,12 @@ export function ExtractScene() {
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <span className="text-remediate font-mono text-[11px] tracking-[0.1em]">CẢNH 1</span>
           <h2 className="font-heading text-[22px] sm:text-[27px]">
-            Chương của bạn tự tách ra thành khái niệm
+            Từ tài liệu thành lộ trình học tập
           </h2>
         </div>
         <p className="text-muted-foreground mt-3 max-w-[66ch] text-[14px] leading-[1.7]">
-          Gấu Trúc đọc trang tài liệu, nhặt từng khái niệm ra và khiêng sang đặt vào đúng chỗ của nó
-          trong đồ thị — rồi mới nối các quan hệ phụ thuộc.
+          Gấu Trúc tách tài liệu thành từng khái niệm, rồi nối chúng lại theo mối quan hệ phụ thuộc,
+          để bạn biết cần hiểu gì trước và học gì sau.
         </p>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-14">

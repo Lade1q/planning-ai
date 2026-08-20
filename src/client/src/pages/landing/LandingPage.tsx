@@ -48,46 +48,39 @@ export default function LandingPage() {
         <VerdictScene />
         <SceneRule />
 
+        {/*
+          MỘT ý, không phải hai cột.
+
+          Chỗ này từng tách "AI làm" / "Code làm" thành hai ô để nói rõ ranh
+          giới: mô hình chỉ chứng kiến, còn chấm điểm và truy ngược là việc của
+          thuật toán. Review #410 gộp lại, lý do là người học không quan tâm
+          bên trong ai làm phần nào — họ quan tâm cuối cùng mình có hiểu bài
+          không.
+
+          Ranh giới ấy không mất, chỉ thôi làm tiêu đề: nó vẫn hiện ra ở cảnh 2,
+          dòng "Không mô hình ngôn ngữ nào tham gia bước này" nằm ngay dưới kết
+          quả truy ngược — và ở đó nó là bằng chứng, chứ không phải khẩu hiệu.
+        */}
         <section className="px-5 py-16 sm:px-8 lg:px-14 lg:py-20">
-          <div className="border-border bg-card mx-auto grid max-w-[1160px] gap-8 rounded-xl border p-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-12 lg:p-10">
-            <div>
-              <h2 className="font-heading text-[24px] sm:text-[27px]">
-                AI chứng kiến.
-                <br />
-                Code bảo đảm.
-              </h2>
-              <p className="text-muted-foreground mt-3 text-[13.5px] leading-[1.7]">
-                Ranh giới này là thứ khiến kết quả lặp lại được — và là thứ một chatbot không có.
-              </p>
-            </div>
-            <div className="border-border grid overflow-hidden rounded-lg border sm:grid-cols-2">
-              <div className="border-border flex flex-col gap-2 border-b p-5 sm:border-b-0 sm:border-r">
-                <span className="text-ai-accent font-mono text-[10px] uppercase tracking-[0.1em]">
-                  AI làm
-                </span>
-                <span className="text-[13px] leading-[1.6]">
-                  Đặt câu hỏi từ tài liệu của bạn. Ghi nhận điều nó chứng kiến trong câu trả lời.
-                </span>
-              </div>
-              <div className="flex flex-col gap-2 p-5">
-                <span className="text-remediate font-mono text-[10px] uppercase tracking-[0.1em]">
-                  Code làm
-                </span>
-                <span className="text-[13px] leading-[1.6]">
-                  Chấm điểm. Truy ngược. Xếp lịch. Quyết định khi nào chưa đủ để kết luận.
-                </span>
-              </div>
-            </div>
+          <div className="border-border bg-card mx-auto max-w-[1160px] rounded-xl border p-8 text-center lg:p-12">
+            <h2 className="font-heading mx-auto max-w-[26ch] text-balance text-[24px] sm:text-[27px]">
+              Không chỉ hỏi bạn, Gấu Trúc biết bạn đã hiểu đến đâu.
+            </h2>
+            <p className="text-muted-foreground mx-auto mt-4 max-w-[68ch] text-pretty text-[14px] leading-[1.8]">
+              Gấu Trúc đặt câu hỏi dựa trên tài liệu bạn học, đánh giá câu trả lời và cập nhật lộ
+              trình theo những gì bạn thể hiện, để bạn không chỉ hoàn thành bài học, mà biết mình
+              thực sự đã hiểu bản chất chưa.
+            </p>
           </div>
         </section>
 
         <section className="flex flex-col items-center gap-5 px-5 pb-20 pt-10 text-center sm:px-8">
           <PandaSprite pose="cheer" size={128} shadow />
           <h2 className="font-heading max-w-[22ch] text-balance text-[26px] sm:text-[32px]">
-            Tải lên một chương. Mình dựng đồ thị cho bạn.
+            Tải lên tài liệu, nhận lộ trình học của riêng bạn.
           </h2>
           <Button asChild size="lg">
-            <Link to="/register">Tạo kế hoạch đầu tiên</Link>
+            <Link to="/register">Nhận lộ trình học ngay</Link>
           </Button>
         </section>
       </main>
