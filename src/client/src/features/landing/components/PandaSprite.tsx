@@ -1,4 +1,10 @@
-import { spriteRects, blinkRects, SPRITE_GRID, type PandaPose } from '../data/panda-sprites';
+import {
+  spriteRects,
+  blinkRects,
+  SHADOW_FILL,
+  SPRITE_GRID,
+  type PandaPose,
+} from '../data/panda-sprites';
 
 const CELL = 10;
 const SIDE = SPRITE_GRID * CELL;
@@ -46,7 +52,7 @@ export function PandaSprite({
           y={SIDE + 4}
           width={SIDE - CELL * 4}
           height={5}
-          fill="oklch(0 0 0)"
+          fill={SHADOW_FILL}
           opacity={0.3}
         />
       )}

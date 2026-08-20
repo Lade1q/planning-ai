@@ -21,6 +21,17 @@ const PALETTE: Record<PixelKey, string> = {
   O: 'var(--remediate)', // khăn quàng
 };
 
+/**
+ * Màu bóng đổ dưới chân — lấy thẳng tông lông đen của chính con vật.
+ *
+ * Design system cấm đen/trắng tuyệt đối, và bảng màu ở trên đã theo luật đó.
+ * Nhưng cái bóng lại nằm NGOÀI bảng, nên nó lọt qua với `oklch(0 0 0)` — đúng
+ * pixel duy nhất của cả hệ sprite phá luật, ngay bên dưới một chú thích khoe
+ * rằng cả bốn màu đều tuân thủ. Dùng lại `PALETTE.K` thì bóng không thể lệch
+ * tông khỏi con vật, và luật chỉ còn phải giữ ở đúng một chỗ.
+ */
+export const SHADOW_FILL = PALETTE.K;
+
 export type PandaPose =
   | 'idle'
   | 'walk'
