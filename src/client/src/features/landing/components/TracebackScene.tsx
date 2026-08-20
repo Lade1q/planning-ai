@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PandaSprite } from './PandaSprite';
+import { usePrefersReducedMotion } from '../hooks/useSceneTicker';
 import {
   DEMO_CONCEPT_IDS,
   DEMO_GRAPH,
@@ -30,6 +31,7 @@ type WalkState = 'walking' | 'arrived' | 'digging';
  * lần qua chúng, rồi ngạc nhiên khi tới nền, rồi mới đào.
  */
 export function TracebackScene() {
+  const reduced = usePrefersReducedMotion();
   const [probed, setProbed] = useState('nf3');
   const [step, setStep] = useState<number | null>(null);
   const [walk, setWalk] = useState<WalkState>('digging');
@@ -45,8 +47,23 @@ export function TracebackScene() {
   const goTo = useCallback(
     (id: string) => {
       clearTimers();
-      const { chain } = traceback(id);
       setProbed(id);
+
+      /*
+       * Giảm chuyển động: nhảy THẲNG tới kết quả, không dựng chuỗi hẹn giờ.
+       *
+       * Bản trước chỉ tắt transition bằng CSS, còn `setTimeout` vẫn đẩy Gấu
+       * qua từng node suốt ~2s — nên với người bật cài đặt này con vật vẫn
+       * nhảy chỗ, chỉ là giật cục thay vì trượt. Tắt hoạt ảnh nghĩa là bỏ cả
+       * quãng thời gian, không phải bỏ mỗi phần nội suy.
+       */
+      if (reduced) {
+        setStep(null);
+        setWalk('digging');
+        return;
+      }
+
+      const { chain } = traceback(id);
       setStep(0);
       setWalk('walking');
 
@@ -59,7 +76,7 @@ export function TracebackScene() {
       timers.current.push(window.setTimeout(() => setWalk('arrived'), at + STEP_MS));
       timers.current.push(window.setTimeout(() => setWalk('digging'), at + STEP_MS + SURPRISE_MS));
     },
-    [clearTimers]
+    [clearTimers, reduced]
   );
 
   const result = traceback(probed);
@@ -145,6 +162,36 @@ export function TracebackScene() {
                 })
               )}
 
+              {/*
+                Gấu vẽ TRƯỚC các node, để nhãn node vẽ đè lên nó.
+
+                Sprite chiếm dải y [anchor.y - 66, anchor.y + 4] còn nhãn nằm ở
+                anchor.y - 26, nên nhãn luôn lọt trong thân con vật. Khi Gấu đã
+                tới nơi thì anchor CHÍNH LÀ khái niệm nền thuật toán vừa tìm ra
+                — che nhãn ở đó là che đúng thứ cả cảnh dựng lên để nói.
+
+                Đẩy Gấu lên cao hơn không cứu được: đo thật thì ở anchor.y - 60
+                nó vẫn chồng lên "Phụ thuộc hàm" [288, 305] VÀ chồng thêm cả
+                "BCNF" [272, 289]. Đổi thứ tự vẽ là cách rẻ và đúng — toạ độ giữ
+                nguyên, chữ nổi lên trên.
+              */}
+              <g
+                className="lp-walker"
+                style={{
+                  transform: `translate(${anchor.x + 26 * facing}px, ${anchor.y - 34}px) scaleX(${facing})`,
+                }}
+              >
+                {walk === 'arrived' && (
+                  <>
+                    <rect x={-3} y={-54} width={6} height={15} fill="var(--remediate)" />
+                    <rect x={-3} y={-35} width={6} height={6} fill="var(--remediate)" />
+                  </>
+                )}
+                <foreignObject x={-32} y={-32} width={64} height={70}>
+                  <PandaSprite pose={pose} size={64} shadow />
+                </foreignObject>
+              </g>
+
               {DEMO_CONCEPT_IDS.map((id) => {
                 const c = DEMO_GRAPH[id];
                 const isProbed = id === probed;
@@ -201,23 +248,6 @@ export function TracebackScene() {
                   </g>
                 );
               })}
-
-              <g
-                className="lp-walker"
-                style={{
-                  transform: `translate(${anchor.x + 26 * facing}px, ${anchor.y - 34}px) scaleX(${facing})`,
-                }}
-              >
-                {walk === 'arrived' && (
-                  <>
-                    <rect x={-3} y={-54} width={6} height={15} fill="var(--remediate)" />
-                    <rect x={-3} y={-35} width={6} height={6} fill="var(--remediate)" />
-                  </>
-                )}
-                <foreignObject x={-32} y={-32} width={64} height={70}>
-                  <PandaSprite pose={pose} size={64} shadow />
-                </foreignObject>
-              </g>
             </svg>
 
             <div className="border-border text-muted-foreground mt-2 flex flex-wrap gap-4 border-t pt-3 text-[11.5px]">
