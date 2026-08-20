@@ -249,11 +249,14 @@ của object. **Dùng chung DB không làm file đi theo.**
 Hệ quả cụ thể: sau khi chuyển, máy khác mở một plan có tài liệu sẽ thấy hàng `documents` tồn tại
 nhưng đọc file thất bại — đúng triệu chứng issue #411.
 
-Ba cách xử, chưa chốt cách nào:
+**Đã chốt 20/08: đưa object lên Cloudflare R2** — xem EPIC #413 và 6 sub-issue của nó (#414–#419).
+Hướng này khớp với thiết kế sẵn có: `src/services/storage.service.ts` đã là một tầng trừu tượng,
+và stub `R2StorageService` nằm sẵn trong đó từ Sprint 4.
 
-1. **Chép tay thư mục `uploads/`** cho từng người (13MB, zip qua Drive). Rẻ nhất, đủ cho demo; đổi
-   lại phải chép lại mỗi lần có người upload file mới.
-2. **Demo trên đúng một máy.** Không tốn công gì, đổi lại chỉ máy đó mở được tài liệu.
-3. **Đưa `uploads/` lên Supabase Storage.** Đúng về lâu dài, và chỗ sửa gọn vì
-   `src/services/storage.service.ts` vốn đã là một tầng trừu tượng — nhưng đây là việc code thật,
-   không phải cấu hình.
+Hạn mức miễn phí của R2 (10 GB-month · 1 triệu Class A · 10 triệu Class B, egress miễn phí) thừa xa
+mức đang dùng, nhưng Cloudflare **bắt gắn thẻ tín dụng** mới bật được R2. Nếu vướng chỗ đó thì
+Supabase Storage đỡ được ngay mà không phải viết lại: cả hai đều nói S3 API, nên #416 cố ý đặt tên
+`S3StorageService` và chọn nhà cung cấp bằng biến môi trường.
+
+Cho tới khi #413 xong, hai cách chống cháy: **chép tay thư mục `uploads/`** cho từng người (13MB,
+zip qua Drive — phải chép lại mỗi lần có người upload file mới), hoặc **demo trên đúng một máy**.
