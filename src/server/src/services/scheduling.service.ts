@@ -403,7 +403,7 @@ export function sortReviewItems<T extends { reason: ReviewReason; priority: numb
  * `name` ride along on every item (#232). Both GET endpoints already load the plan row, so
  * carrying it through costs no extra query — see the ràng buộc in #232.
  */
-interface QueuePlan {
+export interface QueuePlan {
   id: string;
   name: string;
   deadline: Date | null;
@@ -567,7 +567,7 @@ async function buildFallbackItems(plan: QueuePlan, now: Date): Promise<ReviewQue
   );
 }
 
-interface QueueRow {
+export interface QueueRow {
   id: string;
   conceptId: string;
   reason: ReviewReason;
@@ -587,7 +587,7 @@ const QUEUE_ROW_INCLUDE = {
  * whole page. Shared by the queue itself and by the "đã gỡ khỏi lịch" group so the two lists
  * can never drift into different shapes — #225 draws them with the same row component.
  */
-async function toResponseItems(
+export async function toResponseItems(
   rows: readonly QueueRow[],
   plan: QueuePlan,
   now: Date

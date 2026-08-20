@@ -1,0 +1,86 @@
+import type { ScheduleDay, ScheduleItem } from '../types/schedule.types';
+
+/**
+ * Tháng đang xem. Cả màn Lịch làm việc trên **chuỗi ngày `YYYY-MM-DD`** chứ không trên `Date`:
+ * `dateKey` do server cắt theo giờ VN, mọi phép so sánh ngày ở client vì thế chỉ là so chuỗi.
+ * `Date` chỉ xuất hiện đúng một chỗ — dựng 42 ô của lưới (#404) — và ở đó dùng `Date.UTC`.
+ */
+export interface MonthCursor {
+  year: number;
+  /** **1–12**, không phải chỉ số 0-based của `Date`. */
+  month: number;
+}
+
+/** `'2026-08-18'` → `{ year: 2026, month: 8 }`. */
+export function monthCursorFromDateKey(dateKey: string): MonthCursor {
+  return { year: Number(dateKey.slice(0, 4)), month: Number(dateKey.slice(5, 7)) };
+}
+
+/** Số thứ tự tháng tuyệt đối. Là chỗ DUY NHẤT biết "một năm có 12 tháng" trong feature này. */
+function toMonthIndex(cursor: MonthCursor): number {
+  return cursor.year * 12 + (cursor.month - 1);
+}
+
+/** Lùi/tiến `delta` tháng, tự cuộn năm. Không đi qua `Date` nên không có gì để lệch múi giờ. */
+export function shiftMonthCursor(cursor: MonthCursor, delta: number): MonthCursor {
+  const zeroBased = toMonthIndex(cursor) + delta;
+  return { year: Math.floor(zeroBased / 12), month: (zeroBased % 12) + 1 };
+}
+
+/**
+ * Cần cộng bao nhiêu tháng vào `from` để tới `to` (âm nếu `to` ở trước).
+ *
+ * Nghịch đảo của `shiftMonthCursor`, và tồn tại để số học tháng **không có nơi thứ hai biết**:
+ * `MonthGrid` chỉ nhận `onShiftMonth(delta)`, nên nút "Hôm nay" của #404 viết là
+ * `onShiftMonth(monthsBetween(monthCursor, monthCursorFromDateKey(todayDateKey)))` — chứ đừng tự
+ * gõ `year * 12 + month` ở đó.
+ */
+export function monthsBetween(from: MonthCursor, to: MonthCursor): number {
+  return toMonthIndex(to) - toMonthIndex(from);
+}
+
+/**
+ * Nhóm phẳng → theo ngày. Lưới KHÔNG tự nhóm (hợp đồng `MonthGrid`), và việc nhóm chạy trên
+ * TRỌN mảng chứ không trên tháng đang xem: nhờ thế đổi lưới-tháng sang dải-ngày về sau chỉ là
+ * đổi một hàm render, không đụng dữ liệu.
+ *
+ * Thứ tự mục TRONG một ngày giữ nguyên thứ tự server trả (truy ngược trước, rồi `priority` giảm
+ * dần) — luật hai tầng đó đã có ở server, cài lại ở client là mở đường cho hai nơi lệch nhau.
+ *
+ * Thứ tự CÁC NGÀY thì sắp lại tại đây thay vì thừa hưởng thứ tự mảng: "Còn nợ" của #405 đọc
+ * `days.filter(isOverdue)` và hiện đúng thứ tự này, nên nó phải là một tính chất của hàm chứ
+ * không phải một điều may mắn của response. So chuỗi ISO là so ngày.
+ */
+export function groupByDateKey(
+  items: readonly ScheduleItem[],
+  todayDateKey: string
+): ScheduleDay[] {
+  const byDate = new Map<string, ScheduleItem[]>();
+  for (const item of items) {
+    const bucket = byDate.get(item.dateKey);
+    if (bucket) bucket.push(item);
+    else byDate.set(item.dateKey, [item]);
+  }
+
+  return [...byDate]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([dateKey, dayItems]) => ({
+      dateKey,
+      items: dayItems,
+      totalMinutes: dayItems.reduce((sum, item) => sum + item.estimatedMinutes, 0),
+      // So chuỗi ISO là so ngày. Suy tại chỗ đọc thay vì nhận cờ từ server: một cờ tính sẵn sẽ sai
+      // khi tab mở qua nửa đêm, còn `todayDateKey` thì refetch là đúng lại.
+      isOverdue: dateKey < todayDateKey,
+    }));
+}
+
+const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] as const;
+
+/**
+ * `'2026-08-20'` → `'T5, 20/08'`. Dựng `Date` ở UTC từ một `dateKey` đã là ngày VN: chỉ để lấy
+ * thứ trong tuần, không có phép đổi múi giờ nào ở đây (đổi lần nữa là lệch một ngày).
+ */
+export function formatDayLabel(dateKey: string): string {
+  const weekday = WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
+  return `${weekday}, ${dateKey.slice(8)}/${dateKey.slice(5, 7)}`;
+}

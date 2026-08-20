@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScheduleView } from '@/features/schedule/components/ScheduleView';
 import { PlanCard } from '@/features/study-planner/components/PlanCard';
 import { planApi } from '@/features/study-planner/api/plan.api';
 import { PlanStatus, PlanSummary } from '@/features/study-planner/types/concept';
@@ -37,6 +39,25 @@ const TABS = [
   { status: 'draft', label: 'Chưa xác nhận' },
   { status: 'archived', label: 'Đã lưu trữ' },
 ] as const satisfies readonly { status: PlanStatus; label: string }[];
+
+/**
+ * Hai view của `/plans` (#400). Lịch đứng trước vì nó là view trả lời được câu "hôm nay học gì",
+ * còn lưới thẻ chỉ trả lời "mình đã tạo được bao nhiêu kế hoạch".
+ */
+const VIEWS = [
+  { value: 'schedule', label: 'Lịch' },
+  { value: 'plans', label: 'Kế hoạch' },
+] as const;
+
+/**
+ * Lịch là view mặc định **của epic**, nhưng chưa phải hôm nay: lưới tháng còn rỗng cho tới #404,
+ * nên mở thẳng vào Lịch là màn trắng. Đo LIVE bắt được một hồi quy thật từ đó — tài khoản chỉ có
+ * kế hoạch `draft` mất luôn bằng chứng duy nhất trên màn rằng họ CÓ kế hoạch (badge
+ * `Chưa xác nhận 1` trên dải tab trạng thái), vì cả dải tab lẫn lưới thẻ đều nằm trong view kia.
+ *
+ * ⇒ Mặc định là `plans` cho tới khi lưới có nội dung. **Bật lại `schedule` là AC của #404.**
+ */
+const DEFAULT_VIEW: (typeof VIEWS)[number]['value'] = 'plans';
 
 const POLL_INTERVAL_MS = 2500;
 const CLOCK_INTERVAL_MS = 1000;
@@ -187,56 +208,78 @@ export default function PlansPage() {
       ) : hasNoPlansAtAll ? (
         <EmptyState />
       ) : (
-        <>
-          <div
-            role="tablist"
-            aria-label="Lọc theo trạng thái"
-            className="border-border mb-5.5 flex items-center gap-1.5 border-b"
-          >
-            {TABS.map(({ status, label }) => (
-              <button
-                key={status}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === status}
-                onClick={() => setActiveTab(status)}
-                className={`-mb-px cursor-pointer border-b-2 px-3 py-2.5 text-[13.5px] font-medium transition-colors ${
-                  activeTab === status
-                    ? 'border-foreground text-foreground'
-                    : 'text-muted-foreground hover:text-foreground border-transparent'
-                }`}
+        /* Bộ chuyển view — CỐ Ý nhìn khác dải tab trạng thái ngay bên dưới (pill trên nền
+           `--muted` vs. gạch chân): hai control này lọc hai thứ khác nhau, và nếu chúng trông
+           giống nhau thì `Lịch / Kế hoạch` sẽ bị đọc thành một bộ lọc trạng thái thứ hai. Dải tab
+           trạng thái vẫn là `role="tablist"` viết tay như trước — nó đang chạy đúng, không thay. */
+        <Tabs defaultValue={DEFAULT_VIEW}>
+          <TabsList aria-label="Chế độ xem" className="mb-2 rounded-full">
+            {VIEWS.map(({ value, label }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="px-4.5 rounded-full text-[12.5px] font-semibold"
               >
                 {label}
-                <span className="text-muted-foreground ml-1.5 font-mono text-[11px]">
-                  {counts[status]}
-                </span>
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
+          </TabsList>
 
-          {visiblePlans.length === 0 ? (
-            <p className="text-muted-foreground py-10 text-center text-sm">
-              {activeTab === 'active' && 'Chưa có kế hoạch nào đang hoạt động.'}
-              {activeTab === 'draft' && 'Không có kế hoạch nào đang chờ xác nhận.'}
-              {activeTab === 'archived' && 'Chưa lưu trữ kế hoạch nào.'}
-            </p>
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-4">
-              {visiblePlans.map((plan) => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  now={now}
-                  isBusy={busyPlanId === plan.id}
-                  onArchive={handleArchive}
-                  onRestore={handleRestore}
-                  onReanalyze={handleReanalyze}
-                  onDelete={setPlanPendingDelete}
-                />
+          <TabsContent value="schedule">
+            <ScheduleView plans={plans ?? []} />
+          </TabsContent>
+
+          <TabsContent value="plans">
+            <div
+              role="tablist"
+              aria-label="Lọc theo trạng thái"
+              className="border-border mb-5.5 flex items-center gap-1.5 border-b"
+            >
+              {TABS.map(({ status, label }) => (
+                <button
+                  key={status}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === status}
+                  onClick={() => setActiveTab(status)}
+                  className={`-mb-px cursor-pointer border-b-2 px-3 py-2.5 text-[13.5px] font-medium transition-colors ${
+                    activeTab === status
+                      ? 'border-foreground text-foreground'
+                      : 'text-muted-foreground hover:text-foreground border-transparent'
+                  }`}
+                >
+                  {label}
+                  <span className="text-muted-foreground ml-1.5 font-mono text-[11px]">
+                    {counts[status]}
+                  </span>
+                </button>
               ))}
             </div>
-          )}
-        </>
+
+            {visiblePlans.length === 0 ? (
+              <p className="text-muted-foreground py-10 text-center text-sm">
+                {activeTab === 'active' && 'Chưa có kế hoạch nào đang hoạt động.'}
+                {activeTab === 'draft' && 'Không có kế hoạch nào đang chờ xác nhận.'}
+                {activeTab === 'archived' && 'Chưa lưu trữ kế hoạch nào.'}
+              </p>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-4">
+                {visiblePlans.map((plan) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    now={now}
+                    isBusy={busyPlanId === plan.id}
+                    onArchive={handleArchive}
+                    onRestore={handleRestore}
+                    onReanalyze={handleReanalyze}
+                    onDelete={setPlanPendingDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
 
       {/* Deleting cascades through interview history, focus sessions and the review queue,
