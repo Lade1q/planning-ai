@@ -1,4 +1,5 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { FocusSession } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { buildInactivePlanMessage } from './scheduling.service';
@@ -15,6 +16,50 @@ const STALE_SESSION_HOURS = 8;
 function toConceptIds(value: Prisma.JsonValue): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === 'string');
+}
+
+/**
+ * Ràng buộc duy nhất `focus_sessions_one_running_per_user` (partial index, migration
+ * 20260821181401) - Prisma báo lỗi này qua `P2002` giống mọi unique constraint khác, dù
+ * constraint không nằm trong `schema.prisma`. Cùng cách kiểm tra với `interview.service.ts`.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+/**
+ * So khớp phiên `running` đã có với plan/conceptIds vừa gửi lên - dùng chung cho nhánh
+ * pre-check (tìm thấy trước khi tạo) và nhánh #328 (P2002 - phiên do request khác thắng race
+ * tạo ra, refetch được sau khi INSERT của request này bị partial unique index chặn).
+ */
+function toExistingSessionResponse(
+  existing: FocusSession,
+  planId: string | null,
+  conceptIds: string[]
+): CreateFocusSessionResponse {
+  const existingConceptIds = toConceptIds(existing.conceptIds);
+  const isSameRequest =
+    existing.planId === planId &&
+    existingConceptIds.length === conceptIds.length &&
+    existingConceptIds.every((id) => conceptIds.includes(id));
+
+  if (!isSameRequest) {
+    throw new AppError(
+      'You already have a focus session running for a different plan or concept. End it before starting a new one.',
+      409,
+      'SESSION_ALREADY_RUNNING'
+    );
+  }
+
+  return {
+    created: false,
+    id: existing.id,
+    planId: existing.planId,
+    conceptIds: existingConceptIds,
+    status: existing.status,
+    strictMode: existing.strictMode,
+    startedAt: existing.startedAt,
+  };
 }
 
 /**
@@ -70,10 +115,12 @@ async function reapStaleSessions(userId: string): Promise<void> {
  *   sai lệch dữ liệu học tập. 409 buộc client phải xử lý tường minh thay vì tự tưởng đã vào
  *   đúng phiên.
  *
- * ⚠️ Đây là chốt app-level, không phải ràng buộc DB — thu hẹp race window (double-click, mở
- * tab trước-sau) chứ không đóng tuyệt đối cho N request thực sự đồng thời trong cùng một
- * round-trip DB. Đóng hoàn toàn cần partial unique index (`WHERE status = 'running'`), việc
- * Prisma không khai báo được qua schema — xem thảo luận trong issue #328.
+ * Chốt app-level ở trên (`findFirst`) thu hẹp race window (double-click, mở tab trước-sau)
+ * nhưng không đóng tuyệt đối cho N request thực sự đồng thời trong cùng một round-trip DB —
+ * `reap → findFirst → create` không nằm trong transaction. Lớp đó do partial unique index
+ * `focus_sessions_one_running_per_user` (`WHERE status = 'running'`, migration 20260821181401)
+ * chặn ở DB; request thua cuộc ăn `P2002`, refetch phiên thắng và xử lý y hệt nhánh existing
+ * (xem `toExistingSessionResponse` và nhánh catch bên dưới) — xem thảo luận trong issue #328.
  */
 export async function createFocusSession(
   userId: string,
@@ -107,44 +154,41 @@ export async function createFocusSession(
   // vĩnh viễn việc bắt đầu phiên mới.
   await reapStaleSessions(userId);
 
+  const planId = input.planId ?? null;
+
   const existing = await prisma.focusSession.findFirst({
     where: { userId, status: 'running' },
     orderBy: { startedAt: 'desc' },
   });
   if (existing) {
-    const existingConceptIds = toConceptIds(existing.conceptIds);
-    const isSameRequest =
-      existing.planId === (input.planId ?? null) &&
-      existingConceptIds.length === conceptIds.length &&
-      existingConceptIds.every((id) => conceptIds.includes(id));
-
-    if (!isSameRequest) {
-      throw new AppError(
-        'You already have a focus session running for a different plan or concept. End it before starting a new one.',
-        409,
-        'SESSION_ALREADY_RUNNING'
-      );
-    }
-
-    return {
-      created: false,
-      id: existing.id,
-      planId: existing.planId,
-      conceptIds: existingConceptIds,
-      status: existing.status,
-      strictMode: existing.strictMode,
-      startedAt: existing.startedAt,
-    };
+    return toExistingSessionResponse(existing, planId, conceptIds);
   }
 
-  const session = await prisma.focusSession.create({
-    data: {
-      userId,
-      planId: input.planId ?? null,
-      conceptIds,
-      strictMode: input.strictMode ?? false,
-    },
-  });
+  let session: FocusSession;
+  try {
+    session = await prisma.focusSession.create({
+      data: {
+        userId,
+        planId,
+        conceptIds,
+        strictMode: input.strictMode ?? false,
+      },
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+
+    // #328: N request thực sự đồng thời (cùng round-trip DB, vd. Promise.all) có thể cùng
+    // vượt qua findFirst ở trên rồi cùng INSERT - reap-findFirst-create không nằm trong 1
+    // transaction. Partial unique index `focus_sessions_one_running_per_user` chặn ở DB;
+    // request thua cuộc refetch phiên vừa được request thắng tạo, xử lý y hệt nhánh existing.
+    const winner = await prisma.focusSession.findFirst({
+      where: { userId, status: 'running' },
+      orderBy: { startedAt: 'desc' },
+    });
+    // Phiên thắng race đã kết thúc/bị reap ngay sau đó - race cực hiếm, không nuốt lỗi gốc.
+    if (!winner) throw error;
+    return toExistingSessionResponse(winner, planId, conceptIds);
+  }
 
   return {
     created: true,
