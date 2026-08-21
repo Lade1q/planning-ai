@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import {
   createFocusSession,
   endFocusSession,
@@ -9,6 +10,14 @@ import {
   PLAN_ARCHIVED_MESSAGE,
   PLAN_AWAITING_CONFIRMATION_MESSAGE,
 } from '../services/scheduling.service';
+
+/** Simule lỗi vi phạm `focus_sessions_one_running_per_user` (migration 20260821181401). */
+function uniqueViolationError(): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: 'test',
+  });
+}
 
 jest.mock('../config/prisma', () => ({
   __esModule: true,
@@ -301,6 +310,91 @@ describe('createFocusSession', () => {
 
       expect(mockedPrisma.focusSession.findFirst).not.toHaveBeenCalled();
       expect(mockedPrisma.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  // Issue #328 (còn lại sau #371): N request THỰC SỰ đồng thời cùng vượt qua findFirst rồi
+  // cùng INSERT — partial unique index `focus_sessions_one_running_per_user` chặn ở DB thay
+  // vì app-level, request thua cuộc ăn P2002 thay vì tạo thêm hàng running.
+  describe('chặn race thực sự đồng thời bằng partial unique index (#328)', () => {
+    it('P2002 khi khớp đúng plan+conceptIds với phiên vừa thắng race: resume, không tạo hàng mới', async () => {
+      mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+        id: PLAN_ID,
+        userId: USER_ID,
+        status: 'active',
+      });
+      mockedPrisma.concept.count.mockResolvedValue(1);
+      mockedPrisma.focusSession.findFirst
+        .mockResolvedValueOnce(null) // pre-check: chưa thấy phiên nào
+        .mockResolvedValueOnce({
+          // refetch sau P2002: phiên do request khác thắng race tạo ra
+          id: SESSION_ID,
+          userId: USER_ID,
+          planId: PLAN_ID,
+          conceptIds: [CONCEPT_ID],
+          status: 'running',
+          strictMode: false,
+          startedAt: new Date(),
+        });
+      mockedPrisma.focusSession.create.mockRejectedValue(uniqueViolationError());
+
+      const result = await createFocusSession(USER_ID, {
+        planId: PLAN_ID,
+        conceptIds: [CONCEPT_ID],
+      });
+
+      expect(mockedPrisma.focusSession.findFirst).toHaveBeenCalledTimes(2);
+      expect(result).toMatchObject({ created: false, id: SESSION_ID, planId: PLAN_ID });
+    });
+
+    it('P2002 khi phiên thắng race ở plan/concept khác: 409 SESSION_ALREADY_RUNNING', async () => {
+      const otherPlanId = '88888888-8888-8888-8888-888888888888';
+      mockedPrisma.studyPlan.findUnique.mockResolvedValue({
+        id: PLAN_ID,
+        userId: USER_ID,
+        status: 'active',
+      });
+      mockedPrisma.concept.count.mockResolvedValue(1);
+      mockedPrisma.focusSession.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: SESSION_ID,
+        userId: USER_ID,
+        planId: otherPlanId,
+        conceptIds: [CONCEPT_ID],
+        status: 'running',
+        strictMode: false,
+        startedAt: new Date(),
+      });
+      mockedPrisma.focusSession.create.mockRejectedValue(uniqueViolationError());
+
+      const error = await createFocusSession(USER_ID, {
+        planId: PLAN_ID,
+        conceptIds: [CONCEPT_ID],
+      }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(AppError);
+      expect(error).toMatchObject({ statusCode: 409, code: 'SESSION_ALREADY_RUNNING' });
+    });
+
+    // Phiên thắng race đã kết thúc/bị reap ngay trước khi refetch chạy — race cực hiếm,
+    // không nuốt lỗi P2002 gốc bằng một AppError sai lệch.
+    it('ném lại lỗi P2002 gốc nếu không refetch được phiên nào sau race', async () => {
+      mockedPrisma.focusSession.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      const raceError = uniqueViolationError();
+      mockedPrisma.focusSession.create.mockRejectedValue(raceError);
+
+      const error = await createFocusSession(USER_ID, { conceptIds: [CONCEPT_ID] }).catch((e) => e);
+
+      expect(error).toBe(raceError);
+    });
+
+    it('ném lại lỗi gốc khi create thất bại vì lý do khác P2002', async () => {
+      mockedPrisma.focusSession.findFirst.mockResolvedValueOnce(null);
+      const otherError = new Error('connection reset');
+      mockedPrisma.focusSession.create.mockRejectedValue(otherError);
+
+      const error = await createFocusSession(USER_ID, { conceptIds: [CONCEPT_ID] }).catch((e) => e);
+
+      expect(error).toBe(otherError);
     });
   });
 });
