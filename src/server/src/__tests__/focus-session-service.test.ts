@@ -1,6 +1,7 @@
 import {
   createFocusSession,
   endFocusSession,
+  getCurrentFocusSession,
   listFocusSessions,
 } from '../services/focus-session.service';
 import prisma from '../config/prisma';
@@ -483,5 +484,61 @@ describe('listFocusSessions', () => {
     await listFocusSessions(USER_ID, {});
 
     expect(mockedPrisma.concept.findMany).not.toHaveBeenCalled();
+  });
+});
+
+// #374: FE cần lấy riêng phiên `running` hiện tại (không phải toàn bộ lịch sử) để dựng khối
+// "phiên đang chạy" + nút kết thúc khi bị 409 SESSION_ALREADY_RUNNING chặn tạo phiên mới.
+describe('getCurrentFocusSession', () => {
+  it('returns null when the user has no running session', async () => {
+    mockedPrisma.focusSession.findFirst.mockResolvedValue(null);
+
+    const result = await getCurrentFocusSession(USER_ID);
+
+    expect(result).toBeNull();
+    expect(mockedPrisma.concept.findMany).not.toHaveBeenCalled();
+  });
+
+  it('reaps stale sessions before checking for a running one', async () => {
+    mockedPrisma.focusSession.findFirst.mockResolvedValue(null);
+
+    await getCurrentFocusSession(USER_ID);
+
+    expect(mockedPrisma.$executeRaw).toHaveBeenCalled();
+    expect(mockedPrisma.focusSession.findFirst).toHaveBeenCalledWith({
+      where: { userId: USER_ID, status: 'running' },
+      orderBy: { startedAt: 'desc' },
+    });
+  });
+
+  it('returns the running session with resolved concept names, scoped to the caller', async () => {
+    mockedPrisma.focusSession.findFirst.mockResolvedValue({
+      id: SESSION_ID,
+      userId: USER_ID,
+      planId: PLAN_ID,
+      conceptIds: [CONCEPT_ID],
+      status: 'running',
+      durationMinutes: 0,
+      focusedSeconds: 0,
+      awayCount: 0,
+      pomodorosCompleted: 0,
+      strictMode: true,
+      startedAt: new Date('2026-08-21T08:00:00.000Z'),
+      endedAt: null,
+    });
+    mockedPrisma.concept.findMany.mockResolvedValue([{ id: CONCEPT_ID, name: 'Ngăn xếp (Stack)' }]);
+
+    const result = await getCurrentFocusSession(USER_ID);
+
+    expect(mockedPrisma.concept.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [CONCEPT_ID] }, plan: { userId: USER_ID } },
+      select: { id: true, name: true },
+    });
+    expect(result).toMatchObject({
+      id: SESSION_ID,
+      planId: PLAN_ID,
+      status: 'running',
+      concepts: [{ id: CONCEPT_ID, name: 'Ngăn xếp (Stack)' }],
+    });
   });
 });

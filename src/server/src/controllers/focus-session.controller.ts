@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import {
   createFocusSession,
   endFocusSession,
+  getCurrentFocusSession,
   listFocusSessions,
 } from '../services/focus-session.service';
 import {
@@ -48,4 +49,15 @@ export async function listFocusSessionsController(req: Request, res: Response): 
   const sessions = await listFocusSessions(req.userId, { limit, offset });
 
   res.status(200).json({ success: true, data: sessions });
+}
+
+/** Phiên `running` hiện tại của user, nếu có (#374) — để FE dựng khối "phiên đang chạy". */
+export async function getCurrentFocusSessionController(req: Request, res: Response): Promise<void> {
+  if (!req.userId) {
+    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+  }
+
+  const session = await getCurrentFocusSession(req.userId);
+
+  res.status(200).json({ success: true, data: session });
 }

@@ -219,6 +219,43 @@ export async function endFocusSession(
   };
 }
 
+/**
+ * Resolve tên khái niệm cho một nhóm phiên, dùng chung cho `listFocusSessions` và
+ * `getCurrentFocusSession` — giữ đúng MỘT chỗ áp `plan: { userId }` khi tra `concept`, để
+ * không có bản sao lệch nhau bỏ sót điều kiện chống rò tên khái niệm chéo user (một phiên tự
+ * do không validate conceptIds ở createFocusSession, nên id khái niệm của người khác nhét vào
+ * body sẽ resolve ra được tên thật của họ nếu không lọc theo user ở đây).
+ */
+async function resolveSessionConcepts(
+  userId: string,
+  sessions: { id: string; conceptIds: Prisma.JsonValue }[]
+): Promise<Map<string, FocusSessionListItem['concepts']>> {
+  const conceptIdSet = new Set<string>();
+  for (const session of sessions) {
+    for (const conceptId of toConceptIds(session.conceptIds)) {
+      conceptIdSet.add(conceptId);
+    }
+  }
+
+  const concepts = conceptIdSet.size
+    ? await prisma.concept.findMany({
+        where: { id: { in: [...conceptIdSet] }, plan: { userId } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const conceptNameById = new Map(concepts.map((concept) => [concept.id, concept.name]));
+
+  return new Map(
+    sessions.map((session) => [
+      session.id,
+      toConceptIds(session.conceptIds).map((conceptId) => ({
+        id: conceptId,
+        name: conceptNameById.get(conceptId) ?? 'Không xác định',
+      })),
+    ])
+  );
+}
+
 /** Lịch sử phiên học (FS-03), mới nhất trước, kèm tên khái niệm đã ôn. */
 export async function listFocusSessions(
   userId: string,
@@ -233,31 +270,12 @@ export async function listFocusSessions(
     skip: offset,
   });
 
-  const conceptIdSet = new Set<string>();
-  for (const session of sessions) {
-    for (const conceptId of toConceptIds(session.conceptIds)) {
-      conceptIdSet.add(conceptId);
-    }
-  }
-
-  // Scope theo plan.userId: một phiên tự do (không planId) không validate conceptIds ở
-  // createFocusSession, nên nếu không lọc theo user ở đây, id khái niệm của người khác nhét
-  // vào body sẽ resolve ra được tên thật của họ — rò rỉ dữ liệu chéo user.
-  const concepts = conceptIdSet.size
-    ? await prisma.concept.findMany({
-        where: { id: { in: [...conceptIdSet] }, plan: { userId } },
-        select: { id: true, name: true },
-      })
-    : [];
-  const conceptNameById = new Map(concepts.map((concept) => [concept.id, concept.name]));
+  const conceptsBySessionId = await resolveSessionConcepts(userId, sessions);
 
   return sessions.map((session) => ({
     id: session.id,
     planId: session.planId,
-    concepts: toConceptIds(session.conceptIds).map((conceptId) => ({
-      id: conceptId,
-      name: conceptNameById.get(conceptId) ?? 'Không xác định',
-    })),
+    concepts: conceptsBySessionId.get(session.id) ?? [],
     status: session.status,
     durationMinutes: session.durationMinutes,
     focusedSeconds: session.focusedSeconds,
@@ -267,4 +285,35 @@ export async function listFocusSessions(
     startedAt: session.startedAt,
     endedAt: session.endedAt,
   }));
+}
+
+/**
+ * Phiên `running` hiện tại của user (#374) — để FE dựng khối "phiên đang chạy" kèm nút kết
+ * thúc khi bị chặn tạo phiên mới bởi `409 SESSION_ALREADY_RUNNING`. Trả `null` nếu không có,
+ * vì tối đa 1 phiên running/user (chốt app-level ở `createFocusSession`, #328).
+ */
+export async function getCurrentFocusSession(userId: string): Promise<FocusSessionListItem | null> {
+  await reapStaleSessions(userId);
+
+  const session = await prisma.focusSession.findFirst({
+    where: { userId, status: 'running' },
+    orderBy: { startedAt: 'desc' },
+  });
+  if (!session) return null;
+
+  const conceptsBySessionId = await resolveSessionConcepts(userId, [session]);
+
+  return {
+    id: session.id,
+    planId: session.planId,
+    concepts: conceptsBySessionId.get(session.id) ?? [],
+    status: session.status,
+    durationMinutes: session.durationMinutes,
+    focusedSeconds: session.focusedSeconds,
+    awayCount: session.awayCount,
+    pomodorosCompleted: session.pomodorosCompleted,
+    strictMode: session.strictMode,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+  };
 }

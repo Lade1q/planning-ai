@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
-import { createFocusSessionController } from '../controllers/focus-session.controller';
-import { createFocusSession } from '../services/focus-session.service';
+import {
+  createFocusSessionController,
+  getCurrentFocusSessionController,
+} from '../controllers/focus-session.controller';
+import { createFocusSession, getCurrentFocusSession } from '../services/focus-session.service';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -12,9 +15,11 @@ import { AppError } from '../middleware/errorHandler';
 jest.mock('../services/focus-session.service', () => ({
   __esModule: true,
   createFocusSession: jest.fn(),
+  getCurrentFocusSession: jest.fn(),
 }));
 
 const mockedCreate = createFocusSession as jest.Mock;
+const mockedGetCurrent = getCurrentFocusSession as jest.Mock;
 
 const USER_ID = 'user-owner-uuid';
 const PLAN_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
@@ -107,5 +112,55 @@ describe('createFocusSessionController', () => {
 
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ statusCode: 409, code: 'SESSION_ALREADY_RUNNING' });
+  });
+});
+
+// #374: khối "phiên đang chạy" ở màn Lịch sử & Tiến độ đọc từ endpoint này để mời user kết
+// thúc phiên bị 409 SESSION_ALREADY_RUNNING chặn.
+describe('getCurrentFocusSessionController', () => {
+  it('throws 401 UNAUTHORIZED when req.userId is missing', async () => {
+    const req = {} as unknown as Request;
+
+    const error = await getCurrentFocusSessionController(req, mockRes()).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({ statusCode: 401, code: 'UNAUTHORIZED' });
+    expect(mockedGetCurrent).not.toHaveBeenCalled();
+  });
+
+  it('responds 200 with data: null when there is no running session', async () => {
+    mockedGetCurrent.mockResolvedValue(null);
+    const req = { userId: USER_ID } as unknown as Request;
+    const res = mockRes();
+
+    await getCurrentFocusSessionController(req, res);
+
+    expect(mockedGetCurrent).toHaveBeenCalledWith(USER_ID);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: null });
+  });
+
+  it('responds 200 with the running session when one exists', async () => {
+    const data = {
+      id: SESSION_ID,
+      planId: PLAN_ID,
+      concepts: [{ id: CONCEPT_ID, name: 'Ngăn xếp (Stack)' }],
+      status: 'running',
+      durationMinutes: 0,
+      focusedSeconds: 0,
+      awayCount: 0,
+      pomodorosCompleted: 0,
+      strictMode: false,
+      startedAt: new Date(),
+      endedAt: null,
+    };
+    mockedGetCurrent.mockResolvedValue(data);
+    const req = { userId: USER_ID } as unknown as Request;
+    const res = mockRes();
+
+    await getCurrentFocusSessionController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data });
   });
 });

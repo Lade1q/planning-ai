@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createFocusSessionController,
   endFocusSessionController,
+  getCurrentFocusSessionController,
   listFocusSessionsController,
 } from '../controllers/focus-session.controller';
 import {
@@ -16,6 +17,9 @@ const focusSessionRouter = Router();
 
 focusSessionRouter.post('/', asyncHandler(createFocusSessionController));
 focusSessionRouter.get('/', asyncHandler(listFocusSessionsController));
+// Đặt trước `/:id` (dù khác method GET/PATCH nên chưa xung đột) để nếu sau này có `GET /:id`,
+// thứ tự đăng ký đã sẵn đúng và không nuốt mất route literal này.
+focusSessionRouter.get('/current', asyncHandler(getCurrentFocusSessionController));
 focusSessionRouter.patch('/:id', asyncHandler(endFocusSessionController));
 
 // FS-05 ghi chú nhanh — lồng dưới `:id` để dùng lại kiểm quyền sở hữu phiên một chỗ (#228).
